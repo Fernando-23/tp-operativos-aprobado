@@ -1,6 +1,7 @@
-#include <utils/hello.h>
+
+#include "../utils/helpers.h"
 
 int main(int argc, char* argv[]) {
-    saludar("storage");
+    ChequearArgs(argc, 1);
     return 0;
 }
