@@ -1,5 +1,5 @@
 #include "helpers.h"
-
+#include <stdlib.h>
 
 t_log* IniciarLogger(char* nombre_modulo,int nivel_log)
 {

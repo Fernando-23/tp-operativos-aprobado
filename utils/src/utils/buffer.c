@@ -19,7 +19,7 @@ uint8_t buffer_read_uint8(t_buffer *buffer){
 
 char *buffer_read_string(t_buffer *buffer, uint32_t *tamanio){
     char *string;
-    memcpy(&string, buffer->stream, tamanio);
+    memcpy(&string, buffer->stream, tamanio);   
     buffer->stream += *tamanio;
 
     return string;

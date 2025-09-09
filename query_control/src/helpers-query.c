@@ -1,6 +1,6 @@
 #include <helpers-query.h>
 
-ConfigQuery* CrearConfig(char* path_config){
+ConfigQuery* CrearConfigQuery(char* path_config){
 
     t_config* config = IniciarConfig(path_config);
     ConfigQuery* nuevo_config;
