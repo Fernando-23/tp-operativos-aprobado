@@ -3,7 +3,7 @@
 
 #include <commons/log.h>
 #include <commons/config.h>
-#include "../../utils/src/utils/helpers.h"
+#include "../src/helpers.h"
 
 // home/utnso/
 typedef struct{
@@ -21,6 +21,6 @@ typedef struct{
 extern t_log* logger_worker;
 extern ConfigWorker* config_worker;
 
-ConfigWorker* CrearConfigWorker(char* path_config);
+ConfigWorker* CargarConfigWorker(char* path_config);
 
 #endif /* HELPERS_WORKER_H_ */

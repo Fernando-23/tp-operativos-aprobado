@@ -1,6 +1,9 @@
-#include <helpers-query.h>
+#include "helpers-query.h"
 
-ConfigQuery* CrearConfigQuery(char* path_config){
+ConfigQuery* config_query = NULL;
+t_log* logger_query = NULL;
+
+void CargarConfigQuery(char* path_config){
 
     t_config* config = IniciarConfig(path_config);
     ConfigQuery* nuevo_config;
@@ -12,8 +15,7 @@ ConfigQuery* CrearConfigQuery(char* path_config){
 
     nuevo_config->ip_master = string_duplicate(config_get_string_value(config, "IP_MASTER"));
     nuevo_config->puerto_master = string_duplicate(config_get_string_value(config, "PUERTO_MASTER"));
-    nuevo_config->log_level = string_duplicate(config_get_string_value(config, "LOG_LEVEL"));
+    nuevo_config->log_level = config_get_int_value(config, "LOG_LEVEL");
     
     config_destroy(config);
-    return nuevo_config;
 }

@@ -5,7 +5,7 @@ t_log* logger_worker = NULL;
 ConfigWorker* config_worker = NULL;
 
 
-ConfigWorker* CrearConfigWorker(char* path_config){
+ConfigWorker* CargarConfigWorker(char* path_config){
 
     t_config* config = IniciarConfig(path_config);
     ConfigWorker* nuevo_config;

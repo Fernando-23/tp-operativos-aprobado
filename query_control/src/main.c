@@ -1,21 +1,20 @@
 #include "helpers-query.h"
-#include <stdio.h>
-#include <stdlib.h>
 
 int main(int argc, char* argv[]) {
     
-    ChequearArgs(argc, 3);
+    ChequearArgs(argc, 4);
 
-    char* path_config = argv[0];
-    char* path_arch_query = argv[1];
-    char* prioridad_arch_query = argv[2];
+    char* path_config = argv[1];
+    char* path_arch_query = argv[2];
+    char* prioridad_arch_query = argv[3];
 
-    config_query = CrearConfig(path_config);
+    CargarConfigQuery(path_config);
     logger_query = IniciarLogger("query", config_query->log_level);
     
+    int socket_master = crear_conexion(config_query->ip_master,config_query->puerto_master);
     
-
     
     
+    log_destroy(logger_query);
     return 0;
 }

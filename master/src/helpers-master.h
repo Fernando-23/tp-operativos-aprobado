@@ -2,19 +2,21 @@
 #define HELPERS_MASTER_H_
 #include <commons/log.h>
 #include <commons/config.h>
+#include <commons/string.h>
+#include <stdlib.h>
+#include "../src/utils/conexiones.h"
 
 
 typedef struct{
     char* puerto_escucha;
     char* algoritmo_plani;
     int tiempo_aging;
-    char* log_level;
+    int log_level;
 }ConfigMaster;
 
-ConfigMaster* config_master;
-t_log* logger_master;
+extern ConfigMaster* config_master;
+extern t_log* logger_master;
 
-void CrearConfig(char* path_config);
-
+void CargarConfigMaster(char* path_config);
 
 #endif /* HELPERS_MASTER_H_ */
