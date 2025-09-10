@@ -5,8 +5,8 @@
 #include <commons/config.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "../src/helpers.h"
-#include "../src/conexiones.h"
+#include "../src/utils/helpers.h"
+#include "../src/utils/conexiones.h"
 
 
 typedef struct{
