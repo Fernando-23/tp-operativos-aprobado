@@ -3,10 +3,11 @@
 
 #include <commons/log.h>
 #include <commons/config.h>
+#include <commons/string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "../src/utils/helpers.h"
-#include "../src/utils/conexiones.h"
+#include "../../utils/src/utils/conexiones.h"
+#include "../../utils/src/utils/helpers.h"
 
 
 typedef struct{

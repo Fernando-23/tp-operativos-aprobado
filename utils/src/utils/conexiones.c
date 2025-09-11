@@ -80,3 +80,44 @@ char* recibir_mensaje_recibido(int socket_cliente, char *nombreServidor){
 	return recibir_buffer(&size, socket_cliente);
 }
 
+
+int esperar_cliente(int socket_servidor,t_log* logger){ //santi, no se entendio
+
+    // Aceptamos un nuevo cliente
+    int socket_cliente = accept(socket_servidor,NULL,NULL);
+    log_info(logger, "Se conecto un cliente!");
+
+    return socket_cliente;
+}
+
+int recibir_operacion(int socket_cliente)
+{
+    int cod_op;
+    if(recv(socket_cliente, &cod_op, sizeof(int), MSG_WAITALL) > 0)
+        return cod_op;
+    else
+    {
+        close(socket_cliente);
+        return -1;
+    }
+}
+
+void EnviarString(char* mensajito,int socket_servidor,t_log* logger){
+	int mensajito_len = string_length(mensajito);
+	log_debug(logger,"Debug - (enviarString) - Mensaje Length: %d",mensajito_len);
+	send(socket_servidor,&mensajito_len,sizeof(int),0);
+	
+	log_debug(logger,"Debug - (enviarString) - Mensaje: %s",mensajito);
+	send(socket_servidor,mensajito,mensajito_len,0);
+}
+
+char* RecibirString(int socket_cliente){
+	int mensaje_len;
+    recv(socket_cliente, &mensaje_len, sizeof(int), MSG_WAITALL);
+
+    char* mensaje = malloc(mensaje_len);
+    recv(socket_cliente, mensaje, mensaje_len, MSG_WAITALL);
+	
+	return mensaje;
+}
+

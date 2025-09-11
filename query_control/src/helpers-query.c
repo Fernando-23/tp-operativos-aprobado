@@ -5,7 +5,7 @@ t_log* logger_query = NULL;
 
 void CargarConfigQuery(char* path_config){
     char* path_completo = string_new();
-    string_append(&path_completo, "../config/");
+    string_append(&path_completo, "../configs/");
     string_append(&path_completo, path_config);
 
     t_config* config = IniciarConfig(path_completo);

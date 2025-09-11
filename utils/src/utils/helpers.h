@@ -36,4 +36,5 @@ void *serializar_paquete(t_paquete *paquete, uint32_t bytes);
 void *recibir_buffer(uint32_t *size, int socket_cliente);
 t_list *recibir_paquete(int socket_cliente);
 
+
 #endif 

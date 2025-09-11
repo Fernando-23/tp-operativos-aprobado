@@ -6,12 +6,13 @@ t_log* logger_storage = NULL;
 void CargarConfigStorage(char* path_config){
     char* path_completo = string_new();
     string_append(&path_completo, "../configs/");
-    string_append(&path_completo, path_config);
+    string_append(&path_completo, path_config); 
 
     t_config* config = config_create(path_completo);
     config_storage = malloc(sizeof(ConfigStorage));
     
     if(config_storage == NULL){
+        printf("cargo mal");
         abort();
     }
     

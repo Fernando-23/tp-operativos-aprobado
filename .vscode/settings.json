@@ -9,6 +9,8 @@
         "stdlib.h": "c",
         "list.h": "c",
         "stdio.h": "c",
-        "helpers-storage.h": "c"
+        "helpers-storage.h": "c",
+        "string.h": "c",
+        "helpers-master.h": "c"
     }
 }

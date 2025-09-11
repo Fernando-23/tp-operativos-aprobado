@@ -1,7 +1,7 @@
 #ifndef HELPERS_STORAGE_H_
 #define HELPERS_STORAGE_H_
-#include "../src/utils/helpers.h"
-#include "../src/utils/conexiones.h"
+#include "../../utils/src/utils/conexiones.h"
+#include "../../utils/src/utils/helpers.h"
 typedef struct {
     char* puerto_escucha;
     char* fresh_start;
