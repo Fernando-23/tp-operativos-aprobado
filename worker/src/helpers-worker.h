@@ -1,8 +1,8 @@
 #ifndef HELPERS_WORKER_H_
 #define HELPERS__WORKER_H_
-
 #include <commons/log.h>
 #include <commons/config.h>
+
 #include "../../utils/src/utils/conexiones.h"
 #include "../../utils/src/utils/helpers.h"
 
@@ -19,10 +19,24 @@ typedef struct{
     int log_level;
 }ConfigWorker;
 
+typedef struct 
+{
+    int id_query;
+    int pc_query;
+    char* path_query
+}Query;
+
+
 extern t_log* logger_worker;
 extern ConfigWorker* config_worker;
+extern Query* query;
+extern t_instruccion* instruccion;
+extern bool hay_que_actualizar_contexto;
 
 void CargarConfigWorker(char* path_config);
 int crear_conexion(char *ip, char* puerto);
+int conexion_storage();
+int conexion_master();
+void esperando_query(int socket);
 
 #endif /* HELPERS_WORKER_H_ */

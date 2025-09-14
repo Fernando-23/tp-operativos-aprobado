@@ -115,7 +115,7 @@ char* RecibirString(int socket_cliente){
 	int mensaje_len;
     recv(socket_cliente, &mensaje_len, sizeof(int), MSG_WAITALL);
 
-    char* mensaje = malloc(mensaje_len);
+    char* mensaje = malloc(mensaje_len+1);
     recv(socket_cliente, mensaje, mensaje_len, MSG_WAITALL);
 	
 	return mensaje;

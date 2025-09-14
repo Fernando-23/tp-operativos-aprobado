@@ -3,6 +3,9 @@
 
 t_log* logger_worker = NULL;
 ConfigWorker* config_worker = NULL;
+Query* query;
+
+bool hay_que_actualizar_contexto;
 
 void CargarConfigWorker(char* path_config){
 
@@ -31,3 +34,56 @@ void CargarConfigWorker(char* path_config){
     free(path_completo);
     config_destroy(config);
 }
+
+int conexion_storage(){
+
+    int socket_storage = crear_conexion(config_worker->ip_storage,config_worker->puerto_storage);
+    if(socket_storage == -1){
+        log_error(logger_worker,"No se pudo conectar con Storage");
+        exit(EXIT_FAILURE);
+    }
+    EnviarString("hola mi estimado storage gg", socket_storage, logger_worker);
+    int tam_pag;
+    recv(socket_storage,&tam_pag,sizeof(int),MSG_WAITALL);
+    log_info(logger_worker,"Tamanio pag recibido %d",tam_pag);
+    
+
+    log_info(logger_worker,"Conectado a Storage");
+
+    return socket_storage,tam_pag;
+}
+
+
+int conexion_master(){
+
+    int socket_master = crear_conexion(config_worker->ip_master,config_worker->puerto_master);
+    if(socket_master == -1){
+        log_error(logger_worker,"No se pudo conectar con Master");
+        exit(EXIT_FAILURE);
+    }
+    EnviarString("hola mi estimado master yi", socket_master, logger_worker);
+    log_info(logger_worker,"Conectado a Master");
+
+    return socket_master;
+}
+
+void esperando_query(int socket){
+    
+    // Espero los datos de Master para continuar
+    // id_query, pc_query y path_query   
+    char* datos_query = RecibirString(socket);
+
+    if(datos_query == NULL){
+        log_error(logger_worker,"No me llegaron datos de Master");
+        }
+
+    char ** lista_de_datos= string_split(datos_query," ");
+    query->id_query = atoi(lista_de_datos[0]);
+    query->pc_query = atoi(lista_de_datos[1]);
+    query->path_query = lista_de_datos[2];
+
+    LoggerConFormato("## Query %d : Se recibe la Query. El path de operaciones es: %s",query->id_query, query->path_query);
+
+}
+
+
