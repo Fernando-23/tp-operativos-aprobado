@@ -98,3 +98,19 @@ t_list *recibir_paquete(int socket_cliente){
 	free(buffer);
 	return valores;
 }
+
+void RecibirMensaje(t_mensaje* mensaje,int socket_cliente){
+    
+    recv(socket_cliente, &(mensaje->tamanio_msg), sizeof(int), MSG_WAITALL);
+    mensaje->mensaje = malloc(mensaje->tamanio_msg);
+    recv(socket_cliente, mensaje->mensaje, mensaje->tamanio_msg, MSG_WAITALL);
+
+}
+
+void EnviarMensaje(char* mensaje,int socket_cliente){
+    
+    int tamanio_msg = strlen(mensaje)+1;
+    send(socket_cliente, &tamanio_msg, sizeof(int), 0);
+    send(socket_cliente, mensaje, tamanio_msg, 0);
+
+}
