@@ -26,6 +26,11 @@ typedef struct {
 	t_buffer* buffer;
 } t_paquete;
 
+typedef struct{
+    int tamanio_msg;
+    char* mensaje;
+}t_mensaje;
+
 
 t_log* IniciarLogger(char* nombre_modulo, int nivel_log);
 t_config* IniciarConfig(char* nombre_config); 

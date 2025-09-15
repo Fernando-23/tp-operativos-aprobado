@@ -1,5 +1,9 @@
 #include "helpers-master.h"
 
+const int cant_estados = 2;
+int quid_global = 0;
+int nivel_multiprocesamiento = 0;
+t_list* QueryPorEstado[cant_estados];
 ConfigMaster* config_master = NULL;
 t_log* logger_master = NULL;
 
