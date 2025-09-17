@@ -10,7 +10,6 @@ t_list *crear_lista(){
     {
         log_error(logger_worker,"Error al abrir el archivo");
     }
-
     fscanf(file_query,"%*s"); 
 
     t_list *lineas = list_create(); 

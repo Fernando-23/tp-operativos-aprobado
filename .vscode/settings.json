@@ -11,6 +11,7 @@
         "stdio.h": "c",
         "helpers-storage.h": "c",
         "string.h": "c",
-        "helpers-master.h": "c"
+        "helpers-master.h": "c",
+        "memoria_interna.h": "c"
     }
 }

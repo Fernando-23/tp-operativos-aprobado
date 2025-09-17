@@ -1,5 +1,7 @@
 #include "helpers-worker.h"
 #include "ciclo_instruccion.h"
+#include "memoria_interna.h"
+
 int main(int argc, char* argv[]) {
 
     char* path_config = argv[1];
