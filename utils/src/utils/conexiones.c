@@ -1,6 +1,6 @@
 #include "conexiones.h"
 
-int crear_conexion(char *ip, char* puerto)
+int crearConexion(char *ip, char* puerto)
 {
     struct addrinfo hints;
     struct addrinfo *server_info;
@@ -25,7 +25,7 @@ int crear_conexion(char *ip, char* puerto)
 }
 
 
-int iniciar_servidor(char *puerto, char *nombre_servidor,t_log* logger){
+int iniciarServidor(char *puerto, char *nombre_servidor,t_log* logger){
 	int socket_servidor;
 
 	struct addrinfo hints;
@@ -81,7 +81,7 @@ char* recibir_mensaje_recibido(int socket_cliente, char *nombreServidor){
 }
 
 
-int esperar_cliente(int socket_servidor,t_log* logger){ //santi, no se entendio
+int esperarCliente(int socket_servidor,t_log* logger){ //santi, no se entendio
 
     // Aceptamos un nuevo cliente
     int socket_cliente = accept(socket_servidor,NULL,NULL);

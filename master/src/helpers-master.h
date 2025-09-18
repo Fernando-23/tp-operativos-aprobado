@@ -48,8 +48,7 @@ extern const int cant_estados;
 extern const int nivel_multiprocesamiento;
 
 
-void CargarConfigMaster(char* path_config);
-int esperar_cliente(int socket_servidor,t_log* logger);
+void cargarConfigMaster(char* path_config);
 void* atenderClientes(void*);
 void* gestionarClienteIndividual(void* args);
 void intentarEnviarQueryAExecute(Query *query_que_quiere_laburar);
@@ -57,12 +56,11 @@ void intentarEnviarQueryAExecute(Query *query_que_quiere_laburar);
 
 /*
 CONVENCIONES GESTION KAROL AQUINO
+
 ORDEN MUTEX
 
 WORKERS
 --READY
-
-
 
 */
 

@@ -4,12 +4,12 @@ ConfigQuery* config_query = NULL;
 t_log* logger_query = NULL;
 t_list* lista_ready = NULL;
 
-void CargarConfigQuery(char* path_config){
+void cargarConfigQuery(char* path_config){
     char* path_completo = string_new();
     string_append(&path_completo, "../configs/");
     string_append(&path_completo, path_config);
 
-    t_config* config = IniciarConfig(path_completo);
+    t_config* config = iniciarConfig(path_completo);
     config_query = malloc(sizeof(ConfigQuery));
     
     if (config_query == NULL) {
@@ -26,12 +26,15 @@ void CargarConfigQuery(char* path_config){
 
 //HAY QUE LIBERAR EN ALGUN MOMENTO ESTE MENSAJE char
 Mensaje* crearMensajeRegistroQuery(char* ruta,int prioridad){
-	char *mensaje = string_new();
-	string_append(&mensaje,ruta);
+	char *mensaje = string_new(); // 0 nombre_query 1
+	string_append(&mensaje,"0"); //Indicando que soy query a master
+	string_append(&mensaje," "); //di vi no
+	string_append(&mensaje,ruta); // nombre_query
 	string_append(&mensaje," "); //divino
-	string_append(&mensaje,string_itoa(prioridad));
+	string_append(&mensaje,string_itoa(prioridad)); 
 
-	printf("PRUEBA - (crearMensajeRegistroQuery) - Registro concatenado: %s\n",mensaje);
+	log_debug(logger_query,
+		"Debug - (crearMensajeRegistroQuery) - Registro de Query a enviar: %s",mensaje);
 
 	Mensaje* mensaje_registro = malloc(sizeof(Mensaje));
 	mensaje_registro->mensaje = mensaje;
@@ -47,7 +50,7 @@ int gestionarOrdenMaestro(Mensaje* orden_de_mi_maestro){ //pasar logger
 	switch (cod_op){
 	case 0:
 		char* motivo = orden_cortada[1];
-		printf("###Query Finalizada - <%s>\n", motivo);
+		log_info(logger_query,"###Query Finalizada - <%s>", motivo);
 		string_array_destroy(orden_cortada);
 		return 1; //terminar programa
 		
@@ -56,14 +59,14 @@ int gestionarOrdenMaestro(Mensaje* orden_de_mi_maestro){ //pasar logger
 		char* nombre_archivo = orden_cortada[1];
 		char* tag = orden_cortada[2];
 		char* contenido = orden_cortada[3];
-		printf("### Lectura realizada: Archivo <%s:%s>, contenido: <%s>\n",nombre_archivo,tag,contenido);
+		log_info(logger_query,"### Lectura realizada: Archivo %s:%s, contenido: %s",nombre_archivo,tag,contenido);
 		string_array_destroy(orden_cortada);
 		return 0; //siga nomas
 		break;
 	
 	default:
-		printf("me llego codigo de operación erroneo: %d\n",cod_op);
-		printf("desicion matar modulo\n");
+		log_error(logger_query,"Me llego codigo de operación erroneo: %d",cod_op);
+		log_debug(logger_query,"desicion: la mismisima morision del modulo");
 		string_array_destroy(orden_cortada);
 		return 1; //terminar programa
 	}

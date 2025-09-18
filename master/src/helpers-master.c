@@ -5,7 +5,7 @@ int nivel_multiprocesamiento = 0;
 ConfigMaster* config_master = NULL;
 t_log* logger_master = NULL;
 
-void CargarConfigMaster(char* path_config){
+void cargarConfigMaster(char* path_config){
     char* path_completo = string_new();
     string_append(&path_completo, "../configs/");
     string_append(&path_completo, path_config);
@@ -29,7 +29,7 @@ void* atenderClientes(void *args){
     int socket = *(int*)args;
     
     while(1){
-        int fd_cliente = esperarCliente(socket);
+        int fd_cliente = esperarCliente(socket,logger_master);
 
         pthread_t thread_query;
         pthread_create(&thread_query,NULL,gestionarClienteIndividual,(void *)&fd_cliente);
@@ -43,15 +43,17 @@ void* gestionarClienteIndividual(void* args){
     int fd_cliente = *(int*)args; //clarisimo mi rey
     
     Mensaje* mensaje_a_recibir = recibirMensajito(fd_cliente);
-    printf("Voy a hacer el biribara \n");
+    log_debug(logger_master,
+        "Debug - (gestionarClienteIndividual) - Recibi el mensaje %s",mensaje_a_recibir->mensaje);
+
     char** mensajito_cortado = string_split(mensaje_a_recibir->mensaje," ");
-    int query_o_worker = atoi(mensajito_cortado[0]);
+    int query_o_worker = obtenerModuloCodOp(mensajito_cortado[0]);
     
         
     switch (query_o_worker){
         
     case QUERY: //0
-        //0 nombre_query prioridad
+        //QUERY nombre_query prioridad
         //--->args:nombre_query prioridad fd_cliente
         char* nombre_query = string_duplicate(mensajito_cortado[1]);
         int prioridad = atoi(mensajito_cortado[2]); 
@@ -69,14 +71,10 @@ void* gestionarClienteIndividual(void* args){
         gestionarWorkerIndividual(id_worker);
         break;
     default:
-        //loggggggg
+        log_error(logger_master,"Error - (gestionarClienteIndividual) - Codigo de operacion erroneo"); //capaz un abort, quien sabe
         string_array_destroy(mensajito_cortado);
         break;
     }
-    char* path_query = mensajito_cortado[0];
-    int prioridad = atoi(mensajito_cortado[1]);
-    
-    printf("LLego una query, path query:%s prioridad:%d\n",path_query,prioridad);
     
     liberarMensajito(mensaje_a_recibir);
 }
@@ -85,15 +83,14 @@ void* gestionarClienteIndividual(void* args){
 void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
     Query* query_devuelta_por_funcion_que_crea_query_y_la_devuelve = crearQuery(nombre_query,prioridad,fd);
     
-    
     if (config_master->algoritmo_plani == "PRIORIDADES"){
-        // list_sort(lista_ready,); a implementar
+        //####### A IMPLEMENTAR ####### list_sort(lista_ready,); 
         pthread_mutex_lock(&mutex_lista_ready);
         list_add(lista_ready, query_devuelta_por_funcion_que_crea_query_y_la_devuelve);
         pthread_mutex_unlock(&mutex_lista_ready); 
         
         intentarEnviarQueryAExecute(query_devuelta_por_funcion_que_crea_query_y_la_devuelve);
-        log_debug(logger_master,"MOCK - (gestionarQueryIndividual) - ordene");
+        
         return;
     }
     //FIFO

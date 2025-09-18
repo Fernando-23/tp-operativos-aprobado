@@ -14,7 +14,7 @@ typedef struct {
 extern ConfigStorage* config_storage;
 extern t_log* logger_storage;
 
-void CargarConfigStorage(char* path_config);
+void cargarConfigStorage(char* path_config);
 
 
 #endif // HELPERS_STORAGE_H_

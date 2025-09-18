@@ -1,8 +1,9 @@
 #include "helpers.h"
 
-char* nombre_modulos[4] = {"QUERY","MASTER","WORKER","STORAGE"};
+char* NOMBRE_MODULOS[4] = {"QUERY","MASTER","WORKER","STORAGE"};
+int CANT_MODULOS = 4;
 
-t_log* IniciarLogger(char* nombre_modulo,int nivel_log)
+t_log* iniciarLogger(char* nombre_modulo,int nivel_log)
 {
     t_log* nuevo_logger;
     
@@ -17,7 +18,7 @@ t_log* IniciarLogger(char* nombre_modulo,int nivel_log)
     return nuevo_logger;
 }
 
-t_config* IniciarConfig(char* nombre_config)
+t_config* iniciarConfig(char* nombre_config)
 {
     t_config* nuevo_config;
 
@@ -145,4 +146,13 @@ Mensaje* recibirMensajito(int socket_cliente){
 void liberarMensajito(Mensaje* mensajito_a_liberar){
 	free(mensajito_a_liberar->mensaje);
 	free(mensajito_a_liberar);
+}
+
+int obtenerModuloCodOp(char *string_modulo){
+    for (int i = 0; i < CANT_MODULOS; i++)
+    {
+        if (strcmp(NOMBRE_MODULOS[i],string_modulo)==0)
+		 return i;
+    }
+    return -1;
 }

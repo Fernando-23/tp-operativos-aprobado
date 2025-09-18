@@ -3,7 +3,7 @@
 ConfigStorage* config_storage = NULL;
 t_log* logger_storage = NULL;
 
-void CargarConfigStorage(char* path_config){
+void cargarConfigStorage(char* path_config){
     char* path_completo = string_new();
     string_append(&path_completo, "../configs/");
     string_append(&path_completo, path_config); 

@@ -22,7 +22,6 @@ typedef struct{
 extern t_log* logger_worker;
 extern ConfigWorker* config_worker;
 
-void CargarConfigWorker(char* path_config);
-int crear_conexion(char *ip, char* puerto);
+void cargarConfigWorker(char* path_config);
 
 #endif /* HELPERS_WORKER_H_ */

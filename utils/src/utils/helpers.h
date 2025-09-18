@@ -44,18 +44,19 @@ typedef struct{
 }Mensaje;
 
 
-extern char* nombre_modulos[4];
+extern char* NOMBRE_MODULOS[4];
+extern int CANT_MODULOS;
 
-t_log* IniciarLogger(char* nombre_modulo, int nivel_log);
-t_config* IniciarConfig(char* nombre_config); 
-void ChequearArgs(int cant_args_ingresados,int limite_cant_args);
+t_log* iniciarLogger(char* nombre_modulo, int nivel_log);
+t_config* iniciarConfig(char* nombre_config); 
+void chequearArgs(int cant_args_ingresados,int limite_cant_args);
 void enviar_mensaje(char *mensaje, int socket_cliente);
 void eliminar_paquete(t_paquete *paquete);
 void *serializar_paquete(t_paquete *paquete, uint32_t bytes);
 void *recibir_buffer(uint32_t *size, int socket_cliente);
 t_list *recibir_paquete(int socket_cliente);
 
-
+int obtenerModuloCodOp(char *string_modulo);
 
 void enviarMensajito(Mensaje* mensaje_a_enviar,int socket_servidor);
 Mensaje* recibirMensajito(int socket_cliente);

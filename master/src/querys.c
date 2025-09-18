@@ -15,7 +15,7 @@ Query* crearQuery(char* query, int prioridad,int fd){
     quid_global++;
     pthread_mutex_unlock(&mutex_quid_global);
     
-    log_debug(logger_master, "Debug - (CrearQCB) - Se creo el QCB con Quid: %d, Prioridad: %d y Query: %s", query_nueva_creada_hoy->quid, query_nueva_creada_hoy->prioridad, query_nueva_creada_hoy->query);
+    log_debug(logger_master, "Debug - (crearQuery) - Se creo la QUery con Quid: %d, Prioridad: %d y Query: %s", query_nueva_creada_hoy->quid, query_nueva_creada_hoy->prioridad, query_nueva_creada_hoy->query);
     return query_nueva_creada_hoy;
 }
 
