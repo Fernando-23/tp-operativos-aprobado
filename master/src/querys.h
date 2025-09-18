@@ -4,12 +4,11 @@
 #include <commons/collections/list.h>
 #include <stdlib.h>
 
-typedef struct{
-    char* query;
-    int prioridad;
-    int quid;
-}QCB;
+extern int quid_global;
 
-void InicializarQueryPorEstado(t_list* lista);
+extern pthread_mutex_t mutex_quid_global;
+
+Query* crearQuery(char* query, int prioridad,int fd);
+
 
 #endif // QUERYS_H_

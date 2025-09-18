@@ -15,6 +15,13 @@ typedef enum{
 	PAQUETE
 }op_code;
 
+typedef enum {
+    QUERY,
+	MASTER,
+	WORKER,
+    STORAGE
+}Modulo;
+
 typedef struct {
 	u_int32_t size;  
 	//int offset; //desplazamiento del payload
@@ -36,6 +43,8 @@ typedef struct{
     char *mensaje;
 }Mensaje;
 
+
+extern char* nombre_modulos[4];
 
 t_log* IniciarLogger(char* nombre_modulo, int nivel_log);
 t_config* IniciarConfig(char* nombre_config); 

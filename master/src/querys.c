@@ -1,23 +1,21 @@
 #include "querys.h"
 
-void InicializarQueryPorEstado(t_list* lista){
-    for(int i=0; i<cant_estados; i++){
-        QueryPorEstado[i] = list_create();
-    }
-}
+int quid_global = 0;
 
-void CrearQCB(char* query, int prioridad){
+Query* crearQuery(char* query, int prioridad,int fd){
     //LIBERAR MEMORIA DE QCB
-    QCB* qcb = malloc(sizeof(QCB));
-    qcb->query = query;
-    qcb->prioridad = prioridad;
-    qcb->quid = quid_global;
+    
+    Query* query_nueva_creada_hoy = malloc(sizeof(Query));
+    query_nueva_creada_hoy->query = query;
+    query_nueva_creada_hoy->prioridad = prioridad;
+    query_nueva_creada_hoy->quid = quid_global;
+    query_nueva_creada_hoy->fd = fd;
 
-    //wait
+    pthread_mutex_lock(&mutex_quid_global);
     quid_global++;
-    //signal
-
-    list_add(QueryPorEstado[READY], qcb);
-    log_debug(logger_master, "Debug - (CrearQCB) - Se creo el QCB con Quid: %d, Prioridad: %d y Query: %s", qcb->quid, qcb->prioridad, qcb->query);
-
+    pthread_mutex_unlock(&mutex_quid_global);
+    
+    log_debug(logger_master, "Debug - (CrearQCB) - Se creo el QCB con Quid: %d, Prioridad: %d y Query: %s", query_nueva_creada_hoy->quid, query_nueva_creada_hoy->prioridad, query_nueva_creada_hoy->query);
+    return query_nueva_creada_hoy;
 }
+

@@ -6,16 +6,16 @@ int main(int argc, char* argv[]) {
     CargarConfigMaster(path_config);
     logger_master = IniciarLogger("master", config_master->log_level);
 
-     pthread_t thread_adm;
-     lista_ready = list_create();
+    pthread_t thread_adm;
+    lista_ready = list_create();
+    lista_worker = list_create();
 
 
     int socket_sv = iniciar_servidor(config_master->puerto_escucha,"master",logger_master);
 
-     pthread_create(&thread_adm,NULL,atenderClientes,(void *)&socket_sv); 
-     
-     
-     pthread_join(thread_adm,NULL);
+    pthread_create(&thread_adm,NULL,atenderClientes,(void *)&socket_sv); 
+      
+    pthread_join(thread_adm,NULL);
     
     /*int socket_query = esperar_cliente(socket_sv,logger_master);       
     char* handshake_query = RecibirString(socket_query);

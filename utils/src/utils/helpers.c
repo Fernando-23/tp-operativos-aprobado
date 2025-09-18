@@ -1,5 +1,6 @@
 #include "helpers.h"
 
+char* nombre_modulos[4] = {"QUERY","MASTER","WORKER","STORAGE"};
 
 t_log* IniciarLogger(char* nombre_modulo,int nivel_log)
 {

@@ -10,6 +10,7 @@
 #include <pthread.h>
 #include "querys.h"
 
+
 typedef struct{
     char* puerto_escucha;
     char* algoritmo_plani;
@@ -22,19 +23,48 @@ typedef enum {
     EXEC
 }EstadoQuery;
 
+typedef struct{
+    char* query;
+    int prioridad;
+    int quid;
+    int fd;
+}Query;
 
-extern t_list* QueryPorEstado[2];
+typedef struct{
+    int id;
+    bool esta_libre;
+    Query* query;
+}Worker;
+
 extern t_list* lista_ready;
+extern t_list* workers;
+extern pthread_mutex_t mutex_lista_ready;
+extern pthread_mutex_t mutex_workers;
 
 extern ConfigMaster* config_master;
 extern t_log* logger_master;
-extern int quid_global;
+
 extern const int cant_estados;
 extern const int nivel_multiprocesamiento;
 
 
 void CargarConfigMaster(char* path_config);
 int esperar_cliente(int socket_servidor,t_log* logger);
+void* atenderClientes(void*);
+void* gestionarClienteIndividual(void* args);
+void intentarEnviarQueryAExecute(Query *query_que_quiere_laburar);
+
+
+/*
+CONVENCIONES GESTION KAROL AQUINO
+ORDEN MUTEX
+
+WORKERS
+--READY
+
+
+
+*/
 
 
 #endif /* HELPERS_MASTER_H_ */
