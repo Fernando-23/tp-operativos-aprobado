@@ -7,6 +7,7 @@
 #include <commons/string.h>
 #include <commons/collections/list.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include "querys.h"
 
 typedef struct{
@@ -23,6 +24,7 @@ typedef enum {
 
 
 extern t_list* QueryPorEstado[2];
+extern t_list* lista_ready;
 
 extern ConfigMaster* config_master;
 extern t_log* logger_master;

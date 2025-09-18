@@ -6,9 +6,18 @@ int main(int argc, char* argv[]) {
     CargarConfigMaster(path_config);
     logger_master = IniciarLogger("master", config_master->log_level);
 
+     pthread_t thread_adm;
+     lista_ready = list_create();
+
+
     int socket_sv = iniciar_servidor(config_master->puerto_escucha,"master",logger_master);
+
+     pthread_create(&thread_adm,NULL,atenderClientes,(void *)&socket_sv); 
+     
+     
+     pthread_join(thread_adm,NULL);
     
-    int socket_query = esperar_cliente(socket_sv,logger_master);       
+    /*int socket_query = esperar_cliente(socket_sv,logger_master);       
     char* handshake_query = RecibirString(socket_query);
 
     log_info(logger_master,"Handshake con Query Control: %s",handshake_query);
@@ -19,7 +28,7 @@ int main(int argc, char* argv[]) {
 
     log_info(logger_master,"Handshake con Worker: %s",handshake_worker);
 
-    EnviarString(handshake_query,socket_worker,logger_master);
+    EnviarString(handshake_query,socket_worker,logger_master);*/
 
     log_destroy(logger_master);
     return 0;

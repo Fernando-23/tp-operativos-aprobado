@@ -114,3 +114,34 @@ void EnviarMensaje(char* mensaje,int socket_cliente){
     send(socket_cliente, mensaje, tamanio_msg, 0);
 
 }
+
+void enviarMensajito(Mensaje* mensaje_a_enviar,int socket_servidor){ //envia query
+	
+	send(socket_servidor,&mensaje_a_enviar->size,sizeof(int),0);
+	printf("PRUEBAS - (enviarMensajito) - Mensaje Length: %d\n",mensaje_a_enviar->size);
+	
+	send(socket_servidor,mensaje_a_enviar->mensaje,mensaje_a_enviar->size,0);
+	printf("PRUEBAS - (enviarMensajito) - Mensaje: %s\n",mensaje_a_enviar->mensaje);
+
+	liberarMensajito(mensaje_a_enviar);
+}
+
+//RESERVA MEMORIA
+Mensaje* recibirMensajito(int socket_cliente){
+
+	Mensaje* mensajito = malloc(sizeof(Mensaje));
+    recv(socket_cliente, &(mensajito->size), sizeof(int), 0);
+    printf("PRUEBAS - (RecibirMensajito) - Recibi el tamanio: %d\n",mensajito->size);
+   
+    mensajito->mensaje = malloc(mensajito->size);
+    
+    recv(socket_cliente, mensajito->mensaje, mensajito->size, 0);
+    printf("PRUEBAS - (RecibirMensajito) - Recibi el mensaje: %s\n",mensajito->mensaje);
+
+	return mensajito;
+}
+
+void liberarMensajito(Mensaje* mensajito_a_liberar){
+	free(mensajito_a_liberar->mensaje);
+	free(mensajito_a_liberar);
+}

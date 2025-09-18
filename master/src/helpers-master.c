@@ -26,3 +26,32 @@ void CargarConfigMaster(char* path_config){
     free(path_completo);
     config_destroy(config);
 }
+
+void* atenderClientes(void *args){
+    int socket = *(int*)args;
+    
+    while(1){
+        int fd_cliente = esperarCliente(socket);
+
+        pthread_t thread_query;
+        pthread_create(&thread_query,NULL,gestionarQueryIndividual,(void *)&fd_cliente);
+        pthread_detach(thread_query); //creo que no hace falta, pero pensar a futuro
+        
+    }
+    
+}
+
+
+void* gestionarQueryIndividual(void* args){
+    int fd_cliente = *(int*)args; //clarisimo mi rey
+    Mensaje* mensaje_a_recibir = recibirMensajito(fd_cliente);
+    printf("Voy a hacer el biribara \n");
+    char** mensajito_cortado = string_split(mensaje_a_recibir->mensaje," ");
+    char* path_query = mensajito_cortado[0];
+    int prioridad = atoi(mensajito_cortado[1]);
+    
+    printf("LLego una query, path query:%s prioridad:%d\n",path_query,prioridad);
+    string_array_destroy(mensajito_cortado);
+
+    liberarMensajito(mensaje_a_recibir);
+}

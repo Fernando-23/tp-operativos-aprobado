@@ -31,6 +31,11 @@ typedef struct{
     char* mensaje;
 }t_mensaje;
 
+typedef struct{
+    int size;
+    char *mensaje;
+}Mensaje;
+
 
 t_log* IniciarLogger(char* nombre_modulo, int nivel_log);
 t_config* IniciarConfig(char* nombre_config); 
@@ -40,6 +45,12 @@ void eliminar_paquete(t_paquete *paquete);
 void *serializar_paquete(t_paquete *paquete, uint32_t bytes);
 void *recibir_buffer(uint32_t *size, int socket_cliente);
 t_list *recibir_paquete(int socket_cliente);
+
+
+
+void enviarMensajito(Mensaje* mensaje_a_enviar,int socket_servidor);
+Mensaje* recibirMensajito(int socket_cliente);
+void liberarMensajito(Mensaje* mensajito_a_liberar);
 
 
 #endif 
