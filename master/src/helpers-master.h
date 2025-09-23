@@ -52,6 +52,7 @@ void cargarConfigMaster(char* path_config);
 void* atenderClientes(void*);
 void* gestionarClienteIndividual(void* args);
 void intentarEnviarQueryAExecute(Query *query_que_quiere_laburar);
+bool ordenarPorPrioridad(void *query_vigente_void,void* query_desafiante_void);
 
 
 /*
@@ -59,8 +60,8 @@ CONVENCIONES GESTION KAROL AQUINO
 
 ORDEN MUTEX
 
-WORKERS
---READY
+READY
+--WORKERS
 
 */
 

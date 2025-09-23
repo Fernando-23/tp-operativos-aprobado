@@ -82,29 +82,47 @@ void* gestionarClienteIndividual(void* args){
 
 void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
     Query* query_devuelta_por_funcion_que_crea_query_y_la_devuelve = crearQuery(nombre_query,prioridad,fd);
+    int id_query = query_devuelta_por_funcion_que_crea_query_y_la_devuelve->quid;
     
-    if (config_master->algoritmo_plani == "PRIORIDADES"){
-        //####### A IMPLEMENTAR ####### list_sort(lista_ready,); 
-        pthread_mutex_lock(&mutex_lista_ready);
-        list_add(lista_ready, query_devuelta_por_funcion_que_crea_query_y_la_devuelve);
-        pthread_mutex_unlock(&mutex_lista_ready); 
-        
-        intentarEnviarQueryAExecute(query_devuelta_por_funcion_que_crea_query_y_la_devuelve);
-        
-        return;
-    }
-    //FIFO
     pthread_mutex_lock(&mutex_lista_ready);
     bool estaba_vacia_antes_de_que_yo_entre_en_ready = list_is_empty(lista_ready);
     list_add(lista_ready, query_devuelta_por_funcion_que_crea_query_y_la_devuelve); 
-    pthread_mutex_unlock(&mutex_lista_ready);
-    
+
+    //ESTO CUBRE FIFO
     if(estaba_vacia_antes_de_que_yo_entre_en_ready){
         intentarEnviarQueryAExecute(query_devuelta_por_funcion_que_crea_query_y_la_devuelve);
-
+        pthread_mutex_unlock(&mutex_lista_ready);
+        return;
     }
 
 
+    //PRIORIDADES
+    if (config_master->algoritmo_plani == "PRIORIDADES"){
+        
+        list_sort(lista_ready,ordenarPorPrioridad);
+        Query* primer_elemento = list_get(lista_ready,0);
+        
+        if (id_query == primer_elemento->quid){ 
+            
+            /*
+            funcion ir viendo worker por worker si alguno tiene mayor prioridad que el 
+            primer elemento de la lista ready 
+
+            desaloja
+            query 
+            porque volviste
+            tenes que desalojar 
+
+            si yo mando una interrupcion 
+            como hago siendo yo la proxima query a elegir que cuando se libere un worker no me elija
+            como hago siendo yo el worker a desalojar que si viene un query con mayor proridad no me vuelva a desalojar
+            
+            */
+        } 
+        pthread_mutex_unlock(&mutex_lista_ready);
+        
+        return;
+    }
     
 }
 
@@ -113,7 +131,6 @@ void intentarEnviarQueryAExecute(Query *query_que_quiere_laburar){
     pthread_mutex_lock(&mutex_workers);
     Worker* laburito_disponible = (Worker *)list_find(workers,NULL); //probar esto che
     if (laburito_disponible!=NULL){
-       //mutex_lista_ready
        laburito_disponible->query = query_que_quiere_laburar; 
        laburito_disponible->esta_libre=false;
        log_debug(logger_master,"Debug - (intentarEnviarQueryAExecute) - Query %d consiguio laburo con el worker %d",
@@ -121,4 +138,10 @@ void intentarEnviarQueryAExecute(Query *query_que_quiere_laburar){
     }
 
     pthread_mutex_unlock(&mutex_workers);
+}
+
+bool ordenarPorPrioridad(void *query_vigente_void,void* query_desafiante_void){
+    Query* query_vigente = (Query*)query_vigente_void;
+    Query* query_desafiante = (Query*)query_desafiante_void;
+    return query_vigente->prioridad < query_desafiante->prioridad;
 }
