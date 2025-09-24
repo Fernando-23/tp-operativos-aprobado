@@ -139,7 +139,7 @@ bool Execute(){
 
         case COMMIT:
             //<NOMBRE_FILE>:<TAG>
-
+            
             ejecutar_commit(file,tag);
             nombre_instruccion = "COMMIT";
                 break;
@@ -187,33 +187,147 @@ void ejecutar_write(char* file, char* tag, int dir_base, char* contenido){
 
     //asigno la pagina al frame
     asignar_pagina_a_frame(tabla_asociada, pagina, frame_libre);
+    
     size_t contenidoBytes = (size_t) contenido;
 
     if(hay_espacio_memoria(dir_base, contenidoBytes)){
-         
         escribir_en_memoria(file,tag,pagina, desplazamiento, contenido);
-
         log_info(logger_worker,"Escritura en memoria realizada con exito");
 
     } else {
-        
         log_error(logger_worker,"No hay espacio en memoria para realizar la escritura");
+    }   
+}
+
+
+void escribir_en_memoria(char* file, char* tag, int pagina, int desplazamiento, char* contenido){
+    tabla_paginas_t* tabla_asociada = buscar_o_crear_tabla(file,tag);
+    entrada_pagina_t* entrada = buscar_entrada_pagina(tabla_asociada, pagina);
+    if (entrada == NULL) {
+        log_error(logger_worker, "No se encontro la entrada de la pagina en la tabla de paginas");
+        return;
     }
 
+    if(entrada->nro_frame==NULL){
+        log_error(logger_worker, "La entrada de la pagina no tiene frame asignado");
+        return;
+    }
 
-    
+    char *base_frame = (size_t)memoria + ((size_t)entrada->nro_frame * (size_t)tam_pag); // direccion base del frame en memoria
+    // Escribir el contenido en el frame en la posicion correspondiente
+    if(desplazamiento + strlen(contenido) + 1 > tam_pag) { // +1 para incluir el null terminator
+        log_error(logger_worker, "El contenido a escribir excede el tamaño de la página");
+        return;
+    }
+    memcpy(base_frame + (size_t)desplazamiento , contenido, strlen(contenido) + 1); // +1 para incluir el null terminator
+
+    // Actualizar los bits de la entrada
+    entrada->bitModificado = 1; // marco como modificada
+    entrada->bitUso = 1; // marco como usada
+
+    log_info(logger_worker, "Escritura realizada en el frame %d en la posicion %d", entrada->nro_frame, desplazamiento);
+}
+
+// Devuelve 0 si OK, -1 si error
+int escribir_en_memoria_paginada(char* file, char* tag,
+                                 int pagina, int desplazamiento,
+                                 const char* contenido)
+{
+    if (contenido == NULL) return -1;
+    if (tam_pag <= 0) return -1;
+    if (desplazamiento < 0 || desplazamiento >= tam_pag) {
+        log_error(logger_worker, "Desplazamiento fuera de rango");
+        return -1;
+    }
+
+    size_t total = strlen(contenido);   // sin contar el '\0'
+    size_t escrito = 0;                 // bytes de contenido ya escritos
+    int pag_actual = pagina;
+    int desp_actual = desplazamiento;
+
+    tabla_paginas_t* tabla = buscar_o_crear_tabla(file, tag);
+    if (!tabla) {
+        log_error(logger_worker, "No se pudo obtener/crear la tabla de paginas");
+        return -1;
+    }
+
+    // Bucle: escribir contenido y luego el '\0'
+    while (1) {
+        // Asegurar/mirar entrada de la página actual
+        entrada_pagina_t* ent = buscar_entrada_pagina(tabla, pag_actual);
+        if (ent == NULL) {
+            log_error(logger_worker, "No existe entrada para pagina %d", pag_actual);
+            return -1;
+        }
+
+        // Si no tiene frame asignado, cargar/crear (depende de tu diseño)
+        if (ent->nro_frame == -1 /* o flag equivalente */) {
+            if (asegurar_pagina_en_memoria(tabla, pag_actual) != 0) {
+                log_error(logger_worker, "No hay frame para pagina %d", pag_actual);
+                return -1;
+            }
+            // volver a tomar la entrada por si se actualizó
+            ent = buscar_entrada_pagina(tabla, pag_actual);
+        }
+
+        char* base_frame = (char*)memoria + ((size_t)ent->nro_frame * (size_t)tam_pag);
+
+        // ¿Cuánto espacio queda en esta página desde el desplazamiento actual?
+        size_t espacio = (size_t)tam_pag - (size_t)desp_actual;
+
+        if (escrito < total) {
+            // Aún faltan bytes del contenido por escribir
+            size_t por_copiar = total - escrito;
+            if (por_copiar > espacio) por_copiar = espacio;
+
+            memcpy(base_frame + desp_actual, contenido + escrito, por_copiar);
+            escrito += por_copiar;
+            ent->bitModificado = 1;
+            ent->bitUso = 1;
+
+            // Si exactamente llenamos la página, pasamos a la siguiente
+            if (por_copiar == espacio) {
+                pag_actual++;
+                desp_actual = 0;
+                continue;
+            } else {
+                // Todavía queda espacio en esta página: intentaremos escribir el '\0' aquí abajo
+            }
+        }
+
+        // Llegamos acá cuando ya copiamos todos los bytes del contenido (escrito == total).
+        // Ahora escribimos el terminador nulo.
+        if (espacio == 0) {
+            // No hay lugar para el '\0' en esta página: va en la siguiente
+            pag_actual++;
+            desp_actual = 0;
+            continue;
+        } else {
+            // Hay lugar para el '\0' en esta página
+            base_frame[desp_actual] = '\0';
+            ent->bitModificado = 1;
+            ent->bitUso = 1;
+
+            log_info(logger_worker, "Escritura completada: inicio pag=%d, fin pag=%d, bytes=%zu",
+                     pagina, pag_actual, (size_t)(total + 1));
+            return 0;
+        }
+    }
 }
 
 
-void escribir_en_memoria(char* file, char* tag, int pagina, size_t desplazamiento, char* contenido){
 
-    
-}
 
 // hacer un calloc para las entradas de la tabla de pagina
-void asignar_pagina_a_frame(tabla_paginas_t* tabla,int pagina, frame_t* frame_libre){
+void asignar_pagina_a_frame(tabla_paginas_t* tabla, int pagina, frame_t* frame){
+    entrada_pagina_t* entrada = malloc(sizeof(entrada_pagina_t));
+    entrada->nro_pag = pagina;
+    entrada->nro_frame = frame;
+    entrada->bitPresencia = 1; // la marco como presente
+    entrada->bitModificado = 0; // la marco como no modificada
+    entrada->bitUso = 1; // la marco como usada
 
-
+    list_add(tabla->entradas, entrada);
 }
 
 
@@ -233,7 +347,7 @@ frame_t* buscar_frame_libre(){
 void ejecutar_create(char* file, char* tag){
     // faltaria crear alguna funcion para confirmar que se haya creado el tag para ese file
     char* fileAcrear;
-    sprintf(fileAcrear,"%s %s %d",file,tag,0);
+    sprintf(fileAcrear,"CREATE %s %s %d",file,tag,0);
 
     EnviarString(socket_storage,fileAcrear,logger_worker);
 
@@ -247,7 +361,7 @@ void ejecutar_truncate(char* file, char* tag, int tamanio){
         return;
     }
     char* fileATrunquear;
-    sprintf(fileATrunquear,"%s %s %d",file,tag,tamanio);
+    sprintf(fileATrunquear,"TRUNCATE %s %s %d",file,tag,tamanio);
 
     EnviarString(socket_storage,fileATrunquear,logger_worker);
 
@@ -255,6 +369,54 @@ void ejecutar_truncate(char* file, char* tag, int tamanio){
 
 }
 
+void ejecutar_tag(char* file_origen, char* tag_origen, char* file_destino, char* tag_destino){
 
+    char* fileATaggear;
+    sprintf(fileATaggear,"TAG %s %s %s %s",file_origen,tag_origen,file_destino,tag_destino);
+
+    EnviarString(socket_storage,fileATaggear,logger_worker);
+
+    log_debug(logger_worker,"%s:%s y %s:%s destino enviados",file_origen,tag_origen,file_destino,tag_destino);
+
+}
+
+void ejecutar_commit(char* file, char* tag){
+    ejecutar_flush(file,tag); 
+
+    char* fileACommit;
+    sprintf(fileACommit,"COMMIT %s %s",file,tag);
+
+    EnviarString(socket_storage,fileACommit,logger_worker);
+
+    log_debug(logger_worker,"%s:%s realizar commit enviado a storage",file,tag);
+}
+
+void ejecutar_flush(char* file, char* tag){
+    char* fileACommit;
+    sprintf(fileACommit,"FLUSH %s %s",file,tag);
+
+    EnviarString(socket_storage,fileACommit,logger_worker);
+
+    log_debug(logger_worker,"%s:%s hacer flush enviado a storage ",file,tag);
+
+}
+
+
+void ejecutar_delete(char* file, char* tag){      //las páginas se van a ir limpiando a medida que corran los reemplazos.
+    char* fileACommit;
+    sprintf(fileACommit,"DELETE %s %s",file,tag);
+
+    EnviarString(socket_storage,fileACommit,logger_worker);
+
+    log_debug(logger_worker,"%s:%s enviados a Storage para el delete",file,tag);
+}
+
+ejecutar_end(){
+    interrumpir_query = false;
+
+    log_debug(logger_worker,"Query %d finalizada",query->id_query);
+
+    enviar_string(socket_master,"END",logger_worker);
+}
 
 

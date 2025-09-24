@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
         esperando_query(socket_master);
         t_list* lista_de_instrucciones = crear_lista();
 
-        while (!hay_que_actualizar_contexto) {
+        while (!interrumpir_query) {
             
             char* instruccion = Fetch(lista_de_instrucciones);  // "WRITE 345 42"
            
@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
         printf("[DEBUG] Se va a cambiar el contexto\n");
         LiberarCaches();
 
-        hay_que_actualizar_contexto = false;
+        interrumpir_query = false;
 
         ChequearSiTengoQueActualizarEnKernel(requiere_realmente_desalojo);
     }

@@ -5,7 +5,7 @@ t_log* logger_worker = NULL;
 ConfigWorker* config_worker = NULL;
 Query* query;
 
-bool hay_que_actualizar_contexto;
+bool interrumpir_query;
 bool requiere_realmente_desalojo;
 
 int tam_pag;
