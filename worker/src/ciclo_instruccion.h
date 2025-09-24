@@ -20,9 +20,16 @@ typedef enum{
     END
 }op_code;
 
+extern t_instruccion* instruccion;
+
 t_list* crear_lista();
+
+extern int socket_master;
+extern int socket_storage;
+
 char* Fetch(t_list* lista_instrucciones);
 void Decode(char* instruccionCom);
 bool Execute();
 void destruir(void* elemento);
+void escribir_en_memoria(char* file, char* tag, int pagina, size_t desplazamiento, char* contenido);
 #endif /* CICLO_INSTRUCCION_H_ */

@@ -6,6 +6,11 @@ ConfigWorker* config_worker = NULL;
 Query* query;
 
 bool hay_que_actualizar_contexto;
+bool requiere_realmente_desalojo;
+
+int tam_pag;
+
+
 
 void CargarConfigWorker(char* path_config){
 
@@ -43,14 +48,13 @@ int conexion_storage(){
         exit(EXIT_FAILURE);
     }
     EnviarString("hola mi estimado storage gg", socket_storage, logger_worker);
-    int tam_pag;
     recv(socket_storage,&tam_pag,sizeof(int),MSG_WAITALL);
     log_info(logger_worker,"Tamanio pag recibido %d",tam_pag);
     
 
     log_info(logger_worker,"Conectado a Storage");
 
-    return socket_storage,tam_pag;
+    return socket_storage;
 }
 
 
@@ -82,7 +86,7 @@ void esperando_query(int socket){
     query->pc_query = atoi(lista_de_datos[1]);
     query->path_query = lista_de_datos[2];
 
-    LoggerConFormato("## Query %d : Se recibe la Query. El path de operaciones es: %s",query->id_query, query->path_query);
+    log_info("## Query %d : Se recibe la Query. El path de operaciones es: %s",query->id_query, query->path_query);
 
 }
 

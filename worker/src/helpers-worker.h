@@ -30,8 +30,10 @@ typedef struct
 extern t_log* logger_worker;
 extern ConfigWorker* config_worker;
 extern Query* query;
-extern t_instruccion* instruccion;
+extern int tam_pag;
 extern bool hay_que_actualizar_contexto;
+extern bool requiere_realmente_desalojo;
+
 
 void CargarConfigWorker(char* path_config);
 int crear_conexion(char *ip, char* puerto);

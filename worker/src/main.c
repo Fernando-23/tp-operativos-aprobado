@@ -13,16 +13,17 @@ int main(int argc, char* argv[]) {
 
     query = malloc(sizeof(Query));
     instruccion = malloc(sizeof(t_instruccion));
+    tabla_general = list_create();
        
     log_info(logger_worker,"Se cargó todo correctamente");
 
     //conexion a storage que devuelve el tamanio de pagina
-    int socket_storage,tam_pag = conexion_storage();
+    socket_storage = conexion_storage();
 
     //conexion a master (pero el recv se hace a parte)
-    int socket_master = crear_conexion(config_worker->ip_master,config_worker->puerto_master);
+    socket_master = conexion_master();  
 
-    int socket_master = conexion_master();    
+    IniciarMemoria();  
 
     EnviarString("hola mi estimado master yi", socket_master, logger_worker);
     

@@ -1,6 +1,9 @@
 #include "ciclo_instruccion.h"
+#include "memoria_interna.h"
 
 t_instruccion* instruccion;
+int socket_master;
+int socket_storage;
 
 t_list *crear_lista(){
     char* path_completo;
@@ -54,7 +57,7 @@ char* Fetch(t_list* lista_de_instrucciones) {
     char* op_code = instruccion_separada[0];
     
     
-    LoggerConFormato("## Query %d: FETCH - Program Counter: %d - %s",query->id_query,query->pc_query,op_code);
+    log_info("## Query %d: FETCH - Program Counter: %d - %s",query->id_query,query->pc_query,op_code);
     
     return instruccion;
     
@@ -63,6 +66,7 @@ char* Fetch(t_list* lista_de_instrucciones) {
 void Decode(char* instruccionCom) {
     
     char** instruccion_separada = string_n_split(instruccionCom,1," ");
+    // [cod-op,cola]
 
     char* op_code = instruccion_separada[0];
     instruccion->operacion = instruccion_separada[1];
@@ -81,57 +85,74 @@ void Decode(char* instruccionCom) {
 bool Execute(){
     
     char* nombre_instruccion;
+    char* file, tag;
+    if ( instruccion->cod_op != END ){
+        
+        file = strtok(instruccion->operacion,":");
+        tag = strtok(NULL," ");
+    }
+    
     switch (instruccion->cod_op) {
 
 	    case CREATE:
-		    //creacion de un nuevo File
-            ejecutar_create();
+		    //<NOMBRE_FILE>:<TAG>
+            ejecutar_create(file, tag);
             nombre_instruccion = "CREATE";
 		    //tipo_instruccion = "REQUIERO_DESALOJO";
             break;
 
 	    case TRUNCATE:
-            //solicitar a Storage la modificacion del tamanio del File
-            ejecutar_truncate();
+            //<NOMBRE_FILE>:<TAG> <TAMAÑO>
+            int tamanio = atoi(strtok(instruccion->operacion," "));
+            ejecutar_truncate(file, tag, tamanio);
             nombre_instruccion = "TRUNCATE";
 		    //tipo_instruccion = "REQUIERO_DESALOJO";
             break;
 
-        case READ:
-
-            ejecutar_read();
-            nombre_instruccion = "READ";
-            break;
-            //
-    
         case WRITE:
-
-            ejecutar_write();
+            //<FILE>:<TAG> <DIRECCIÓN BASE> <CONTENIDO>
+            int dir_base = atoi(strtok(NULL," "));
+            char* contenido = strtok(NULL," ");
+            
+            ejecutar_write(file,tag,dir_base,contenido);
             nombre_instruccion = "WRITE";
             break;
+
+        case READ:
+            //<NOMBRE_FILE>:<TAG> <DIRECCIÓN BASE> <TAMAÑO>
+            int dir_base = atoi(strtok(NULL," "));
+            int tamanio = atoi(strtok(NULL," "));
+
+            ejecutar_read(file,tag,dir_base,tamanio);
+            nombre_instruccion = "READ";
+            break;
+        
 	
-
 	    case TAG:
-
-            ejecutar_tag();
+            //<NOMBRE_FILE_ORIGEN>:<TAG_ORIGEN> <NOMBRE_FILE_DESTINO>:<TAG_DESTINO>
+            char* file_destino = strtok(NULL,":");
+            char* tag_destino = strtok(NULL," ");
+            
+            ejecutar_tag(file,tag,file_destino,tag_destino);
             nombre_instruccion = "TAG";
             break;
 
         case COMMIT:
+            //<NOMBRE_FILE>:<TAG>
 
-            ejecutar_commit();
+            ejecutar_commit(file,tag);
             nombre_instruccion = "COMMIT";
                 break;
     
         case FLUSH:
-
-            ejecutar_flush();
+            //<NOMBRE_FILE>:<TAG>
+            ejecutar_flush(file,tag);
             nombre_instruccion = "FLUSH";
             break;
     
         case DELETE:
-
-            ejecutar_delete();
+            //<NOMBRE_FILE>:<TAG>
+            ejecutar_delete(file,tag);
             nombre_instruccion = "DELETE";
             break;
 
@@ -145,10 +166,95 @@ bool Execute(){
 		    log_Error("Error - (Execute) - ingrese una instruccion valida");
             break;
         
-        
-
     }
 
-    LoggerConFormato("## Query %d: - Instrucción realizada: %s",query->id_query,nombre_instruccion);
+    log_info("## Query %d: - Instrucción realizada: %s",query->id_query,nombre_instruccion);
 
 }
+
+void ejecutar_write(char* file, char* tag, int dir_base, char* contenido){
+    int pagina = dir_base/tam_pag; // capaz no toma el tam_pag global dentro de helper-worker.h
+    int desplazamiento = dir_base%tam_pag;
+
+    tabla_paginas_t* tabla_asociada = buscar_o_crear_tabla(file,tag);
+    
+    // esto lo deberia hacer asignar pagina a frame
+    frame_t* frame_libre = buscar_frame_libre();
+    if (frame_libre == NULL) {
+        log_error(logger_worker, "No se pudo obtener un frame, report jg");
+        return;
+    }
+
+    //asigno la pagina al frame
+    asignar_pagina_a_frame(tabla_asociada, pagina, frame_libre);
+    size_t contenidoBytes = (size_t) contenido;
+
+    if(hay_espacio_memoria(dir_base, contenidoBytes)){
+         
+        escribir_en_memoria(file,tag,pagina, desplazamiento, contenido);
+
+        log_info(logger_worker,"Escritura en memoria realizada con exito");
+
+    } else {
+        
+        log_error(logger_worker,"No hay espacio en memoria para realizar la escritura");
+    }
+
+
+    
+}
+
+
+void escribir_en_memoria(char* file, char* tag, int pagina, size_t desplazamiento, char* contenido){
+
+    
+}
+
+// hacer un calloc para las entradas de la tabla de pagina
+void asignar_pagina_a_frame(tabla_paginas_t* tabla,int pagina, frame_t* frame_libre){
+
+
+}
+
+
+frame_t* buscar_frame_libre(){
+    for (int i = 0; i < cant_frames; i++)
+    {
+        if (bitMap[i] == 0) // si el frame esta libre
+        {
+            bitMap[i] = 1; // lo marco como ocupado
+            return &lista_frames[i]; // retorno el frame libre
+        }
+    }
+    // si no hay frames libres, aplico la politica de reemplazo dijo abi
+    return aplicar_politica_reemplazo();
+}
+
+void ejecutar_create(char* file, char* tag){
+    // faltaria crear alguna funcion para confirmar que se haya creado el tag para ese file
+    char* fileAcrear;
+    sprintf(fileAcrear,"%s %s %d",file,tag,0);
+
+    EnviarString(socket_storage,fileAcrear,logger_worker);
+
+    log_debug(logger_worker,"File:Tag enviados");
+}
+
+void ejecutar_truncate(char* file, char* tag, int tamanio){
+
+    if (tamanio%tam_pag==0 || tam_pag%tamanio==0){
+        log_error(logger_worker,"El tamanio a truncar debe ser multiplo del tamanio de pagina");
+        return;
+    }
+    char* fileATrunquear;
+    sprintf(fileATrunquear,"%s %s %d",file,tag,tamanio);
+
+    EnviarString(socket_storage,fileATrunquear,logger_worker);
+
+    log_debug(logger_worker,"File:Tag y tamanios enviados");
+
+}
+
+
+
+
