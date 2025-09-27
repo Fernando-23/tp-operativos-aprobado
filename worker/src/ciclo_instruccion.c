@@ -176,128 +176,62 @@ void ejecutar_write(char* file, char* tag, int dir_base, char* contenido){
     int pagina = dir_base/tam_pag; // capaz no toma el tam_pag global dentro de helper-worker.h
     int desplazamiento = dir_base%tam_pag;
 
-    tabla_paginas_t* tabla_asociada = buscar_o_crear_tabla(file,tag);
-    
-    // esto lo deberia hacer asignar pagina a frame
-    frame_t* frame_libre = buscar_frame_libre();
-    if (frame_libre == NULL) {
-        log_error(logger_worker, "No se pudo obtener un frame, report jg");
-        return;
-    }
-
-    //asigno la pagina al frame
-    asignar_pagina_a_frame(tabla_asociada, pagina, frame_libre);
-    
-    size_t contenidoBytes = (size_t) contenido;
-
-    if(hay_espacio_memoria(dir_base, contenidoBytes)){
-        escribir_en_memoria(file,tag,pagina, desplazamiento, contenido);
+    int  estado = escribir_en_memoria_paginada(file,tag,pagina, desplazamiento, contenido);
+    if(estado==0){
         log_info(logger_worker,"Escritura en memoria realizada con exito");
-
-    } else {
-        log_error(logger_worker,"No hay espacio en memoria para realizar la escritura");
-    }   
-}
-
-
-void escribir_en_memoria(char* file, char* tag, int pagina, int desplazamiento, char* contenido){
-    tabla_paginas_t* tabla_asociada = buscar_o_crear_tabla(file,tag);
-    entrada_pagina_t* entrada = buscar_entrada_pagina(tabla_asociada, pagina);
-    if (entrada == NULL) {
-        log_error(logger_worker, "No se encontro la entrada de la pagina en la tabla de paginas");
-        return;
+    }else{
+        log_error(logger_worker,"Error no se escribio en memoria lcdm");
     }
-
-    if(entrada->nro_frame==NULL){
-        log_error(logger_worker, "La entrada de la pagina no tiene frame asignado");
-        return;
-    }
-
-    char *base_frame = (size_t)memoria + ((size_t)entrada->nro_frame * (size_t)tam_pag); // direccion base del frame en memoria
-    // Escribir el contenido en el frame en la posicion correspondiente
-    if(desplazamiento + strlen(contenido) + 1 > tam_pag) { // +1 para incluir el null terminator
-        log_error(logger_worker, "El contenido a escribir excede el tamaño de la página");
-        return;
-    }
-    memcpy(base_frame + (size_t)desplazamiento , contenido, strlen(contenido) + 1); // +1 para incluir el null terminator
-
-    // Actualizar los bits de la entrada
-    entrada->bitModificado = 1; // marco como modificada
-    entrada->bitUso = 1; // marco como usada
-
-    log_info(logger_worker, "Escritura realizada en el frame %d en la posicion %d", entrada->nro_frame, desplazamiento);
+       
 }
 
 // Devuelve 0 si OK, -1 si error
-int escribir_en_memoria_paginada(char* file, char* tag,
-                                 int pagina, int desplazamiento,
-                                 const char* contenido)
+int escribir_en_memoria_paginada(char* file, char* tag, int pagina, int desplazamiento, const char* contenido)
 {
     if (contenido == NULL) return -1;
-    if (tam_pag <= 0) return -1;
+    
     if (desplazamiento < 0 || desplazamiento >= tam_pag) {
         log_error(logger_worker, "Desplazamiento fuera de rango");
         return -1;
     }
 
-    size_t total = strlen(contenido);   // sin contar el '\0'
-    size_t escrito = 0;                 // bytes de contenido ya escritos
+    size_t bytesTotal = strlen(contenido);   // sin contar el '\0'
+    size_t bytesEscritos = 0;                 // bytes de contenido ya escritos
     int pag_actual = pagina;
     int desp_actual = desplazamiento;
 
     tabla_paginas_t* tabla = buscar_o_crear_tabla(file, tag);
-    if (!tabla) {
-        log_error(logger_worker, "No se pudo obtener/crear la tabla de paginas");
-        return -1;
-    }
 
-    // Bucle: escribir contenido y luego el '\0'
+    // escribe contenido y /0
     while (1) {
-        // Asegurar/mirar entrada de la página actual
-        entrada_pagina_t* ent = buscar_entrada_pagina(tabla, pag_actual);
-        if (ent == NULL) {
-            log_error(logger_worker, "No existe entrada para pagina %d", pag_actual);
-            return -1;
-        }
-
-        // Si no tiene frame asignado, cargar/crear (depende de tu diseño)
-        if (ent->nro_frame == -1 /* o flag equivalente */) {
-            if (asegurar_pagina_en_memoria(tabla, pag_actual) != 0) {
-                log_error(logger_worker, "No hay frame para pagina %d", pag_actual);
-                return -1;
-            }
-            // volver a tomar la entrada por si se actualizó
-            ent = buscar_entrada_pagina(tabla, pag_actual);
-        }
+        // buscar o crear y asignar frame a la entrada
+        entrada_pagina_t* ent = buscar_o_crear_entrada_pagina(tabla, pag_actual);
 
         char* base_frame = (char*)memoria + ((size_t)ent->nro_frame * (size_t)tam_pag);
+        size_t espacioLibre = (size_t)tam_pag - (size_t)desp_actual; //espacio libre
 
-        // ¿Cuánto espacio queda en esta página desde el desplazamiento actual?
-        size_t espacio = (size_t)tam_pag - (size_t)desp_actual;
-
-        if (escrito < total) {
+        if (bytesEscritos < bytesTotal) {
             // Aún faltan bytes del contenido por escribir
-            size_t por_copiar = total - escrito;
-            if (por_copiar > espacio) por_copiar = espacio;
+            size_t por_copiar = bytesTotal - bytesEscritos;
+            if (por_copiar > espacioLibre) por_copiar = espacioLibre;
 
-            memcpy(base_frame + desp_actual, contenido + escrito, por_copiar);
-            escrito += por_copiar;
+            memcpy(base_frame + desp_actual, contenido + bytesEscritos, por_copiar);
+            bytesEscritos += por_copiar;
             ent->bitModificado = 1;
             ent->bitUso = 1;
 
-            // Si exactamente llenamos la página, pasamos a la siguiente
-            if (por_copiar == espacio) {
+            // Si llenamos la página, pasamos a la siguiente
+            if (por_copiar == espacioLibre) {
                 pag_actual++;
                 desp_actual = 0;
                 continue;
             } else {
-                // Todavía queda espacio en esta página: intentaremos escribir el '\0' aquí abajo
+                // Todavía queda espacio en esta página: intentaremos escribir el '\0' aquí abajo ???????????????
             }
         }
-
-        // Llegamos acá cuando ya copiamos todos los bytes del contenido (escrito == total).
-        // Ahora escribimos el terminador nulo.
-        if (espacio == 0) {
+        
+        // Ahora escribimos el '\0'.
+        if (espacioLibre == 0) {
             // No hay lugar para el '\0' en esta página: va en la siguiente
             pag_actual++;
             desp_actual = 0;
@@ -307,29 +241,51 @@ int escribir_en_memoria_paginada(char* file, char* tag,
             base_frame[desp_actual] = '\0';
             ent->bitModificado = 1;
             ent->bitUso = 1;
-
-            log_info(logger_worker, "Escritura completada: inicio pag=%d, fin pag=%d, bytes=%zu",
-                     pagina, pag_actual, (size_t)(total + 1));
+            log_info(logger_worker, "Escritura completada: inicio pag=%d, fin pag=%d, bytes=%zu", pagina, pag_actual, (size_t)(bytesTotal + 1));
             return 0;
         }
     }
 }
 
+entrada_pagina_t* buscar_o_crear_entrada_pagina(tabla_paginas_t* tabla, int pag_actual){
+    entrada_pagina_t* entrada = buscar_entrada_pagina(tabla, pag_actual);
+    //no existe la entrada, creo un ENTRADA
+    if (entrada == NULL) {
+        entrada = malloc(sizeof(entrada_pagina_t));
+        if (entrada == NULL) {
+            log_error(logger_worker, "No se pudo asignar memoria para nueva entrada de pagina");
+            return NULL;
+        }
+        //busco frame libre ya que estoy creando una nueva entrada
+        frame_t* frameLibre= buscar_frame_libre();
+        if (frameLibre == NULL) {
+            log_error(logger_worker, "No se pudo obtener un frame libre para la nueva entrada de pagina");
+            free(entrada);
+            return NULL;
+        }
 
+        frameLibre->nro_pag=pag_actual; // DUDOSO
 
+        entrada->nro_pag = pag_actual;
+        entrada->nro_frame = frameLibre->nro_frame; 
+        entrada->bitPresencia = 1;
+        entrada->bitModificado = 0;
+        entrada->bitUso = 1;
 
-// hacer un calloc para las entradas de la tabla de pagina
-void asignar_pagina_a_frame(tabla_paginas_t* tabla, int pagina, frame_t* frame){
-    entrada_pagina_t* entrada = malloc(sizeof(entrada_pagina_t));
-    entrada->nro_pag = pagina;
-    entrada->nro_frame = frame;
-    entrada->bitPresencia = 1; // la marco como presente
-    entrada->bitModificado = 0; // la marco como no modificada
-    entrada->bitUso = 1; // la marco como usada
-
-    list_add(tabla->entradas, entrada);
+        list_add(tabla->entradas, entrada);
+    }
+    return entrada;
 }
 
+entrada_pagina_t* buscar_entrada_pagina(tabla_paginas_t* tabla, int pag_actual){
+    for (int i = 0; i < list_size(tabla->entradas); i++) {
+        entrada_pagina_t* entrada = list_get(tabla->entradas, i);
+        if (entrada->nro_pag == pag_actual) {
+            return entrada;
+        }
+    }
+    return NULL; // No encontrada
+}
 
 frame_t* buscar_frame_libre(){
     for (int i = 0; i < cant_frames; i++)
@@ -344,6 +300,22 @@ frame_t* buscar_frame_libre(){
     return aplicar_politica_reemplazo();
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void ejecutar_create(char* file, char* tag){
     // faltaria crear alguna funcion para confirmar que se haya creado el tag para ese file
     char* fileAcrear;
@@ -352,6 +324,47 @@ void ejecutar_create(char* file, char* tag){
     EnviarString(socket_storage,fileAcrear,logger_worker);
 
     log_debug(logger_worker,"File:Tag enviados");
+}
+
+void ejecutar_read(char* file, char* tag, int dir_base, int tamanio){
+    if (tamanio%tam_pag==0 || tam_pag%tamanio==0){
+        log_error(logger_worker,"El tamanio a leer debe ser multiplo del tamanio de pagina");
+        return;
+    }
+    
+    char* datoLeido = leer_en_memoria(file,tag,dir_base,tamanio);
+
+    EnviarString(socket_storage,datoLeido,logger_worker);
+
+    log_debug(logger_worker,"File:Tag y tamanios enviados");
+
+}
+
+char* leer_en_memoria(char* file,char* tag,int dir_base,int tamanio){
+    int pagina = dir_base/tam_pag;
+    int desplazamiento = dir_base%tam_pag;
+    
+    if(!tamanio){
+        log_error(logger_worker,"Error no puedo leer ningun byte de memoria");
+        return "error";
+    }
+    
+    if (desplazamiento < 0 || desplazamiento >= tam_pag) {
+        log_error(logger_worker, "Desplazamiento fuera de rango");
+        return "error";
+    }
+    
+    tabla_paginas_t* tabla = buscar_o_crear_tabla(file,tag);
+
+    entrada_pagina_t* entrada = buscar_entrada_pagina(tabla,pagina);
+    if(entrada == NULL){
+        log_error(logger_worker,"Error, no se encontro la entrada de la tabla de paginas, la pagina");
+        return "error";
+    }
+
+    if(entrada->nro_frame == -1){
+
+    }
 }
 
 void ejecutar_truncate(char* file, char* tag, int tamanio){
