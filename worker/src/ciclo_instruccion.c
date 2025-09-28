@@ -1,5 +1,6 @@
 #include "ciclo_instruccion.h"
 #include "memoria_interna.h"
+#include <time.h>
 
 t_instruccion* instruccion;
 int socket_master;
@@ -162,13 +163,38 @@ bool Execute(){
             break;
 
 	    default:
-
 		    log_Error("Error - (Execute) - ingrese una instruccion valida");
-            break;
-        
+            break;   
     }
 
     log_info("## Query %d: - Instrucción realizada: %s",query->id_query,nombre_instruccion);
+
+}
+
+
+
+void ejecutar_create(char* file, char* tag){
+    // faltaria crear alguna funcion para confirmar que se haya creado el tag para ese file
+    char* fileAcrear;
+    sprintf(fileAcrear,"CREATE %s %s %d",file,tag,0);
+
+    EnviarString(socket_storage,fileAcrear,logger_worker);
+
+    log_debug(logger_worker,"File:Tag enviados");
+}
+
+void ejecutar_truncate(char* file, char* tag, int tamanio){
+
+    if (tamanio%tam_pag==0 || tam_pag%tamanio==0){
+        log_error(logger_worker,"El tamanio a truncar debe ser multiplo del tamanio de pagina");
+        return;
+    }
+    char* fileATrunquear;
+    sprintf(fileATrunquear,"TRUNCATE %s %s %d",file,tag,tamanio);
+
+    EnviarString(socket_storage,fileATrunquear,logger_worker);
+
+    log_debug(logger_worker,"File:Tag y tamanios enviados");
 
 }
 
@@ -185,67 +211,223 @@ void ejecutar_write(char* file, char* tag, int dir_base, char* contenido){
        
 }
 
-// Devuelve 0 si OK, -1 si error
-int escribir_en_memoria_paginada(char* file, char* tag, int pagina, int desplazamiento, const char* contenido)
-{
-    if (contenido == NULL) return -1;
+void ejecutar_read(char* file, char* tag, int dir_base, int tamanio){
+    if (tamanio%tam_pag==0 || tam_pag%tamanio==0){
+        log_error(logger_worker,"El tamanio a leer debe ser multiplo del tamanio de pagina");
+        return;
+    }
+    int pagina = dir_base/tam_pag; // capaz no toma el tam_pag global dentro de helper-worker.h
+    int desplazamiento = dir_base%tam_pag;
     
-    if (desplazamiento < 0 || desplazamiento >= tam_pag) {
-        log_error(logger_worker, "Desplazamiento fuera de rango");
+    char* datoLeido = leer_en_memoria_paginada(file,tag,pagina,desplazamiento,tamanio);
+
+    EnviarString(socket_storage,datoLeido,logger_worker);
+
+    log_debug(logger_worker,"File:Tag y tamanios enviados");
+
+}
+
+
+void ejecutar_tag(char* file_origen, char* tag_origen, char* file_destino, char* tag_destino){
+
+    char* fileATaggear;
+    sprintf(fileATaggear,"TAG %s %s %s %s",file_origen,tag_origen,file_destino,tag_destino);
+
+    EnviarString(socket_storage,fileATaggear,logger_worker);
+
+    log_debug(logger_worker,"%s:%s y %s:%s destino enviados",file_origen,tag_origen,file_destino,tag_destino);
+
+}
+
+void ejecutar_commit(char* file, char* tag){
+    ejecutar_flush(file,tag); 
+
+    char* fileACommit;
+    sprintf(fileACommit,"COMMIT %s %s",file,tag);
+
+    EnviarString(socket_storage,fileACommit,logger_worker);
+
+    log_debug(logger_worker,"%s:%s realizar commit enviado a storage",file,tag);
+}
+
+void ejecutar_flush(char* file, char* tag){
+    char* fileACommit;
+    sprintf(fileACommit,"FLUSH %s %s",file,tag);
+
+    EnviarString(socket_storage,fileACommit,logger_worker);
+
+    log_debug(logger_worker,"%s:%s hacer flush enviado a storage ",file,tag);
+
+}
+
+
+void ejecutar_delete(char* file, char* tag){      //las páginas se van a ir limpiando a medida que corran los reemplazos.
+    char* fileACommit;
+    sprintf(fileACommit,"DELETE %s %s",file,tag);
+
+    EnviarString(socket_storage,fileACommit,logger_worker);
+
+    log_debug(logger_worker,"%s:%s enviados a Storage para el delete",file,tag);
+}
+
+void ejecutar_end(){
+    interrumpir_query = false;
+
+    log_debug(logger_worker,"Query %d finalizada",query->id_query);
+
+    enviar_string(socket_master,"END",logger_worker);
+}
+
+int escribir_en_memoria_paginada(char* file, char* tag, int pagina, int desplazamiento, char* contenido)
+{
+    if (!contenido) return -1;
+    if (pagina < 0 || desplazamiento < 0 || desplazamiento >= tam_pag) {
+        log_error(logger_worker, "Parametros invalidos (pagina=%d, desp=%d)", pagina, desplazamiento);
         return -1;
     }
 
-    size_t bytesTotal = strlen(contenido);   // sin contar el '\0'
-    size_t bytesEscritos = 0;                 // bytes de contenido ya escritos
-    int pag_actual = pagina;
-    int desp_actual = desplazamiento;
+    // preparamos un buffer para que incluya el '\0'
+    size_t bytesContenido = strlen(contenido);
+    size_t totalAEscribir = bytesContenido + 1; 
+    char* src = (char*)malloc(totalAEscribir);
+    if (!src) {
+        log_error(logger_worker, "malloc fallo para %zu bytes", totalAEscribir);
+        return -1;
+    }
+    memcpy(src, contenido, bytesContenido);
+    src[bytesContenido] = '\0';
+
+    size_t escritos = 0;
+    int pag_actual   = pagina;
+    int desp_actual  = desplazamiento;
 
     tabla_paginas_t* tabla = buscar_o_crear_tabla(file, tag);
+    if (!tabla) {
+        log_error(logger_worker, "No se pudo obtener/crear tabla de paginas");
+        free(src);
+        return -1;
+    }
 
-    // escribe contenido y /0
-    while (1) {
-        // buscar o crear y asignar frame a la entrada
-        entrada_pagina_t* ent = buscar_o_crear_entrada_pagina(tabla, pag_actual);
-
-        char* base_frame = (char*)memoria + ((size_t)ent->nro_frame * (size_t)tam_pag);
-        size_t espacioLibre = (size_t)tam_pag - (size_t)desp_actual; //espacio libre
-
-        if (bytesEscritos < bytesTotal) {
-            // Aún faltan bytes del contenido por escribir
-            size_t por_copiar = bytesTotal - bytesEscritos;
-            if (por_copiar > espacioLibre) por_copiar = espacioLibre;
-
-            memcpy(base_frame + desp_actual, contenido + bytesEscritos, por_copiar);
-            bytesEscritos += por_copiar;
-            ent->bitModificado = 1;
-            ent->bitUso = 1;
-
-            // Si llenamos la página, pasamos a la siguiente
-            if (por_copiar == espacioLibre) {
-                pag_actual++;
-                desp_actual = 0;
-                continue;
-            } else {
-                // Todavía queda espacio en esta página: intentaremos escribir el '\0' aquí abajo ???????????????
-            }
-        }
+    // bucle que escribe las paginas necesariasBucle principal: escribe hasta cubrir totalAEscribir
+    while (escritos < totalAEscribir) {
         
-        // Ahora escribimos el '\0'.
-        if (espacioLibre == 0) {
-            // No hay lugar para el '\0' en esta página: va en la siguiente
+        entrada_pagina_t* ent = buscar_o_crear_entrada_pagina(tabla, pag_actual);
+        if (!ent) {
+            log_error(logger_worker, "Fallo al obtener/crear entrada de pagina %d", pag_actual);
+            free(src);
+            return -1;
+        }
+
+       
+        char* base_frame = (char*)memoria + ((size_t)ent->nro_frame * (size_t)tam_pag);
+        size_t espacioLibre = (size_t)tam_pag - (size_t)desp_actual;
+        size_t por_copiar = totalAEscribir - escritos;
+        if (por_copiar > espacioLibre) por_copiar = espacioLibre;
+
+        
+        memcpy(base_frame + desp_actual, src + escritos, por_copiar);
+        escritos += por_copiar;
+
+        
+        ent->bitUso = 1;
+        ent->bitModificado = 1;
+
+    
+        if (por_copiar == espacioLibre && escritos < totalAEscribir) {
             pag_actual++;
             desp_actual = 0;
-            continue;
         } else {
-            // Hay lugar para el '\0' en esta página
-            base_frame[desp_actual] = '\0';
-            ent->bitModificado = 1;
-            ent->bitUso = 1;
-            log_info(logger_worker, "Escritura completada: inicio pag=%d, fin pag=%d, bytes=%zu", pagina, pag_actual, (size_t)(bytesTotal + 1));
-            return 0;
+            // aún hay espacio en esta página o terminamos
+            desp_actual += (int)por_copiar;
         }
     }
+
+    log_info(logger_worker,
+        "Escritura completada: inicio pag=%d desp=%d, fin pag=%d, bytes=%zu",
+        pagina, desplazamiento, pag_actual, totalAEscribir);
+
+    free(src);
+    return 0;
 }
+
+// Lee 'tamanio' bytes desde dir_base (página + desplazamiento) en memoria paginada.
+// Devuelve un buffer heap-alloc'd terminado en '\0' (caller debe free()).
+// En error devuelve NULL.
+char* leer_en_memoria_paginada(char* file, char* tag, int pagina, int desplazamiento, int tamanio)
+{
+
+    // Buffer destino: tamanio bytes + '\0'
+    char* mensaje = (char*)malloc((size_t)tamanio + 1u);
+    if (!mensaje) {
+        log_error(logger_worker, "Fallo al reservar memoria para lectura (%d bytes)", tamanio);
+        return NULL;
+    }
+
+    size_t bytesObjetivo = (size_t)tamanio;
+    size_t bytesLeidos   = 0;
+    int    pag_actual    = pagina;
+    int    desp_actual   = desplazamiento;
+
+    tabla_paginas_t* tabla = buscar_o_crear_tabla((char*)file, (char*)tag);
+    if (!tabla) {
+        log_error(logger_worker, "No se pudo obtener/crear tabla de paginas");
+        free(mensaje);
+        return NULL;
+    }
+
+    while (bytesLeidos < bytesObjetivo) {
+        // Buscar (o crear si tu política lo permite) la entrada de la página actual
+        entrada_pagina_t* ent = buscar_o_crear_entrada_pagina(tabla, pag_actual);
+        if (!ent) {
+            log_error(logger_worker, "No se encontro/creo la entrada de pagina %d", pag_actual);
+            free(mensaje);
+            return NULL;
+        }
+
+        // Si la pagina no tiene frame asignado, traerla a memoria (swap / storage)
+        if (ent->nro_frame == -1) {
+            // TODO: implementar según tu módulo de swap/storage
+            // if (traer_pagina_a_memoria(tabla, ent) != 0) {
+            //     log_error(logger_worker, "No se pudo traer la pagina %d a memoria", pag_actual);
+            //     free(mensaje);
+            //     return NULL;
+            // }
+            log_error(logger_worker, "Pagina %d no residente (nro_frame == -1). Falta traer de storage.", pag_actual);
+            free(mensaje);
+            return NULL;
+        }
+
+        char* base_frame = (char*)memoria + ((size_t)ent->nro_frame * (size_t)tam_pag);
+        size_t espacioDisponible = (size_t)tam_pag - (size_t)desp_actual;
+
+        // Cuantos bytes necesito copiar de esta página
+        size_t por_copiar = bytesObjetivo - bytesLeidos;
+        if (por_copiar > espacioDisponible) por_copiar = espacioDisponible;
+
+        memcpy(mensaje + bytesLeidos, base_frame + desp_actual, por_copiar);
+        bytesLeidos += por_copiar;
+
+        // Marcar uso (lectura no modifica)
+        ent->bitUso = 1;
+
+        // Si aún faltan bytes, avanzar a la siguiente página
+        if (bytesLeidos < bytesObjetivo) {
+            pag_actual++;
+            desp_actual = 0;
+        }
+    }
+
+    // Aseguramos terminación NUL para uso como string
+    mensaje[bytesLeidos] = '\0';
+
+    log_info(logger_worker,
+             "Lectura completada: inicio pag=%d, fin pag=%d, bytes=%zu",
+             pagina, pag_actual, bytesLeidos);
+
+    return mensaje;
+}
+
+
 
 entrada_pagina_t* buscar_o_crear_entrada_pagina(tabla_paginas_t* tabla, int pag_actual){
     entrada_pagina_t* entrada = buscar_entrada_pagina(tabla, pag_actual);
@@ -300,136 +482,88 @@ frame_t* buscar_frame_libre(){
     return aplicar_politica_reemplazo();
 }
 
+frame_t* aplicar_politica_reemplazo(){
+    char* algoritmo = config_worker->algoritmo_reemplazo;
+        
+    if (strcmp(algoritmo,"CLOCK-M") == 0){
+       
+
+        log_info("Mi puntero antes de pasar por clock-M", "puntero", puntero);
+        frame_t* frame = CicloCLockM(0, 0, 0, nro_pagina, frame, offset);
+        if (frame->nro_pag == -1) {
+            return frame;
+        }
+
+        frame_t* frame = CicloCLockM(1, 0, 1, nro_pagina, frame, offset);
+        if (frame->nro_pag == -1) {
+            //utils.FormatearUrlYEnviar(cpu.Url_memoria, "/WRITE", true, "%d %d %d %s", cpu.Proc_ejecutando.Pid, aux_modif.frame, aux_modif.offset, aux_modif.contenido)
+            //log_debug("Debug - (AplicarAlgoritmoCachePags) - Realice el reemplazo en la 2da pasada", "pag_reemplazada", aux_modif.pagina,
+            //    "contenido", aux_modif.contenido)
+            return frame;
+        }
+
+        frame_t* frame = CicloCLockM(0, 0, 0, nro_pagina, frame, offset);
+        if(frame->nro_pag == -1) {
+            //log_debug("Debug - (AplicarAlgoritmoCachePags) - Realice el reemplazo en la 3ra pasada", "pag_reemplazada", aux_modif.pagina)
+            return frame;
+        }
+
+       frame_t* frame = CicloCLockM(0, 0, 1, nro_pagina, frame, offset);
+        if (frame->nro_pag == -1) {
+            //utils.FormatearUrlYEnviar(Url_memoria, "/WRITE", true, "%d %d %d %s", Proc_ejecutando.Pid, aux_modif.frame, aux_modif.offset, aux_modif.contenido)
+            //log_debug("Debug - (AplicarAlgoritmoCachePags) - Realice el reemplazo en la 4ta pasada", "pag_reemplazada", aux_modif.pagina,
+            //    "contenido", aux_modif.contenido)
+            return frame;
+        }
+        
+    }else if(strcmp(algoritmo,"LRU")==0){
+       
+       
+    }else{
+        log_error(logger_worker,"No se ingreso un algoritmo valido");
+        return NULL;
+    }
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-void ejecutar_create(char* file, char* tag){
-    // faltaria crear alguna funcion para confirmar que se haya creado el tag para ese file
-    char* fileAcrear;
-    sprintf(fileAcrear,"CREATE %s %s %d",file,tag,0);
-
-    EnviarString(socket_storage,fileAcrear,logger_worker);
-
-    log_debug(logger_worker,"File:Tag enviados");
 }
 
-void ejecutar_read(char* file, char* tag, int dir_base, int tamanio){
-    if (tamanio%tam_pag==0 || tam_pag%tamanio==0){
-        log_error(logger_worker,"El tamanio a leer debe ser multiplo del tamanio de pagina");
-        return;
-    }
     
-    char* datoLeido = leer_en_memoria(file,tag,dir_base,tamanio);
 
-    EnviarString(socket_storage,datoLeido,logger_worker);
+frame_t* CicloCLockM( int sector_extra,  int valor_uso, int valor_modificado ,  int nro_pagina,  int frame, int offset) {
+    //desde el puntero hasta el FIIIN
+    for(int i = puntero; i < cant_frames;i++ ){
+        if (lista_frames[i]->bit_uso == valor_uso && lista_frames[i]->bit_modificado == valor_modificado) {
+            int pagina = lista_frames[i]->nro_pag;
+            lista_frames[i]->nro_pag = -1; //lo uso para que no me lo saque en la proxima vuelta
+            bitMap[i]=0;
 
-    log_debug(logger_worker,"File:Tag y tamanios enviados");
+            buscar_tabla_de_paginas();
+            }
+
+
+            return lista_frames[i]
+        }
+        if (sector_extra == 1) {
+            lista_frames[i].bit_uso = 0
+        }
+
+//desde el inicio hasta el puntero
+    for (int i = 0; i < puntero; i++) {
+        if (lista_frames[i]->bit_uso == valor_uso && lista_frames[i]->bit_modificado == valor_modificado) {
+           int pagina = lista_frames[i]->nro_pag;
+            lista_frames[i]->nro_pag = -1; //lo uso para que no me lo saque en la proxima vuelta
+            bitMap[i]=0;
+
+            buscar_tabla_de_paginas();
+            }
+
+
+            return lista_frames[i]
+        }
+        if (sector_extra == 1) {
+            cpu.Cache_pags[i].bit_uso = 0
+        }
+
 
 }
-
-char* leer_en_memoria(char* file,char* tag,int dir_base,int tamanio){
-    int pagina = dir_base/tam_pag;
-    int desplazamiento = dir_base%tam_pag;
-    
-    if(!tamanio){
-        log_error(logger_worker,"Error no puedo leer ningun byte de memoria");
-        return "error";
-    }
-    
-    if (desplazamiento < 0 || desplazamiento >= tam_pag) {
-        log_error(logger_worker, "Desplazamiento fuera de rango");
-        return "error";
-    }
-    
-    tabla_paginas_t* tabla = buscar_o_crear_tabla(file,tag);
-
-    entrada_pagina_t* entrada = buscar_entrada_pagina(tabla,pagina);
-    if(entrada == NULL){
-        log_error(logger_worker,"Error, no se encontro la entrada de la tabla de paginas, la pagina");
-        return "error";
-    }
-
-    if(entrada->nro_frame == -1){
-
-    }
-}
-
-void ejecutar_truncate(char* file, char* tag, int tamanio){
-
-    if (tamanio%tam_pag==0 || tam_pag%tamanio==0){
-        log_error(logger_worker,"El tamanio a truncar debe ser multiplo del tamanio de pagina");
-        return;
-    }
-    char* fileATrunquear;
-    sprintf(fileATrunquear,"TRUNCATE %s %s %d",file,tag,tamanio);
-
-    EnviarString(socket_storage,fileATrunquear,logger_worker);
-
-    log_debug(logger_worker,"File:Tag y tamanios enviados");
-
-}
-
-void ejecutar_tag(char* file_origen, char* tag_origen, char* file_destino, char* tag_destino){
-
-    char* fileATaggear;
-    sprintf(fileATaggear,"TAG %s %s %s %s",file_origen,tag_origen,file_destino,tag_destino);
-
-    EnviarString(socket_storage,fileATaggear,logger_worker);
-
-    log_debug(logger_worker,"%s:%s y %s:%s destino enviados",file_origen,tag_origen,file_destino,tag_destino);
-
-}
-
-void ejecutar_commit(char* file, char* tag){
-    ejecutar_flush(file,tag); 
-
-    char* fileACommit;
-    sprintf(fileACommit,"COMMIT %s %s",file,tag);
-
-    EnviarString(socket_storage,fileACommit,logger_worker);
-
-    log_debug(logger_worker,"%s:%s realizar commit enviado a storage",file,tag);
-}
-
-void ejecutar_flush(char* file, char* tag){
-    char* fileACommit;
-    sprintf(fileACommit,"FLUSH %s %s",file,tag);
-
-    EnviarString(socket_storage,fileACommit,logger_worker);
-
-    log_debug(logger_worker,"%s:%s hacer flush enviado a storage ",file,tag);
-
-}
-
-
-void ejecutar_delete(char* file, char* tag){      //las páginas se van a ir limpiando a medida que corran los reemplazos.
-    char* fileACommit;
-    sprintf(fileACommit,"DELETE %s %s",file,tag);
-
-    EnviarString(socket_storage,fileACommit,logger_worker);
-
-    log_debug(logger_worker,"%s:%s enviados a Storage para el delete",file,tag);
-}
-
-ejecutar_end(){
-    interrumpir_query = false;
-
-    log_debug(logger_worker,"Query %d finalizada",query->id_query);
-
-    enviar_string(socket_master,"END",logger_worker);
-}
-
-

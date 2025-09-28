@@ -13,14 +13,16 @@ typedef struct {
     int nro_frame;       
     int bitPresencia;    // 1 si está en memoria, 0 si no
     int bitUso;           
-    int bitModificado;    
+    int bitModificado;
+    
 } entrada_pagina_t;
 
 typedef struct {
     int nro_frame;       // Número de frame en memoria
     int nro_pag;         // Número de página que contiene
-    // int bitUso;          // Bit de uso para la política de reemplazo
-    // int bitModificado;   // Bit de modificado para la política de reemplazo
+    int bitUso;          // Bit de uso para la política de reemplazo
+    int bitModificado;
+   // Bit de modificado para la política de reemplazo
 } frame_t;
 
 extern frame_t* lista_frames; // Array de frames
