@@ -49,19 +49,27 @@ extern const int nivel_multiprocesamiento;
 
 
 void cargarConfigMaster(char* path_config);
+
 void* atenderClientes(void*);
 void* gestionarClienteIndividual(void* args);
-void intentarEnviarQueryAExecute(Query *query_que_quiere_laburar);
-bool ordenarPorPrioridad(void *query_vigente_void,void* query_desafiante_void);
+void gestionarWorkerIndividual(int id_worker ,int fd_conexion);
+void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd);
 
+void intentarEnviarQueryAExecute(Query *query_que_quiere_laburar);
+void intentarEnviarQueryAExecutePorWorker(Worker* worker);
+
+bool ordenarPorPrioridad(void *query_vigente_void,void* query_desafiante_void);
+void agarrarLaPala(Worker* laburador,Query* laburo);
+bool hayLaburo(t_list* lista);
+bool buscarLaburanteSinLaburo(void *args);
 
 /*
 CONVENCIONES GESTION KAROL AQUINO
 
 ORDEN MUTEX
 
-READY
---WORKERS
+WORKERS
+--READY
 
 */
 

@@ -29,10 +29,12 @@ void* atenderClientes(void *args){
     int socket = *(int*)args;
     
     while(1){
-        int fd_cliente = esperarCliente(socket,logger_master);
+        int *fd_cliente = malloc(sizeof(int));
+        *fd_cliente = esperarCliente(socket,logger_master);
+        
 
         pthread_t thread_query;
-        pthread_create(&thread_query,NULL,gestionarClienteIndividual,(void *)&fd_cliente);
+        pthread_create(&thread_query, NULL, gestionarClienteIndividual, (void *)fd_cliente);
         pthread_detach(thread_query); //creo que no hace falta, pero pensar a futuro
         
     }
@@ -40,9 +42,9 @@ void* atenderClientes(void *args){
 }
 
 void* gestionarClienteIndividual(void* args){
-    int fd_cliente = *(int*)args; //clarisimo mi rey
+    int *fd_conexion = (int *)args; //clarisimo mi rey
     
-    Mensaje* mensaje_a_recibir = recibirMensajito(fd_cliente);
+    Mensaje* mensaje_a_recibir = recibirMensajito(fd_conexion);
     log_debug(logger_master,
         "Debug - (gestionarClienteIndividual) - Recibi el mensaje %s",mensaje_a_recibir->mensaje);
 
@@ -60,7 +62,8 @@ void* gestionarClienteIndividual(void* args){
         
         string_array_destroy(mensajito_cortado);
 
-        gestionarQueryIndividual(nombre_query, prioridad, fd_cliente); 
+        gestionarQueryIndividual(nombre_query, prioridad, *fd_conexion); 
+        free(fd_conexion);
         break;
     case WORKER: //2
 
@@ -68,7 +71,7 @@ void* gestionarClienteIndividual(void* args){
     
         string_array_destroy(mensajito_cortado);
 
-        gestionarWorkerIndividual(id_worker);
+        gestionarWorkerIndividual(id_worker,*fd_conexion);
         break;
     default:
         log_error(logger_master,"Error - (gestionarClienteIndividual) - Codigo de operacion erroneo"); //capaz un abort, quien sabe
@@ -83,7 +86,8 @@ void* gestionarClienteIndividual(void* args){
 void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
     Query* query_devuelta_por_funcion_que_crea_query_y_la_devuelve = crearQuery(nombre_query,prioridad,fd);
     int id_query = query_devuelta_por_funcion_que_crea_query_y_la_devuelve->quid;
-    
+
+    pthread_mutex_lock(&mutex_workers);
     pthread_mutex_lock(&mutex_lista_ready);
     bool estaba_vacia_antes_de_que_yo_entre_en_ready = list_is_empty(lista_ready);
     list_add(lista_ready, query_devuelta_por_funcion_que_crea_query_y_la_devuelve); 
@@ -92,6 +96,7 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
     if(estaba_vacia_antes_de_que_yo_entre_en_ready){
         intentarEnviarQueryAExecute(query_devuelta_por_funcion_que_crea_query_y_la_devuelve);
         pthread_mutex_unlock(&mutex_lista_ready);
+        pthread_mutex_unlock(&mutex_workers);
         return;
     }
 
@@ -120,16 +125,19 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
             */
         } 
         pthread_mutex_unlock(&mutex_lista_ready);
-        
+        pthread_mutex_unlock(&mutex_workers);
         return;
     }
+    
+    pthread_mutex_unlock(&mutex_lista_ready);
+    pthread_mutex_unlock(&mutex_workers);
     
 }
 
 //despacha si hay worker libre
 void intentarEnviarQueryAExecute(Query *query_que_quiere_laburar){
-    pthread_mutex_lock(&mutex_workers);
-    Worker* laburito_disponible = (Worker *)list_find(workers,NULL); //probar esto che
+    
+    Worker* laburito_disponible = (Worker *)list_find(workers,buscarLaburanteSinLaburo); //probar esto che
     if (laburito_disponible!=NULL){
        laburito_disponible->query = query_que_quiere_laburar; 
        laburito_disponible->esta_libre=false;
@@ -137,11 +145,75 @@ void intentarEnviarQueryAExecute(Query *query_que_quiere_laburar){
        query_que_quiere_laburar->quid,laburito_disponible->id);
     }
 
-    pthread_mutex_unlock(&mutex_workers);
+    
 }
 
 bool ordenarPorPrioridad(void *query_vigente_void,void* query_desafiante_void){
     Query* query_vigente = (Query*)query_vigente_void;
     Query* query_desafiante = (Query*)query_desafiante_void;
     return query_vigente->prioridad < query_desafiante->prioridad;
+}
+
+void gestionarWorkerIndividual(int id_worker ,int fd_conexion){
+    Worker* nuevo_laburante_devuelto_por_la_funcion_que_crea_y_devuelve_worker = crearWorker(id_worker,fd_conexion);    //
+    if (!nuevo_laburante_devuelto_por_la_funcion_que_crea_y_devuelve_worker){
+        log_error(logger_master,"Error - (gestionarWorkerIndividual) - Error al reservar memoria al reservar memoria");
+        return;
+    } 
+    
+    intentarEnviarQueryAExecutePorWorker(nuevo_laburante_devuelto_por_la_funcion_que_crea_y_devuelve_worker);
+    
+    pthread_mutex_lock(&mutex_workers);
+    list_add(workers, nuevo_laburante_devuelto_por_la_funcion_que_crea_y_devuelve_worker);
+    pthread_mutex_unlock(&mutex_workers);
+
+}
+
+// no se reserva nunca worker
+
+/*
+prioridades: si no hay workers libres y justo nuestro worker es el de menor prioridad
+
+
+*/
+
+void intentarEnviarQueryAExecutePorWorker(Worker* worker){ // linkedin
+    
+    pthread_mutex_lock(&mutex_lista_ready);
+
+    if (hayLaburo(lista_ready)){
+        Query* query = (Query *)list_remove(lista_ready,0);
+        agarrarLaPala(worker,query);
+        
+        log_debug(logger_master,
+        "Debug - (intentarEnviarQueryAExecutePorWorker) - Lista READY no esta vacia. Query %d enviada a Worker %d",query->quid,worker->id);
+        
+    } else {
+        worker->esta_libre = true;     
+        
+    }
+    pthread_mutex_unlock(&mutex_lista_ready);
+}
+
+
+Worker* crearWorker(int id_worker_a_crear_ahora, int contacto_del_empleado){
+    Worker* nuevo_laburante_que_reserva_memoria_en_el_espacio_heap = malloc(sizeof(Worker));
+    nuevo_laburante_que_reserva_memoria_en_el_espacio_heap->esta_libre = true;
+    nuevo_laburante_que_reserva_memoria_en_el_espacio_heap->id = id_worker_a_crear_ahora;
+    nuevo_laburante_que_reserva_memoria_en_el_espacio_heap->query = NULL;
+    return nuevo_laburante_que_reserva_memoria_en_el_espacio_heap; 
+} 
+
+bool hayLaburo(t_list* lista){
+    return !(list_is_empty(lista));
+}
+
+void agarrarLaPala(Worker* laburador,Query* laburo){
+        laburador->query = laburo;
+        laburador->esta_libre = false;
+}
+
+bool buscarLaburanteSinLaburo(void *args){
+    Worker* laburante = (Worker *)args;
+    return laburante->esta_libre;
 }
