@@ -24,9 +24,9 @@ void IniciarMemoria(tam_pag)
     lista_frames = (frame_t*) malloc(cant_frames * sizeof(frame_t));
     for (int i = 0; i < cant_frames; i++) {
         lista_frames[i].nro_frame = i;
-        lista_frames[i].nro_pag = -1; 
+        lista_frames[i].entrada = NULL; 
     }
-     
+    puntero=0;
 }
 
 tabla_paginas_t* buscar_o_crear_tabla(char* file, char* tag) {

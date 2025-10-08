@@ -47,7 +47,7 @@ void ejecutar_commit(char* file, char* tag);
 void ejecutar_flush(char* file, char* tag);
 void ejecutar_delete(char* file, char* tag);
 void ejecutar_end(); 
-
+void frameAStorage(char* file, char* tag, int nro_pag);
 entrada_pagina_t* buscar_o_crear_entrada_pagina(tabla_paginas_t* tabla, int pag_actual);
 entrada_pagina_t* buscar_entrada_pagina(tabla_paginas_t* tabla, int pag_actual);
 frame_t* buscar_frame_libre();

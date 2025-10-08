@@ -311,7 +311,7 @@ int escribir_en_memoria_paginada(char* file, char* tag, int pagina, int desplaza
     // bucle que escribe las paginas necesariasBucle principal: escribe hasta cubrir totalAEscribir
     while (escritos < totalAEscribir) {
         
-        entrada_pagina_t* ent = buscar_o_crear_entrada_pagina(tabla, pag_actual);
+        entrada_pagina_t* ent = buscar_o_crear_entrada_pagina(tabla, pag_actual,file,tag);
         if (!ent) {
             log_error(logger_worker, "Fallo al obtener/crear entrada de pagina %d", pag_actual);
             free(src);
@@ -377,7 +377,7 @@ char* leer_en_memoria_paginada(char* file, char* tag, int pagina, int desplazami
 
     while (bytesLeidos < bytesObjetivo) {
         // Buscar (o crear si tu política lo permite) la entrada de la página actual
-        entrada_pagina_t* ent = buscar_o_crear_entrada_pagina(tabla, pag_actual);
+        entrada_pagina_t* ent = buscar_o_crear_entrada_pagina(tabla, pag_actual,file,tag);
         if (!ent) {
             log_error(logger_worker, "No se encontro/creo la entrada de pagina %d", pag_actual);
             free(mensaje);
@@ -429,7 +429,7 @@ char* leer_en_memoria_paginada(char* file, char* tag, int pagina, int desplazami
 
 
 
-entrada_pagina_t* buscar_o_crear_entrada_pagina(tabla_paginas_t* tabla, int pag_actual){
+entrada_pagina_t* buscar_o_crear_entrada_pagina(tabla_paginas_t* tabla, int pag_actual, char* file, char* tag){
     entrada_pagina_t* entrada = buscar_entrada_pagina(tabla, pag_actual);
     //no existe la entrada, creo un ENTRADA
     if (entrada == NULL) {
@@ -439,14 +439,12 @@ entrada_pagina_t* buscar_o_crear_entrada_pagina(tabla_paginas_t* tabla, int pag_
             return NULL;
         }
         //busco frame libre ya que estoy creando una nueva entrada
-        frame_t* frameLibre= buscar_frame_libre();
+        frame_t* frameLibre= buscar_frame_libre(file,tag);
         if (frameLibre == NULL) {
             log_error(logger_worker, "No se pudo obtener un frame libre para la nueva entrada de pagina");
             free(entrada);
             return NULL;
         }
-
-        frameLibre->nro_pag=pag_actual; // DUDOSO
 
         entrada->nro_pag = pag_actual;
         entrada->nro_frame = frameLibre->nro_frame; 
@@ -455,6 +453,9 @@ entrada_pagina_t* buscar_o_crear_entrada_pagina(tabla_paginas_t* tabla, int pag_
         entrada->bitUso = 1;
 
         list_add(tabla->entradas, entrada);
+
+
+        frameLibre->entrada = entrada; // vincular el frame con la nueva entrada
     }
     return entrada;
 }
@@ -486,35 +487,14 @@ frame_t* aplicar_politica_reemplazo(){
     char* algoritmo = config_worker->algoritmo_reemplazo;
         
     if (strcmp(algoritmo,"CLOCK-M") == 0){
-       
+     frame_t* v = NULL;
+    
+    v = CicloCLockM(0, 0, 0); if (v) return v;
+    v = CicloCLockM(0, 0, 1); if (v) return v;
+    v = CicloCLockM(1, 0, 0); if (v) return v;
+    v = CicloCLockM(0, 0, 1); if (v) return v;
 
-        log_info("Mi puntero antes de pasar por clock-M", "puntero", puntero);
-        frame_t* frame = CicloCLockM(0, 0, 0, nro_pagina, frame, offset);
-        if (frame->nro_pag == -1) {
-            return frame;
-        }
 
-        frame_t* frame = CicloCLockM(1, 0, 1, nro_pagina, frame, offset);
-        if (frame->nro_pag == -1) {
-            //utils.FormatearUrlYEnviar(cpu.Url_memoria, "/WRITE", true, "%d %d %d %s", cpu.Proc_ejecutando.Pid, aux_modif.frame, aux_modif.offset, aux_modif.contenido)
-            //log_debug("Debug - (AplicarAlgoritmoCachePags) - Realice el reemplazo en la 2da pasada", "pag_reemplazada", aux_modif.pagina,
-            //    "contenido", aux_modif.contenido)
-            return frame;
-        }
-
-        frame_t* frame = CicloCLockM(0, 0, 0, nro_pagina, frame, offset);
-        if(frame->nro_pag == -1) {
-            //log_debug("Debug - (AplicarAlgoritmoCachePags) - Realice el reemplazo en la 3ra pasada", "pag_reemplazada", aux_modif.pagina)
-            return frame;
-        }
-
-       frame_t* frame = CicloCLockM(0, 0, 1, nro_pagina, frame, offset);
-        if (frame->nro_pag == -1) {
-            //utils.FormatearUrlYEnviar(Url_memoria, "/WRITE", true, "%d %d %d %s", Proc_ejecutando.Pid, aux_modif.frame, aux_modif.offset, aux_modif.contenido)
-            //log_debug("Debug - (AplicarAlgoritmoCachePags) - Realice el reemplazo en la 4ta pasada", "pag_reemplazada", aux_modif.pagina,
-            //    "contenido", aux_modif.contenido)
-            return frame;
-        }
         
     }else if(strcmp(algoritmo,"LRU")==0){
        
@@ -528,42 +508,101 @@ frame_t* aplicar_politica_reemplazo(){
 
 }
 
+frame_t* CicloCLockM(int reset_u, int valor_uso, int valor_modificado) {
+    if (cant_frames <= 0 || !lista_frames) return NULL;
+
+    // 1) desde puntero hasta el final
+    for (int i = puntero; i < cant_frames; i++) {
+        frame_t* f = &lista_frames[i];
+        entrada_pagina_t* e = f->entrada;
+
+            if (e->bitUso == valor_uso && e->bitModificado == valor_modificado) {
+                char* file = e->tabla->file;
+                char* tag  = e->tabla->tag;
+
+                if(e->bitModificado == 1){
+                    enviarFrameModificadoStorage(f,file,tag);
+                }
+                
+                // borro los datos de la entrada VIEJA
+                e->nro_pag     = -1; 
+                e->nro_frame    = -1;
+                e->bitPresencia = 0;
+                e->bitUso       = 0;
+                e->bitModificado= 0;     
+                e->tabla        = NULL; 
+                
+                // hacer el frame 0 KM (peugeot 208 plz)
+                bitMap[f->nro_frame] = 0;
+                f->nro_frame = -1;
+                f->entrada = NULL;
+
+                // Avanzar la mano del reloj
+                puntero = i + 1;
+                if (puntero == cant_frames) puntero = 0;
+
+                return f; // víctima libre y lista para reutilizar OKM
+            }
+
+            if (reset_u) e->bitUso = 0;  // tercera pasada: limpiar U
+        }
     
 
-frame_t* CicloCLockM( int sector_extra,  int valor_uso, int valor_modificado ,  int nro_pagina,  int frame, int offset) {
-    //desde el puntero hasta el FIIIN
-    for(int i = puntero; i < cant_frames;i++ ){
-        if (lista_frames[i]->bit_uso == valor_uso && lista_frames[i]->bit_modificado == valor_modificado) {
-            int pagina = lista_frames[i]->nro_pag;
-            lista_frames[i]->nro_pag = -1; //lo uso para que no me lo saque en la proxima vuelta
-            bitMap[i]=0;
-
-            buscar_tabla_de_paginas();
-            }
-
-
-            return lista_frames[i]
-        }
-        if (sector_extra == 1) {
-            lista_frames[i].bit_uso = 0
-        }
-
-//desde el inicio hasta el puntero
+    // 2) desde 0 hasta puntero-1
     for (int i = 0; i < puntero; i++) {
-        if (lista_frames[i]->bit_uso == valor_uso && lista_frames[i]->bit_modificado == valor_modificado) {
-           int pagina = lista_frames[i]->nro_pag;
-            lista_frames[i]->nro_pag = -1; //lo uso para que no me lo saque en la proxima vuelta
-            bitMap[i]=0;
+        frame_t* f = &lista_frames[i];
+        entrada_pagina_t* e = f->entrada;
 
-            buscar_tabla_de_paginas();
+            if (e->bitUso == valor_uso && e->bitModificado == valor_modificado) {
+                char* file = e->tabla->file;
+                char* tag  = e->tabla->tag;
+
+                if(e->bitModificado == 1){
+                    enviarFrameModificadoStorage(f,file,tag);
+                }
+                // borro los datos de la entrada VIEJA
+                e->nro_pag     = -1; 
+                e->nro_frame    = -1;
+                e->bitPresencia = 0;
+                e->bitUso       = 0;
+                e->bitModificado= 0;     
+                e->tabla        = NULL; 
+
+                // hacer el frame 0 KM (peugeot 208 plz)
+                bitMap[f->nro_frame] = 0;
+                f->nro_frame = -1;
+                f->entrada = NULL;
+
+                puntero = i + 1;
+                if (puntero == cant_frames) puntero = 0;
+
+                return f;
             }
 
+            if (reset_u) e->bitUso = 0;
+        
+    }
 
-            return lista_frames[i]
-        }
-        if (sector_extra == 1) {
-            cpu.Cache_pags[i].bit_uso = 0
-        }
+    return NULL; // no se encontró víctima con esos (U,M)
+}    
 
+
+
+
+void enviarFrameModificadoStorage(frame_t* frame,char* file, char* tag){
+    
+    char* contenidoPagina = malloc((size_t)(tam_pag));
+    char* base_frame = (char*)memoria + ((size_t)frame->nro_frame * (size_t)tam_pag);
+
+
+    memcpy(contenidoPagina, base_frame, tam_pag);
+    
+    memset(base_frame,0,tam_pag);
+
+    char* mensaje = contenidoPagina;
+
+    free(contenidoPagina);
+    
+    EnviarString(mensaje,socket_storage,logger_worker);   
 
 }

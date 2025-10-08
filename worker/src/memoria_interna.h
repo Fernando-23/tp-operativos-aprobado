@@ -8,29 +8,31 @@ typedef struct {
     int cant_paginas;
 } tabla_paginas_t;
 
-typedef struct {
+typedef struct frame {
+    int nro_frame;
+    entrada_pagina_t* entrada; // <- puntero a la única entrada real
+} frame_t;
+
+typedef struct entrada_pagina {
     int nro_pag;
-    int nro_frame;       
-    int bitPresencia;    // 1 si está en memoria, 0 si no
-    int bitUso;           
-    int bitModificado;
-    
+    int nro_frame;        // -1 si no residente
+    uint8_t bitPresencia; // R
+    uint8_t bitUso;       // U
+    uint8_t bitModificado;// M
+    tabla_paginas_t* tabla; // back-pointer
 } entrada_pagina_t;
 
-typedef struct {
-    int nro_frame;       // Número de frame en memoria
-    int nro_pag;         // Número de página que contiene
-    int bitUso;          // Bit de uso para la política de reemplazo
-    int bitModificado;
-   // Bit de modificado para la política de reemplazo
-} frame_t;
+
+
+
+
 
 extern frame_t* lista_frames; // Array de frames
 
 extern int* bitMap;
 extern int cant_frames;
 extern t_list* tabla_general;
-
+extern int puntero;
 extern void *memoria;
 
 void IniciarMemoria(tam_pag);
