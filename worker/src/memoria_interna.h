@@ -20,6 +20,7 @@ typedef struct entrada_pagina {
     uint8_t bitUso;       // U
     uint8_t bitModificado;// M
     tabla_paginas_t* tabla; // back-pointer
+    uint64_t last_used_ms;         // última vez que se usó (READ/WRITE o page-in)
 } entrada_pagina_t;
 
 

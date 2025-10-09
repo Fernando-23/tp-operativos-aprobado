@@ -58,7 +58,6 @@ int main(int argc, char* argv[]) {
         }
         list_destroy_and_destroy_elements(lista_de_instrucciones,destruir);
         printf("[DEBUG] Se va a cambiar el contexto\n");
-        LiberarCaches();
 
         interrumpir_query = false;
 
