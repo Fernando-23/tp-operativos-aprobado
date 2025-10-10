@@ -1,7 +1,9 @@
 #include "helpers.h"
 
+char* NOMBRE_MODULOS[4] = {"QUERY","MASTER","WORKER","STORAGE"};
+int CANT_MODULOS = 4;
 
-t_log* IniciarLogger(char* nombre_modulo,int nivel_log)
+t_log* iniciarLogger(char* nombre_modulo,int nivel_log)
 {
     t_log* nuevo_logger;
     
@@ -16,7 +18,7 @@ t_log* IniciarLogger(char* nombre_modulo,int nivel_log)
     return nuevo_logger;
 }
 
-t_config* IniciarConfig(char* nombre_config)
+t_config* iniciarConfig(char* nombre_config)
 {
     t_config* nuevo_config;
 
@@ -98,3 +100,68 @@ t_list *recibir_paquete(int socket_cliente){
 	free(buffer);
 	return valores;
 }
+
+void RecibirMensaje(t_mensaje* mensaje,int socket_cliente){
+    
+    recv(socket_cliente, &(mensaje->tamanio_msg), sizeof(int), MSG_WAITALL);
+    mensaje->mensaje = malloc(mensaje->tamanio_msg);
+    recv(socket_cliente, mensaje->mensaje, mensaje->tamanio_msg, MSG_WAITALL);
+
+}
+
+void EnviarMensaje(char* mensaje,int socket_cliente){
+    
+    int tamanio_msg = strlen(mensaje)+1;
+    send(socket_cliente, &tamanio_msg, sizeof(int), 0);
+    send(socket_cliente, mensaje, tamanio_msg, 0);
+
+}
+
+void enviarMensajito(Mensaje* mensaje_a_enviar,int socket_servidor){ //envia query
+	
+	send(socket_servidor,&mensaje_a_enviar->size,sizeof(int),0);
+	printf("PRUEBAS - (enviarMensajito) - Mensaje Length: %d\n",mensaje_a_enviar->size);
+	
+	send(socket_servidor,mensaje_a_enviar->mensaje,mensaje_a_enviar->size,0);
+	printf("PRUEBAS - (enviarMensajito) - Mensaje: %s\n",mensaje_a_enviar->mensaje);
+
+	liberarMensajito(mensaje_a_enviar);
+}
+
+//RESERVA MEMORIA
+Mensaje* recibirMensajito(int socket_cliente){
+
+	Mensaje* mensajito = malloc(sizeof(Mensaje));
+    recv(socket_cliente, &(mensajito->size), sizeof(int), 0);
+    printf("PRUEBAS - (RecibirMensajito) - Recibi el tamanio: %d\n",mensajito->size);
+   
+    mensajito->mensaje = malloc(mensajito->size);
+    
+    recv(socket_cliente, mensajito->mensaje, mensajito->size, 0);
+    printf("PRUEBAS - (RecibirMensajito) - Recibi el mensaje: %s\n",mensajito->mensaje);
+
+	return mensajito;
+}
+
+void liberarMensajito(Mensaje* mensajito_a_liberar){
+	free(mensajito_a_liberar->mensaje);
+	free(mensajito_a_liberar);
+}
+
+int obtenerModuloCodOp(char *string_modulo){
+    for (int i = 0; i < CANT_MODULOS; i++)
+    {
+        if (strcmp(NOMBRE_MODULOS[i],string_modulo)==0)
+		 return i;
+    }
+    return -1;
+}
+
+Mensaje* mensajitoOk(){
+    Mensaje* mensajito = malloc(sizeof(Mensaje));
+    mensajito->mensaje = string_new();
+    mensajito->mensaje = "OK";
+    mensajito->size = string_length(mensajito->mensaje);
+    return mensajito;
+}
+

@@ -22,7 +22,10 @@ extern ConfigQuery* config_query;
 
 
 //Funciones
-void CargarConfigQuery(char* path_config);
+void cargarConfigQuery(char* path_config);
+
+Mensaje* crearMensajeRegistroQuery(char* ruta,int prioridad);
+int gestionarOrdenMaestro(Mensaje* orden_de_mi_maestro);
 
 
 #endif /* HELPERS_QUERY_H_ */

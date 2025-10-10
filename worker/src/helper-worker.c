@@ -12,13 +12,13 @@ int tam_pag;
 
 
 
-void CargarConfigWorker(char* path_config){
+void cargarConfigWorker(char* path_config){
 
     char* path_completo = string_new();
     string_append(&path_completo, "../configs/");
     string_append(&path_completo, path_config);
 
-    t_config* config = IniciarConfig(path_completo);
+    t_config* config = iniciarConfig(path_completo);
     config_worker = malloc(sizeof(ConfigWorker));
     
 

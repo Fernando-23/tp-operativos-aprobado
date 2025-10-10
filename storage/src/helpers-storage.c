@@ -3,7 +3,7 @@
 ConfigStorage* config_storage = NULL;
 t_log* logger_storage = NULL;
 
-void CargarConfigStorage(char* path_config){
+void cargarConfigStorage(char* path_config){
     char* path_completo = string_new();
     string_append(&path_completo, "../configs/");
     string_append(&path_completo, path_config); 
@@ -25,4 +25,19 @@ void CargarConfigStorage(char* path_config){
     
     free(path_completo);
     config_destroy(config);
+}
+
+void cargarDatosFS(){
+    t_config* superblock = config_create("../configs/superblock.config");
+    datosFS = malloc(sizeof(DatosFS));
+
+    if(superblock == NULL){
+        printf("cargo mal");
+        abort();
+    }
+
+    datosFS->tamanio_fsystem = config_get_int_value(superblock,"FS_SIZE");
+    datosFS->tamanio_bloque = config_get_int_value(superblock,"BLOCK_SIZE");
+    
+    config_destroy(superblock);
 }

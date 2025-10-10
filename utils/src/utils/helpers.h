@@ -15,6 +15,13 @@ typedef enum{
 	PAQUETE
 }op_code;
 
+typedef enum {
+    QUERY,
+	MASTER,
+	WORKER,
+    STORAGE
+}Modulo;
+
 typedef struct {
 	u_int32_t size;  
 	//int offset; //desplazamiento del payload
@@ -26,15 +33,34 @@ typedef struct {
 	t_buffer* buffer;
 } t_paquete;
 
+typedef struct{
+    int tamanio_msg;
+    char* mensaje;
+}t_mensaje;
 
-t_log* IniciarLogger(char* nombre_modulo, int nivel_log);
-t_config* IniciarConfig(char* nombre_config); 
-void ChequearArgs(int cant_args_ingresados,int limite_cant_args);
+typedef struct{
+    int size;
+    char *mensaje;
+}Mensaje;
+
+
+extern char* NOMBRE_MODULOS[4];
+extern int CANT_MODULOS;
+
+t_log* iniciarLogger(char* nombre_modulo, int nivel_log);
+t_config* iniciarConfig(char* nombre_config); 
+void chequearArgs(int cant_args_ingresados,int limite_cant_args);
 void enviar_mensaje(char *mensaje, int socket_cliente);
 void eliminar_paquete(t_paquete *paquete);
 void *serializar_paquete(t_paquete *paquete, uint32_t bytes);
 void *recibir_buffer(uint32_t *size, int socket_cliente);
 t_list *recibir_paquete(int socket_cliente);
 
+int obtenerModuloCodOp(char *string_modulo);
+
+void enviarMensajito(Mensaje* mensaje_a_enviar,int socket_servidor);
+Mensaje* recibirMensajito(int socket_cliente);
+void liberarMensajito(Mensaje* mensajito_a_liberar);
+Mensaje* mensajitoOk();
 
 #endif 
