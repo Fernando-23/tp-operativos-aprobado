@@ -6,6 +6,9 @@
 t_instruccion *instruccion;
 int socket_master;
 int socket_storage;
+char* NOMBRE_OPERACIONES[9] = 
+    {"CREATE","TRUNCATE","WRITE","READ","TAG","COMMIT","FLUSH","DELETE","END"};
+int CANT_OPERACIONES_WORKER = 9;
 
 t_list *crear_lista()
 {
@@ -66,16 +69,26 @@ char *Fetch(t_list *lista_de_instrucciones)
     return instruccion;
 }
 
+int obtenerOperacionCodOp(char *string_operacion){
+    for (int i = 0; i < CANT_OPERACIONES_WORKER; i++){
+        
+        if (strcmp(NOMBRE_OPERACIONES[i],string_operacion)==0)
+		return i;
+    
+    }
+    return -1;
+}
+
 void Decode(char *instruccionCom)
 {
 
     char **instruccion_separada = string_n_split(instruccionCom, 1, " ");
     // [cod-op,cola]
 
-    char *op_code = instruccion_separada[0];
+    char *op_code_string = instruccion_separada[0];
     instruccion->operacion = instruccion_separada[1];
-
-    if (strcmp(op_code, "CREATE") == 0)
+    instruccion->cod_op = obtenerOperacionCodOp(op_code_string);
+    /*if (strcmp(op_code, "CREATE") == 0)
         instruccion->cod_op = CREATE;
     else if (strcmp(op_code, "TRUNCATE") == 0)
         instruccion->cod_op = TRUNCATE;
@@ -92,7 +105,7 @@ void Decode(char *instruccionCom)
     else if (strcmp(op_code, "DELETE") == 0)
         instruccion->cod_op = DELETE;
     else if (strcmp(op_code, "END") == 0)
-        instruccion->cod_op = END;
+        instruccion->cod_op = END;*/
 }
 
 bool Execute()

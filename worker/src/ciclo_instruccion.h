@@ -32,6 +32,8 @@ t_list* crear_lista();
 extern int socket_master;
 extern int socket_storage;
 
+extern int CANT_OPERACIONES_WORKER;
+
 char* Fetch(t_list* lista_instrucciones);
 void Decode(char* instruccionCom);
 bool Execute();
@@ -51,5 +53,6 @@ void frameAStorage(char* file, char* tag, int nro_pag);
 entrada_pagina_t* buscar_o_crear_entrada_pagina(tabla_paginas_t* tabla, int pag_actual);
 entrada_pagina_t* buscar_entrada_pagina(tabla_paginas_t* tabla, int pag_actual);
 frame_t* buscar_frame_libre();
+int obtenerOperacionCodOp(char *string_operacion);
 
 #endif /* CICLO_INSTRUCCION_H_ */
