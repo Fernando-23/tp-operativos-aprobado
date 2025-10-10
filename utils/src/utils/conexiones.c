@@ -85,6 +85,10 @@ int esperarCliente(int socket_servidor,t_log* logger){ //santi, no se entendio
 
     // Aceptamos un nuevo cliente
     int socket_cliente = accept(socket_servidor,NULL,NULL);
+	if (socket_cliente == -1){
+		log_error(logger,"SE PUDRIO TODO, fallo el accept");
+		abort();
+	}
     log_info(logger, "Se conecto un cliente!");
 
     return socket_cliente;

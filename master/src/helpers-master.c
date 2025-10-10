@@ -187,7 +187,7 @@ void intentarEnviarQueryAExecutePorWorker(Worker* worker){ // linkedin
         
         log_debug(logger_master,
         "Debug - (intentarEnviarQueryAExecutePorWorker) - Lista READY no esta vacia. Query %d enviada a Worker %d",query->quid,worker->id);
-        
+
     } else {
         worker->esta_libre = true;     
         
@@ -196,11 +196,12 @@ void intentarEnviarQueryAExecutePorWorker(Worker* worker){ // linkedin
 }
 
 
-Worker* crearWorker(int id_worker_a_crear_ahora, int contacto_del_empleado){
+Worker* crearWorker(int id_worker_a_crear_ahora, int contacto_empleado){
     Worker* nuevo_laburante_que_reserva_memoria_en_el_espacio_heap = malloc(sizeof(Worker));
     nuevo_laburante_que_reserva_memoria_en_el_espacio_heap->esta_libre = true;
     nuevo_laburante_que_reserva_memoria_en_el_espacio_heap->id = id_worker_a_crear_ahora;
     nuevo_laburante_que_reserva_memoria_en_el_espacio_heap->query = NULL;
+    nuevo_laburante_que_reserva_memoria_en_el_espacio_heap->fd = contacto_empleado;
     return nuevo_laburante_que_reserva_memoria_en_el_espacio_heap; 
 } 
 

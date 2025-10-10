@@ -61,6 +61,6 @@ int obtenerModuloCodOp(char *string_modulo);
 void enviarMensajito(Mensaje* mensaje_a_enviar,int socket_servidor);
 Mensaje* recibirMensajito(int socket_cliente);
 void liberarMensajito(Mensaje* mensajito_a_liberar);
-
+Mensaje* mensajitoOk();
 
 #endif 

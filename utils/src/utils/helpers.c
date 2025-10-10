@@ -156,3 +156,12 @@ int obtenerModuloCodOp(char *string_modulo){
     }
     return -1;
 }
+
+Mensaje* mensajitoOk(){
+    Mensaje* mensajito = malloc(sizeof(Mensaje));
+    mensajito->mensaje = string_new();
+    mensajito->mensaje = "OK";
+    mensajito->size = string_length(mensajito->mensaje);
+    return mensajito;
+}
+

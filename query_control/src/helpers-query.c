@@ -27,7 +27,7 @@ void cargarConfigQuery(char* path_config){
 //HAY QUE LIBERAR EN ALGUN MOMENTO ESTE MENSAJE char
 Mensaje* crearMensajeRegistroQuery(char* ruta,int prioridad){
 	char *mensaje = string_new(); // 0 nombre_query 1
-	string_append(&mensaje,"0"); //Indicando que soy query a master
+	string_append(&mensaje,"QUERY"); //Indicando que soy query a master
 	string_append(&mensaje," "); //di vi no
 	string_append(&mensaje,ruta); // nombre_query
 	string_append(&mensaje," "); //divino

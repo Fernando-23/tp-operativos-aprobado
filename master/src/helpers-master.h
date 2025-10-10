@@ -33,6 +33,7 @@ typedef struct{
 typedef struct{
     int id;
     bool esta_libre;
+    int fd;
     Query* query;
 }Worker;
 
