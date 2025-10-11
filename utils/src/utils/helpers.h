@@ -58,7 +58,8 @@ t_list *recibir_paquete(int socket_cliente);
 
 int obtenerModuloCodOp(char *string_modulo);
 
-void enviarMensajito(Mensaje* mensaje_a_enviar,int socket_servidor);
+Mensaje* crearMensajito(char* mensaje);
+void enviarMensajito(Mensaje* mensaje_a_enviar,int socket_servidor,t_log* logger);
 Mensaje* recibirMensajito(int socket_cliente);
 void liberarMensajito(Mensaje* mensajito_a_liberar);
 Mensaje* mensajitoOk();

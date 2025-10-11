@@ -33,6 +33,7 @@ extern int socket_master;
 extern int socket_storage;
 
 extern int CANT_OPERACIONES_WORKER;
+extern char* NOMBRE_OPERACIONES[9];
 
 char* Fetch(t_list* lista_instrucciones);
 void Decode(char* instruccionCom);

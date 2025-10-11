@@ -117,13 +117,21 @@ void EnviarMensaje(char* mensaje,int socket_cliente){
 
 }
 
-void enviarMensajito(Mensaje* mensaje_a_enviar,int socket_servidor){ //envia query
+Mensaje* crearMensajito(char* mensaje){
+	Mensaje* mensajito_nuevo = malloc(sizeof(Mensaje));
+	mensajito_nuevo->size = string_length(mensaje)+1;
+	mensajito_nuevo->mensaje = string_new();
+	mensajito_nuevo->mensaje = mensaje;
+	return mensajito_nuevo;
+}
+
+void enviarMensajito(Mensaje* mensaje_a_enviar,int socket_servidor,t_log* logger){ //envia query
 	
 	send(socket_servidor,&mensaje_a_enviar->size,sizeof(int),0);
-	printf("PRUEBAS - (enviarMensajito) - Mensaje Length: %d\n",mensaje_a_enviar->size);
+	log_debug(logger,"Debug - (enviarMensajito) - Mensaje Length: %d\n",mensaje_a_enviar->size);
 	
 	send(socket_servidor,mensaje_a_enviar->mensaje,mensaje_a_enviar->size,0);
-	printf("PRUEBAS - (enviarMensajito) - Mensaje: %s\n",mensaje_a_enviar->mensaje);
+	log_debug(logger,"Debug - (enviarMensajito) - Mensaje: %s\n",mensaje_a_enviar->mensaje);
 
 	liberarMensajito(mensaje_a_enviar);
 }

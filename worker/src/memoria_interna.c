@@ -39,10 +39,10 @@ tabla_paginas_t* buscar_o_crear_tabla(char* file, char* tag) {
         tabla_paginas_t* t = list_get(tabla_general, i);
         if (string_equals_ignore_case(t->file, file) &&
             string_equals_ignore_case(t->tag, tag)) {
-            return t; // devuelvo la tabla existente
+            return t; 
         }
     }
-    // si no existe creo la tabla
+    
     tabla_paginas_t* nueva = malloc(sizeof(tabla_paginas_t));
     nueva->file = strdup(file);
     nueva->tag = strdup(tag);
@@ -62,7 +62,7 @@ int escribir_en_memoria_paginada(char* file, char* tag, int pagina, int desplaza
     }
 
     size_t bytesContenido  = strlen(contenido);
-    size_t totalAEscribir  = bytesContenido + 1; // guardás también el '\0'
+    size_t totalAEscribir  = bytesContenido + 1; 
     size_t escritos        = 0;
     int    pag_actual      = pagina;
     int    desp_actual     = desplazamiento;
@@ -88,14 +88,14 @@ int escribir_en_memoria_paginada(char* file, char* tag, int pagina, int desplaza
         // Copia del tramo que cae en ESTA página
         memcpy(base_frame + desp_actual, contenido + escritos, por_copiar);
 
-        // Marcas
+       
         ent->bitUso        = 1;
         ent->bitModificado = 1;
         ent->last_used_ms  = now_ms();
 
-        // LOG del tramo: dirección física del PRIMER byte + valor (el tramo entero)
+       
         uint64_t dfis = dir_fisica(ent->nro_frame, desp_actual);
-        // Para mostrar “valor escrito” sin romper por binario, usamos %.*s
+        
         log_info(logger_worker,
                  "Query %d: Acción: ESCRIBIR - Dirección Física: %llu - Valor: %.*s",
                  query->id_query,
@@ -166,11 +166,11 @@ char* leer_en_memoria_paginada(char* file, char* tag, int pagina, int desplazami
         // Copiamos este tramo desde la página actual
         memcpy(mensaje + bytesLeidos, base_frame + desp_actual, por_copiar);
 
-        // Marcas
+      
         ent->bitUso       = 1;
         ent->last_used_ms = now_ms();
 
-        // LOG del tramo leído
+        
         uint64_t dfis = dir_fisica(ent->nro_frame, desp_actual);
         log_info(logger_worker,
                  "Query %d: Acción: LEER - Dirección Física: %llu - Valor: %.*s",
@@ -234,7 +234,7 @@ entrada_pagina_t *buscar_o_crear_entrada_pagina(tabla_paginas_t *tabla, int pag_
 
         list_add(tabla->entradas, entrada);
 
-        frameLibre->entrada = entrada; // vincular el frame con la nueva entrada
+        frameLibre->entrada = entrada; 
     }
     return entrada;
 }
@@ -264,7 +264,7 @@ frame_t* buscar_frame_libre()
     frame_t *victima = aplicar_politica_reemplazo();
     if (!victima) return NULL;
 
-    vaciar_frame(victima);      // <- acá limpiás y (si hace falta) flusheás
+    vaciar_frame(victima);     
     bitMap[victima->nro_frame] = 1;
     return victima;
 }
@@ -357,51 +357,45 @@ static void vaciar_frame(frame_t *f)
    
     entrada_pagina_t *e = f->entrada;
     if (e) {
-        // flush si estaba sucia
+       
         if (e->bitModificado) {
             // Tomamos file/tag desde la propia tabla
             enviarFrameModificadoStorage(f, e->tabla->file, e->tabla->tag);
             e->bitModificado = 0;
         }
 
-        // marcar NO residente (¡no borres nro_pag!)
+        
         e->bitPresencia = 0;
         e->bitUso       = 0;
         e->nro_frame    = -1;
-        // e->last_used_ms y e->created_at_ms se conservan
+        e->last_used_ms = 0;
     }
 
     // liberar frame en el bitmap y desvincular
     bitMap[f->nro_frame] = 0;
     f->entrada = NULL;
-    // NO cambies f->nro_frame: es un índice fijo del array
+    
 }
 
 
-void enviarFrameModificadoStorage(frame_t* frame, char* file, char* tag)
-{
+void enviarFrameModificadoStorage(frame_t* frame, char* file, char* tag){
     char* base_frame = (char*)memoria + ((size_t)frame->nro_frame * (size_t)tam_pag);
 
     char* contenidoPagina = malloc((size_t)tam_pag + 1);
     memcpy(contenidoPagina, base_frame, (size_t)tam_pag);
     contenidoPagina[tam_pag] = '\0';
 
-    // TODO: idealmente enviar: "WRITE_BLOCK file tag nro_pag tam" + payload binario
-    EnviarString(socket_storage, contenidoPagina, logger_worker);
-
-    // limpiar (opcional)
-    memset(base_frame, 0, (size_t)tam_pag);
-
+    Mensaje* mensajito = malloc(sizeof(Mensaje));
+    mensajito->mensaje = contenidoPagina;
+    mensajito->size = tam_pag + 1;
+    EnviarString(mensajito,socket_storage,logger_worker);
+    
+    //Liberamos porque se envia a storage y me chupa un huevo lo que hace :)
     free(contenidoPagina);
 }
-uint64_t now_ms(void)
-{
+
+uint64_t now_ms(void){
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts); // evita cambios de hora del sistema
     return (uint64_t)ts.tv_sec * 1000ull + (uint64_t)ts.tv_nsec / 1000000ull;
 }
-
-
-
-
-

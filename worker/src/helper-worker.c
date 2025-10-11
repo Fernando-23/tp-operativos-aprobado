@@ -47,11 +47,11 @@ int conexion_storage(){
         log_error(logger_worker,"No se pudo conectar con Storage");
         exit(EXIT_FAILURE);
     }
-    EnviarString("hola mi estimado storage gg", socket_storage, logger_worker);
+    Mensaje* mensajito = crearMensajito("Riding in my storage, right after a commit.");
+    enviarMensajito(mensajito,socket_storage,logger_worker);
     recv(socket_storage,&tam_pag,sizeof(int),MSG_WAITALL);
     log_info(logger_worker,"Tamanio pag recibido %d",tam_pag);
     
-
     log_info(logger_worker,"Conectado a Storage");
 
     return socket_storage;
@@ -65,7 +65,9 @@ int conexion_master(){
         log_error(logger_worker,"No se pudo conectar con Master");
         exit(EXIT_FAILURE);
     }
-    EnviarString("hola mi estimado master yi", socket_master, logger_worker);
+    Mensaje* mensajito = crearMensajito("hola mi estimado master, soy tu worker");
+    enviarMensajito(mensajito,socket_master,logger_worker);
+    
     log_info(logger_worker,"Conectado a Master");
 
     return socket_master;
@@ -75,19 +77,19 @@ void esperando_query(int socket){
     
     // Espero los datos de Master para continuar
     // id_query, pc_query y path_query   
-    char* datos_query = RecibirString(socket);
+    Mensaje* datos_query = recibirMensajito(socket);
 
     if(datos_query == NULL){
         log_error(logger_worker,"No me llegaron datos de Master");
-        }
+    }
 
-    char ** lista_de_datos= string_split(datos_query," ");
+    char ** lista_de_datos = string_split(datos_query->mensaje," ");
     query->id_query = atoi(lista_de_datos[0]);
     query->pc_query = atoi(lista_de_datos[1]);
-    query->path_query = lista_de_datos[2];
+    *(query->path_query) = lista_de_datos[2]; //ESTO CHEQUEAR MUUUUY DETENIDAMENTE
 
     log_info("## Query %d : Se recibe la Query. El path de operaciones es: %s",query->id_query, query->path_query);
-
+    liberarMensajito(datos_query);
 }
 
 

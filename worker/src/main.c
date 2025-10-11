@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
 
     IniciarMemoria();  
 
-    EnviarString("hola mi estimado master yi", socket_master, logger_worker);
+    
     
     while (1) {
 
