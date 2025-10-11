@@ -286,8 +286,9 @@ void ejecutar_flush(char *file, char *tag)
 {
     char *fileACommit;
     sprintf(fileACommit, "FLUSH %s %s", file, tag);
-
-    EnviarString(socket_storage, fileACommit, logger_worker);
+    Mensaje* mensajito = crearMensajito(fileACommit);
+    enviarMensajito(mensajito,socket_storage,logger_worker);
+   
 
     log_debug(logger_worker, "%s:%s hacer flush enviado a storage ", file, tag);
 }
