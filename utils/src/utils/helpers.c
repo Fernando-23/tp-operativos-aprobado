@@ -30,30 +30,11 @@ t_config* iniciarConfig(char* nombre_config)
     return nuevo_config;
 }
 
-void ChequearArgs(int cant_args_ingresados,int limite_cant_args){
+void chequearArgs(int cant_args_ingresados,int limite_cant_args){
     if (cant_args_ingresados > limite_cant_args) {
         printf("Error - (main) - Cantidad de argumentos invalida");
         abort();
     } 
-}
-
-void enviar_mensaje(char *mensaje, int socket_cliente){
-	t_paquete *paquete = malloc(sizeof(t_paquete));
-
-	paquete->codigo_operacion = MENSAJE;
-	paquete->buffer = malloc(sizeof(t_buffer));
-	paquete->buffer->size = strlen(mensaje) + 1;
-	paquete->buffer->stream = malloc(paquete->buffer->size);
-	memcpy(paquete->buffer->stream, mensaje, paquete->buffer->size);
-
-	uint32_t bytes = paquete->buffer->size + 2 * sizeof(uint32_t);
-
-	void *a_enviar = serializar_paquete(paquete, bytes);
-
-	send(socket_cliente, a_enviar, bytes, 0);
-
-	free(a_enviar);
-	eliminar_paquete(paquete);
 }
 
 void *serializar_paquete(t_paquete *paquete, uint32_t bytes)
@@ -101,22 +82,6 @@ t_list *recibir_paquete(int socket_cliente){
 	return valores;
 }
 
-void RecibirMensaje(t_mensaje* mensaje,int socket_cliente){
-    
-    recv(socket_cliente, &(mensaje->tamanio_msg), sizeof(int), MSG_WAITALL);
-    mensaje->mensaje = malloc(mensaje->tamanio_msg);
-    recv(socket_cliente, mensaje->mensaje, mensaje->tamanio_msg, MSG_WAITALL);
-
-}
-
-void EnviarMensaje(char* mensaje,int socket_cliente){
-    
-    int tamanio_msg = strlen(mensaje)+1;
-    send(socket_cliente, &tamanio_msg, sizeof(int), 0);
-    send(socket_cliente, mensaje, tamanio_msg, 0);
-
-}
-
 Mensaje* crearMensajito(char* mensaje){
 	Mensaje* mensajito_nuevo = malloc(sizeof(Mensaje));
 	mensajito_nuevo->size = string_length(mensaje)+1;
@@ -125,12 +90,12 @@ Mensaje* crearMensajito(char* mensaje){
 	return mensajito_nuevo;
 }
 
-void enviarMensajito(Mensaje* mensaje_a_enviar,int socket_servidor,t_log* logger){ //envia query
+void enviarMensajito(Mensaje* mensaje_a_enviar,int fd,t_log* logger){ //envia query
 	
-	send(socket_servidor,&mensaje_a_enviar->size,sizeof(int),0);
+	send(fd,&mensaje_a_enviar->size,sizeof(int),0);
 	log_debug(logger,"Debug - (enviarMensajito) - Mensaje Length: %d\n",mensaje_a_enviar->size);
 	
-	send(socket_servidor,mensaje_a_enviar->mensaje,mensaje_a_enviar->size,0);
+	send(fd,mensaje_a_enviar->mensaje,mensaje_a_enviar->size,0);
 	log_debug(logger,"Debug - (enviarMensajito) - Mensaje: %s\n",mensaje_a_enviar->mensaje);
 
 	liberarMensajito(mensaje_a_enviar);
@@ -172,4 +137,6 @@ Mensaje* mensajitoOk(){
     mensajito->size = string_length(mensajito->mensaje);
     return mensajito;
 }
+
+
 

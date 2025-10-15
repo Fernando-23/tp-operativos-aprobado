@@ -50,7 +50,6 @@ extern int CANT_MODULOS;
 t_log* iniciarLogger(char* nombre_modulo, int nivel_log);
 t_config* iniciarConfig(char* nombre_config); 
 void chequearArgs(int cant_args_ingresados,int limite_cant_args);
-void enviar_mensaje(char *mensaje, int socket_cliente);
 void eliminar_paquete(t_paquete *paquete);
 void *serializar_paquete(t_paquete *paquete, uint32_t bytes);
 void *recibir_buffer(uint32_t *size, int socket_cliente);
@@ -59,7 +58,7 @@ t_list *recibir_paquete(int socket_cliente);
 int obtenerModuloCodOp(char *string_modulo);
 
 Mensaje* crearMensajito(char* mensaje);
-void enviarMensajito(Mensaje* mensaje_a_enviar,int socket_servidor,t_log* logger);
+void enviarMensajito(Mensaje* mensaje_a_enviar,int fd,t_log* logger);
 Mensaje* recibirMensajito(int socket_cliente);
 void liberarMensajito(Mensaje* mensajito_a_liberar);
 Mensaje* mensajitoOk();

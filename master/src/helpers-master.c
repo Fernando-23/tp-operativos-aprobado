@@ -108,22 +108,42 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
         Query* primer_elemento = list_get(lista_ready,0);
         
         if (id_query == primer_elemento->quid){ 
-            
-            /*
-            funcion ir viendo worker por worker si alguno tiene mayor prioridad que el 
-            primer elemento de la lista ready 
+            Worker *worker = buscarWorkerPorPrioridad(primer_elemento->prioridad);
+            if (worker == NULL){
+                log_debug(logger_master,
+                    "Debug - (gestionarQueryIndividual) - No se encontró worker con menor prioridad que la Query candidata");    
+                pthread_mutex_unlock(&mutex_lista_ready);
+                pthread_mutex_unlock(&mutex_workers);
+                return;
+            }
 
-            desaloja
-            query 
-            porque volviste
-            tenes que desalojar 
-
-            si yo mando una interrupcion 
-            como hago siendo yo la proxima query a elegir que cuando se libere un worker no me elija
-            como hago siendo yo el worker a desalojar que si viene un query con mayor proridad no me vuelva a desalojar
+            //cumple todo para desalojo, a desalojar papucho
             
-            */
+            enviarDesalojo(worker->fd);
+            // DEBUTANTE
+            // Calienta Karol
+            Query* query_desalojando = list_remove(lista_ready,0);
+            
+            Mensaje* respuesta = recibirMensajito(worker->fd);
+            char** mensaje_cortado = string_split(respuesta->mensaje," ");
+            char* estado_query_desalojada = mensaje_cortado[0];
+
+            if (estado_query_desalojada == "EXECUTE") {
+                int nuevo_pc = atoi(mensaje_cortado[1]);
+                Query* query_desalojada = worker->query;
+                query_desalojada->pc = nuevo_pc; //actualizo pc
+                list_add(lista_ready,query_desalojada);
+            }
+            
+            Mensaje* mensajito_a_despachar = crearMensajito(query_desalojando->query);
+            enviarMensajito(mensajito_a_despachar,query_desalojando->fd,logger_master);
+        
+            agarrarLaPala(worker,query_desalojando);
+            log_debug(logger_master,
+                "Debug - (gestionarQueryIndividual) - DESALOJO REALIZADO. Query %d enviada a Worker %d",query_desalojando->quid,worker->id);
+            liberarMensajito(respuesta);
         } 
+        
         pthread_mutex_unlock(&mutex_lista_ready);
         pthread_mutex_unlock(&mutex_workers);
         return;
@@ -139,10 +159,13 @@ void intentarEnviarQueryAExecute(Query *query_que_quiere_laburar){
     
     Worker* laburito_disponible = (Worker *)list_find(workers,buscarLaburanteSinLaburo); //probar esto che
     if (laburito_disponible!=NULL){
-       laburito_disponible->query = query_que_quiere_laburar; 
-       laburito_disponible->esta_libre=false;
-       log_debug(logger_master,"Debug - (intentarEnviarQueryAExecute) - Query %d consiguio laburo con el worker %d",
-       query_que_quiere_laburar->quid,laburito_disponible->id);
+        Mensaje *mensajito_a_despachar = crearMensajito(query_que_quiere_laburar->query);
+        enviarMensajito(mensajito_a_despachar,query_que_quiere_laburar->fd,logger_master);
+
+        laburito_disponible->query = query_que_quiere_laburar; 
+        laburito_disponible->esta_libre = false;
+        log_debug(logger_master,"Debug - (intentarEnviarQueryAExecute) - Query %d consiguio laburo con el worker %d",
+        query_que_quiere_laburar->quid,laburito_disponible->id);
     }
 
     
@@ -183,8 +206,11 @@ void intentarEnviarQueryAExecutePorWorker(Worker* worker){ // linkedin
 
     if (hayLaburo(lista_ready)){
         Query* query = (Query *)list_remove(lista_ready,0);
-        agarrarLaPala(worker,query);
+
+        Mensaje* mensajito_a_despachar = crearMensajito(query->query);
+        enviarMensajito(mensajito_a_despachar,query->fd,logger_master);
         
+        agarrarLaPala(worker,query);
         log_debug(logger_master,
         "Debug - (intentarEnviarQueryAExecutePorWorker) - Lista READY no esta vacia. Query %d enviada a Worker %d",query->quid,worker->id);
 
@@ -218,3 +244,15 @@ bool buscarLaburanteSinLaburo(void *args){
     Worker* laburante = (Worker *)args;
     return laburante->esta_libre;
 }
+
+void inicializarSemaforosMaster(){
+    pthread_mutex_init(&mutex_lista_ready,NULL);
+    pthread_mutex_init(&mutex_quid_global,NULL);
+    pthread_mutex_init(&mutex_workers,NULL);
+}
+
+void inicializarListas(){
+    lista_ready = list_create();
+    workers = list_create();
+}
+

@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include "querys.h"
+#include "prioridades.h"
 
 
 typedef struct{
@@ -27,6 +28,7 @@ typedef struct{
     char* query;
     int prioridad;
     int quid;
+    int pc;
     int fd;
 }Query;
 
@@ -36,6 +38,7 @@ typedef struct{
     int fd;
     Query* query;
 }Worker;
+
 
 extern t_list* lista_ready;
 extern t_list* workers;
@@ -63,6 +66,8 @@ bool ordenarPorPrioridad(void *query_vigente_void,void* query_desafiante_void);
 void agarrarLaPala(Worker* laburador,Query* laburo);
 bool hayLaburo(t_list* lista);
 bool buscarLaburanteSinLaburo(void *args);
+void inicializarSemaforosMaster();
+void inicializarListas();
 
 /*
 CONVENCIONES GESTION KAROL AQUINO
