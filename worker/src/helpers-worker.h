@@ -2,6 +2,7 @@
 #define HELPERS__WORKER_H_
 #include <commons/log.h>
 #include <commons/config.h>
+#include <pthread.h>
 
 #include "../../utils/src/utils/conexiones.h"
 #include "../../utils/src/utils/helpers.h"
@@ -34,9 +35,11 @@ extern int tam_pag;
 extern bool interrumpir_query;
 extern bool requiere_realmente_desalojo;
 
+extern pthread_mutex_t conexion_storage;
+extern pthread_mutex_t conexion_master;
+extern pthread_mutex_t recibir_query;
 
-void CargarConfigWorker(char* path_config);
-int crear_conexion(char *ip, char* puerto);
+void cargarConfigWorker(char* path_config);
 int conexion_storage();
 int conexion_master();
 void esperando_query(int socket);

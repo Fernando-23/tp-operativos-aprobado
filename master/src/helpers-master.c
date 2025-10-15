@@ -218,3 +218,10 @@ bool buscarLaburanteSinLaburo(void *args){
     Worker* laburante = (Worker *)args;
     return laburante->esta_libre;
 }
+
+void inicializarSemaforos(){
+    pthread_mutex_init(&mutex_lista_ready);
+    pthread_mutex_init(&mutex_workers);
+    pthread_mutex_init(&mutex_quid_global);
+    log_debug(logger_master,"Debug - (InicializarSemaforos) - Se puede circular (semaforos inicializados)");
+}

@@ -17,18 +17,7 @@ int main(int argc, char* argv[]) {
       
     pthread_join(thread_adm,NULL);
     
-    /*int socket_query = esperar_cliente(socket_sv,logger_master);       
-    char* handshake_query = RecibirString(socket_query);
-
-    log_info(logger_master,"Handshake con Query Control: %s",handshake_query);
-
-
-    int socket_worker = esperar_cliente(socket_sv,logger_master);  
-    char* handshake_worker = RecibirString(socket_worker);
-
-    log_info(logger_master,"Handshake con Worker: %s",handshake_worker);
-
-    EnviarString(handshake_query,socket_worker,logger_master);*/
+    
 
     log_destroy(logger_master);
     return 0;

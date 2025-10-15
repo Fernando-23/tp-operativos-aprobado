@@ -26,6 +26,7 @@ typedef enum{
 }algoritmo_reemplazo;
 
 extern t_instruccion* instruccion;
+extern pthread_mutex_t sem_instruccion;
 
 t_list* crear_lista();
 

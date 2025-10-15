@@ -64,6 +64,8 @@ void agarrarLaPala(Worker* laburador,Query* laburo);
 bool hayLaburo(t_list* lista);
 bool buscarLaburanteSinLaburo(void *args);
 
+
+void inicializarSemaforos();
 /*
 CONVENCIONES GESTION KAROL AQUINO
 
