@@ -35,6 +35,7 @@ extern int cant_frames;
 extern t_list* tabla_general;
 extern int puntero;
 extern void *memoria;
+extern pthread_mutex_t frame_modificado;
 
 void IniciarMemoria(tam_pag);
 tabla_paginas_t* buscar_o_crear_tabla(char* file, char* tag);

@@ -76,13 +76,14 @@ int conexion_master(){
 void esperando_query(int socket){
     
     // Espero los datos de Master para continuar
-    // id_query, pc_query y path_query   
+    // id_query, pc_query y path_query
+    pthread_mutex_lock(&recibir_query);
     Mensaje* datos_query = recibirMensajito(socket);
-
+    pthread_mutex_unlock(&recibir_query);
     if(datos_query == NULL){
         log_error(logger_worker,"No me llegaron datos de Master");
     }
-
+    
     char ** lista_de_datos = string_split(datos_query->mensaje," ");
     query->id_query = atoi(lista_de_datos[0]);
     query->pc_query = atoi(lista_de_datos[1]);

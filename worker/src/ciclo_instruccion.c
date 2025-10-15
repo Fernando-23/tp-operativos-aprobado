@@ -16,6 +16,7 @@ t_list *crear_lista()
 {
     char *path_completo;
     sprintf(path_completo, "%s/%s", config_worker->path_queries, query->path_query);
+    //revisar si más de un worker abre el mismo archivo
     FILE *file_query = fopen(path_completo, "r");
     if (!file_query)
     {
@@ -204,10 +205,10 @@ void ejecutar_create(char *file, char *tag)
     // faltaria crear alguna funcion para confirmar que se haya creado el tag para ese file (maybe)
     char *fileAcrear;
     sprintf(fileAcrear, "CREATE %s %s %d", file, tag, 0);
+    pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito(fileAcrear);
-
     enviarMensajito(mensajito,socket_storage,logger_worker);
-
+    pthread_mutex_unlock(&sem_instruccion);
     log_debug(logger_worker, "File:Tag enviados");
 }
 
@@ -221,8 +222,11 @@ void ejecutar_truncate(char *file, char *tag, int tamanio)
     }
     char *fileATrunquear;
     sprintf(fileATrunquear, "TRUNCATE %s %s %d", file, tag, tamanio);
-    Mensaje* mensajito = crearMensajito(fileATrunquear);
+    
+    pthread_mutex_lock(&sem_instruccion);
+    Mensaje* mensajito = crearMensajito(fileATrunquear);  
     enviarMensajito(mensajito,socket_storage,logger_worker);
+    pthread_mutex_unlock(&sem_instruccion);
     log_debug(logger_worker, "File:Tag y tamanios enviados");
 }
 
@@ -251,9 +255,10 @@ void ejecutar_read(char *file, char *tag, int dir_base, int tamanio)
 
     char *datoLeido = leer_en_memoria_paginada(file, tag, pagina, desplazamiento, tamanio);
     
+    pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito(datoLeido);
-    enviarMensajito(mensajito,socket_storage,logger_worker);
-    
+    enviarMensajito(mensajito,socket_master,logger_worker);
+    pthread_mutex_unlock(&sem_instruccion);
 
     log_debug(logger_worker, "File:Tag y tamanios enviados");
 }
@@ -263,9 +268,11 @@ void ejecutar_tag(char *file_origen, char *tag_origen, char *file_destino, char 
 
     char *fileATaggear;
     sprintf(fileATaggear, "TAG %s %s %s %s", file_origen, tag_origen, file_destino, tag_destino);
+
+    pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito(fileATaggear);
     enviarMensajito(mensajito,socket_storage,logger_worker);
-
+    pthread_mutex_unlock(&sem_instruccion);
     log_debug(logger_worker, "%s:%s y %s:%s destino enviados", file_origen, tag_origen, file_destino, tag_destino);
 }
 
@@ -276,9 +283,10 @@ void ejecutar_commit(char *file, char *tag)
     char *fileACommit;
     sprintf(fileACommit, "COMMIT %s %s", file, tag);
 
+    pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito(fileACommit);
     enviarMensajito(mensajito,socket_storage,logger_worker);
-
+    pthread_mutex_unlock(&sem_instruccion);
     log_debug(logger_worker, "%s:%s realizar commit enviado a storage", file, tag);
 }
 
@@ -286,9 +294,11 @@ void ejecutar_flush(char *file, char *tag)
 {
     char *fileACommit;
     sprintf(fileACommit, "FLUSH %s %s", file, tag);
+
+    pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito(fileACommit);
     enviarMensajito(mensajito,socket_storage,logger_worker);
-   
+    pthread_mutex_unlock(&sem_instruccion);
 
     log_debug(logger_worker, "%s:%s hacer flush enviado a storage ", file, tag);
 }
@@ -297,9 +307,11 @@ void ejecutar_delete(char *file, char *tag)
 { // las páginas se van a ir limpiando a medida que corran los reemplazos.
     char *fileACommit;
     sprintf(fileACommit, "DELETE %s %s", file, tag);
+    
+    pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito(fileACommit);
     enviarMensajito(mensajito,socket_storage,logger_worker);
-
+    pthread_mutex_unlock(&sem_instruccion);
     log_debug(logger_worker, "%s:%s enviados a Storage para el delete", file, tag);
 }
 
@@ -309,7 +321,9 @@ void ejecutar_end()
 
     log_debug(logger_worker, "Query %d finalizada", query->id_query);
 
+    pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito("END");
     enviarMensajito(mensajito,socket_storage,logger_worker);
+    pthread_mutex_unlock(&sem_instruccion);
 }
 

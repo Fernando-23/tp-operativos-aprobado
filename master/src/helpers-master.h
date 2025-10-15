@@ -69,6 +69,8 @@ bool buscarLaburanteSinLaburo(void *args);
 void inicializarSemaforosMaster();
 void inicializarListas();
 
+
+void inicializarSemaforos();
 /*
 CONVENCIONES GESTION KAROL AQUINO
 

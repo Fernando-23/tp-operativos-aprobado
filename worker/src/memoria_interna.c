@@ -385,11 +385,12 @@ void enviarFrameModificadoStorage(frame_t* frame, char* file, char* tag){
     memcpy(contenidoPagina, base_frame, (size_t)tam_pag);
     contenidoPagina[tam_pag] = '\0';
 
+    pthread_mutex_lock(&frame_modificado);
     Mensaje* mensajito = malloc(sizeof(Mensaje));
     mensajito->mensaje = contenidoPagina;
     mensajito->size = tam_pag + 1;
     EnviarString(mensajito,socket_storage,logger_worker);
-    
+    pthread_mutex_unlock(&frame_modificado);
     //Liberamos porque se envia a storage y me chupa un huevo lo que hace :)
     free(contenidoPagina);
 }

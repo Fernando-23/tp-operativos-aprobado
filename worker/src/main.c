@@ -7,7 +7,7 @@ int main(int argc, char* argv[]) {
     char* path_config = argv[1];
     char* id_worker = argv[2];
 
-    CargarConfigWorker(path_config);
+    cargarConfigWorker(path_config);
 
     logger_worker = IniciarLogger("worker", config_worker->log_level);
 
@@ -18,19 +18,26 @@ int main(int argc, char* argv[]) {
     log_info(logger_worker,"Se cargó todo correctamente");
 
     //conexion a storage que devuelve el tamanio de pagina
+
+    pthread_mutex_lock(&conexion_storage);
     socket_storage = conexion_storage();
+    pthread_mutex_unlock(&conexion_storage);
+    
 
     //conexion a master (pero el recv se hace a parte)
+    pthread_mutex_lock(&conexion_master);
     socket_master = conexion_master();  
-
-    IniciarMemoria();  
-
+    pthread_mutex_unlock(&conexion_master);
+     
     
+    IniciarMemoria(&tam_pag);  //chequear despues si esta bien asignado
     
     while (1) {
 
         ("Esperando datos de master \n");
         esperando_query(socket_master);
+        
+
         t_list* lista_de_instrucciones = crear_lista();
 
         while (!interrumpir_query) {
@@ -63,10 +70,6 @@ int main(int argc, char* argv[]) {
 
         ChequearSiTengoQueActualizarEnKernel(requiere_realmente_desalojo);
     }
-
-  
-    
-    //int hola = 10;
 
     return 0;
     
