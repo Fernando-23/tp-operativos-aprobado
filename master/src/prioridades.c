@@ -10,8 +10,6 @@ Worker* buscarWorkerLibre(){
 	}
 
 	return list_find(workers, libre);
-    
-
 }
 
 Worker* buscarWorkerPorPrioridad(int prioridad_a_comparar){

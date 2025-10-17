@@ -138,5 +138,12 @@ Mensaje* mensajitoOk(){
     return mensajito;
 }
 
+Mensaje* mensajitoError(){
+    Mensaje* mensajito = malloc(sizeof(Mensaje));
+    mensajito->mensaje = string_new();
+    mensajito->mensaje = "ERROR";
+    mensajito->size = string_length(mensajito->mensaje);
+    return mensajito;
+}
 
 

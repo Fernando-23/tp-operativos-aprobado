@@ -62,5 +62,6 @@ void enviarMensajito(Mensaje* mensaje_a_enviar,int fd,t_log* logger);
 Mensaje* recibirMensajito(int socket_cliente);
 void liberarMensajito(Mensaje* mensajito_a_liberar);
 Mensaje* mensajitoOk();
+Mensaje* mensajitoError();
 
 #endif 
