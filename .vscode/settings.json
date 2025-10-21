@@ -14,6 +14,7 @@
         "helpers-master.h": "c",
         "memoria_interna.h": "c",
         "utils_storage.h": "c",
-        "operaciones.h": "c"
+        "operaciones.h": "c",
+        "estructuras.h": "c"
     }
 }

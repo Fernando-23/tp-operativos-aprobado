@@ -4,7 +4,7 @@
 
 void handshake(int fd){
     Mensaje* mensajito_hanshake = malloc(sizeof(Mensaje));
-    mensajito_hanshake->mensaje = string_itoa(datos_superblock->tamanio_bloque);
+    mensajito_hanshake->mensaje = string_itoa(datos_superblock_gb->tamanio_bloque);
     mensajito_hanshake->size = string_length(mensajito_hanshake->mensaje);
     
     enviarMensajito(mensajito_hanshake,fd,logger_storage);
@@ -20,7 +20,8 @@ void iniciarStorage(){
        
   
     }
-    bloques_fisicos = list_create();
+    bloques_fisicos_gb = list_create();
+    files_gb = list_create();
     crearBloquesFisicos();
         
 }
@@ -51,25 +52,25 @@ void cargarConfigStorage(char* path_config){
 
 void cargarConfigSuperblock(){
     t_config* superblock = config_create("../configs/superblock.config");
-    datos_superblock = malloc(sizeof(ConfigSuperblock));
+    datos_superblock_gb = malloc(sizeof(ConfigSuperblock));
 
     if(superblock == NULL){
         printf("cargo mal");
         abort();
     }
 
-    datos_superblock->tamanio_fsystem = config_get_int_value(superblock,"FS_SIZE");
-    datos_superblock->tamanio_bloque = config_get_int_value(superblock,"BLOCK_SIZE");
-    datos_superblock->cant_bloques = calcularCantBloques();// 
+    datos_superblock_gb->tamanio_fsystem = config_get_int_value(superblock,"FS_SIZE");
+    datos_superblock_gb->tamanio_bloque = config_get_int_value(superblock,"BLOCK_SIZE");
+    datos_superblock_gb->cant_bloques = calcularCantBloques();// 
     
     config_destroy(superblock);
 }
 
 
 int calcularCantBloques(){
-    int cant_bloques = datos_superblock->tamanio_fsystem / datos_superblock->tamanio_bloque;
+    int cant_bloques = datos_superblock_gb->tamanio_fsystem / datos_superblock_gb->tamanio_bloque;
 
-    if (datos_superblock->tamanio_fsystem % datos_superblock->tamanio_bloque != 0){
+    if (datos_superblock_gb->tamanio_fsystem % datos_superblock_gb->tamanio_bloque != 0){
         return cant_bloques++;
     }
 
@@ -78,7 +79,7 @@ int calcularCantBloques(){
 
 void crearBloquesFisicos(){
 
-    for (int i = 0; i < datos_superblock->cant_bloques; i++)
+    for (int i = 0; i < datos_superblock_gb->cant_bloques; i++)
     {
         char* nombre_bloque;
         asignarNombreBloqueFisico(nombre_bloque,i);
@@ -125,6 +126,6 @@ void crearYAgregarBloqueFisicoIndividual(int id,char* nombre_bloque){
     bloque_fisico->nombre = nombre_bloque;
     bloque_fisico->contador_hard_links = 0;
     
-    list_add(bloques_fisicos,bloque_fisico); 
+    list_add(bloques_fisicos_gb,bloque_fisico); 
     
 }

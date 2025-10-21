@@ -18,12 +18,14 @@ typedef struct{
 typedef struct{
     char* nombre_tag;
     t_config* metadata_config_tag; //config del tag
-    t_list* bloques_logicos; //lista de bloques logicos asociados al tag
+    t_list* bloques_logicos; //lista de bloques logicos asociados al tag que son hardlinks a fisicos
+    int tamanio;
 }Tag;
 
 
 typedef struct{
     int id_logico; //id del bloque logico
+    char* nombre;
     BloqueFisico* ptr_bloque_fisico; //puntero al bloque fisico asociado
 }BloqueLogico;
 
@@ -43,9 +45,9 @@ typedef struct{
 }ConfigSuperblock;
 
 extern ConfigStorage* config_storage;
-extern ConfigSuperblock* datos_superblock;
+extern ConfigSuperblock* datos_superblock_gb;
 extern t_log* logger_storage;
-extern t_list* bloques_fisicos;
-
+extern t_list* bloques_fisicos_gb;
+extern t_list* files_gb;
 
 #endif //ESTRUCTURAS_H_

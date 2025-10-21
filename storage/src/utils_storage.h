@@ -2,6 +2,7 @@
 #define UTILS_STORAGE
 #include "estructuras.h"
 #include <commons/string.h>
+#include <unistd.h>
 #include <pthread.h>
 
 

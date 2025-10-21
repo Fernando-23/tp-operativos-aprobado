@@ -204,7 +204,7 @@ void ejecutar_create(char *file, char *tag)
 {
     // faltaria crear alguna funcion para confirmar que se haya creado el tag para ese file (maybe)
     char *fileAcrear;
-    sprintf(fileAcrear, "CREATE %s %s %d", file, tag, 0);
+    sprintf(fileAcrear, "CREATE %s %s %d",query->id_query, file, tag, 0);
     pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito(fileAcrear);
     enviarMensajito(mensajito,socket_storage,logger_worker);
@@ -221,7 +221,7 @@ void ejecutar_truncate(char *file, char *tag, int tamanio)
         return;
     }
     char *fileATrunquear;
-    sprintf(fileATrunquear, "TRUNCATE %s %s %d", file, tag, tamanio);
+    sprintf(fileATrunquear, "TRUNCATE %s %s %d", query->id_query,file, tag, tamanio);
     
     pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito(fileATrunquear);  
@@ -267,7 +267,7 @@ void ejecutar_tag(char *file_origen, char *tag_origen, char *file_destino, char 
 {
 
     char *fileATaggear;
-    sprintf(fileATaggear, "TAG %s %s %s %s", file_origen, tag_origen, file_destino, tag_destino);
+    sprintf(fileATaggear, "TAG %s %s %s %s",query->id_query, file_origen, tag_origen, file_destino, tag_destino);
 
     pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito(fileATaggear);
@@ -281,7 +281,7 @@ void ejecutar_commit(char *file, char *tag)
     ejecutar_flush(file, tag);
 
     char *fileACommit;
-    sprintf(fileACommit, "COMMIT %s %s", file, tag);
+    sprintf(fileACommit, "COMMIT %s %s",query->id_query, file, tag);
 
     pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito(fileACommit);
@@ -293,7 +293,7 @@ void ejecutar_commit(char *file, char *tag)
 void ejecutar_flush(char *file, char *tag)
 {
     char *fileACommit;
-    sprintf(fileACommit, "FLUSH %s %s", file, tag);
+    sprintf(fileACommit, "FLUSH %s %s",query->id_query, file, tag);
 
     pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito(fileACommit);
@@ -306,7 +306,7 @@ void ejecutar_flush(char *file, char *tag)
 void ejecutar_delete(char *file, char *tag)
 { // las páginas se van a ir limpiando a medida que corran los reemplazos.
     char *fileACommit;
-    sprintf(fileACommit, "DELETE %s %s", file, tag);
+    sprintf(fileACommit, "DELETE %s %s",query->id_query, file, tag);
     
     pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito(fileACommit);
