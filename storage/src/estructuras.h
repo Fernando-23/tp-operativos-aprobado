@@ -1,6 +1,7 @@
 #ifndef ESTRUCTURAS_H_
 #define ESTRUCTURAS_H_
 #include "../../utils/src/utils/helpers.h"
+#include "commons/bitarray.h"
 
 typedef struct{
     int id_fisico;
@@ -17,6 +18,7 @@ typedef struct{
 
 typedef struct{
     char* nombre_tag;
+    char* directorio;
     t_config* metadata_config_tag; //config del tag
     t_list* bloques_logicos; //lista de bloques logicos asociados al tag que son hardlinks a fisicos
     int tamanio;
@@ -25,6 +27,7 @@ typedef struct{
 
 typedef struct{
     int id_logico; //id del bloque logico
+    char* directorio; //para mas comodidad
     char* nombre;
     BloqueFisico* ptr_bloque_fisico; //puntero al bloque fisico asociado
 }BloqueLogico;
@@ -44,10 +47,21 @@ typedef struct{
     int cant_bloques;
 }ConfigSuperblock;
 
+typedef struct{
+    bool hubo_bloques_libres;
+    char** bloques_encontrados;
+
+}RespuestaConsultaBitmap;
+
+
 extern ConfigStorage* config_storage;
 extern ConfigSuperblock* datos_superblock_gb;
 extern t_log* logger_storage;
 extern t_list* bloques_fisicos_gb;
 extern t_list* files_gb;
+extern void* bitmap_void;
+extern t_bitarray* bitmap_gb;
+
+extern const char* PATH_PHYSICAL_BLOCKS;
 
 #endif //ESTRUCTURAS_H_

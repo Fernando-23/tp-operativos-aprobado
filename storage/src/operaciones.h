@@ -29,5 +29,10 @@ void crearDirectorio(char* path_directorio);
 void asignarFileTagAChars(char* nombre_file,char* tag,char* file_a_cortar);
 File* buscarFilePorNombre(char* nombre);
 Tag* buscarTagPorNombre(t_list* tags,char* nombre_tag);
-BloqueLogico* crearBloqueLogico(BloqueFisico* block0, int nro_bloque);
+BloqueLogico* crearBloqueLogico(BloqueFisico* block0, int nro_bloque,char* id_bloque_fisico_hlink);
+bool crearArchBloqueLogico(int nro_bloque,char* path_directorio_logico,char* path_bloque_fisico_hlink);
+RespuestaConsultaBitmap* consultarBitmapPorBloquesLibres(int cant_bloques_que_quiero);
+void eliminarRespuestaConsultaBitmap(RespuestaConsultaBitmap* response_a_limpiar);
+void limpiarBitsPorStringArray(char** bloques_a_limpiar);
+
 #endif //OPERACIONES_H_
