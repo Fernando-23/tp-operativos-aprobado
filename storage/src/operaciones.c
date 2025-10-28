@@ -255,32 +255,42 @@ bool gestionarTruncateSegunTamanio(Tag* tag_concreto, int tamanio_a_truncar){
     if(tag_concreto->tamanio == tamanio_a_truncar){
         return true;
     } else if (tag_concreto->tamanio >= tamanio_a_truncar){
-        achicarEnTruncate(tag_concreto,tamanio_a_truncar); // siempre te podes achicar, sino miralo a Fer
+        ferConLaMexicana(tag_concreto,tamanio_a_truncar); // siempre te podes achicar, sino miralo a Fer
         return true;
     } else {
-        int tamanio_a_agrandar = tag_concreto->tamanio - tamanio_a_truncar;
-        return agrandarEnTruncate(tag_concreto,tamanio_a_agrandar);
+        // fer con la novia de agus
+        return agrandarEnTruncate(tag_concreto,tamanio_a_truncar);
     }
 }
 
-bool agrandarEnTruncate(Tag* tag,int tamanio_a_agrandar){
+//war
+void ferConLaMexicana(Tag* tag, int nuevo_tamanio){ // tag tamanio 
+    int cant_bloques_a_desasignar = (tag->tamanio - nuevo_tamanio)/ datos_superblock_gb->tamanio_bloque;
+    
+    
+}
+
+bool agrandarEnTruncate(Tag* tag,int nuevo_tamanio){
+    int tamanio_a_agrandar = nuevo_tamanio - tag->tamanio;
     int cant_bloques_necesarios = tamanio_a_agrandar / datos_superblock_gb->tamanio_bloque;
 
     // chequear bitmap 
     RespuestaConsultaBitmap* respuesta = consultarBitmapPorBloquesLibres(cant_bloques_necesarios); 
-    if (respuesta->hubo_bloques_libres){
+
+    if (!(respuesta->hubo_bloques_libres)){
         eliminarRespuestaConsultaBitmap(respuesta);
         return false;
     }
 
     asignarBloquesFisicosATag(tag, respuesta->bloques_encontrados);
+    tag->tamanio = nuevo_tamanio;
     eliminarRespuestaConsultaBitmap(respuesta);
     return true;
 }
 
 //Asumo que pase todos los chequeos
-bool asignarBloquesFisicosATag(Tag* tag_a_asignar_hardlinks,char** bloques_fisicos_asignados){  // 2 3 4 6 7   
-    BloqueFisico* block0 = (BloqueFisico *)list_get(bloques_fisicos_gb,0);
+void asignarBloquesFisicosATag(Tag* tag_a_asignar_hardlinks,char** bloques_fisicos_asignados){  // 2 3 4 6 7   
+    BloqueFisico* block0 = (BloqueFisico *)list_get(bloques_fisicos_gb,0); //esto puede ser global (block0)
     int cant_bloques_logicos_nuevos = string_array_size(bloques_fisicos_asignados);
 
     t_list* logicos_a_asignar = tag_a_asignar_hardlinks->bloques_logicos;  
@@ -302,7 +312,7 @@ BloqueLogico* crearBloqueLogico(BloqueFisico* block0, int nro_bloque,char* nro_b
     BloqueLogico* bloque_logico = malloc (sizeof(BloqueLogico));
     bloque_logico->ptr_bloque_fisico = block0;
     bloque_logico->id_logico = nro_bloque;
-    crearArchBloqueLogico(nro_bloque, bloque_logico->directorio,nro_bloque_fisico_hlink); // fisico4.dat hdlink1.dat 
+    crearArchBloqueLogico(nro_bloque, bloque_logico->directorio, nro_bloque_fisico_hlink); // fisico4.dat hdlink1.dat 
     return bloque_logico;
 }
 
@@ -311,17 +321,17 @@ void crearArchBloqueLogico(int nro_bloque,char* path_directorio_logico,char* nro
     char* full_path_logico;
     char* full_path_fisico;
     //----------------- fisico ------------------
-    char* nro_bloque_fisico_con_ceros = obtenerNombreBloqueFisico(atoi(nro_bloque_fisico));
+    char* nro_bloque_fisico_con_ceros = obtenerNombreBloqueConCeros(atoi(nro_bloque_fisico));
     sprintf(full_path_fisico,"%sblock%s.dat",PATH_PHYSICAL_BLOCKS, nro_bloque_fisico_con_ceros);
     free(nro_bloque_fisico);
     
     
     // ---------------- logico -----------------
-    char* nro_bloque_logico_con_ceros = obtenerNombreBloqueFisico(nro_bloque);
+    char* nro_bloque_logico_con_ceros = obtenerNombreBloqueConCeros(nro_bloque);
     //---------------------- "/storage/files/arch1/tag1.0/logical_blocks/" + "0010" + ".dat"
     sprintf(full_path_logico,"%s%s.dat",path_directorio_logico, nro_bloque_logico_con_ceros);
 
-
+    
     FILE* dat_a_crear = fopen(full_path_logico,"w+"); //logical block a crear
     fclose(dat_a_crear);
     
@@ -336,38 +346,6 @@ void crearArchBloqueLogico(int nro_bloque,char* path_directorio_logico,char* nro
     return;
 }
 
-
-RespuestaConsultaBitmap* consultarBitmapPorBloquesLibres(int cant_bloques_que_quiero){
-    RespuestaConsultaBitmap* response = malloc(sizeof(RespuestaConsultaBitmap));
-    char** bloques_a_devolver = string_array_new();
-    
-    for(int i = 0; i < bitarray_get_max_bit(bitmap_gb);i++){
-        bool esta_libre = bitarray_test_bit(bitmap_gb,i);
-
-        if (esta_libre){
-            char* aux = string_new();
-            string_append(&aux,string_itoa(i));
-            string_array_push(&bloques_a_devolver,aux);
-            
-            bitarray_set_bit(bitmap_gb,i);
-            cant_bloques_que_quiero--;
-        }
-        
-        if (cant_bloques_que_quiero == 0){
-            response->bloques_encontrados = bloques_a_devolver;
-            response->hubo_bloques_libres = true;
-            return response;
-        }
-    }
-
-    log_warning(
-        logger_storage,"Cuidadito - (consultarBitmapPorBloquesLibres) - No se encontraron los bloques fisicos necesarios");
-    
-    limpiarBitsPorStringArray(bloques_a_devolver);
-    response->bloques_encontrados = bloques_a_devolver;
-    response->hubo_bloques_libres = false;
-    return response;
-}
 
 void eliminarRespuestaConsultaBitmap(RespuestaConsultaBitmap* response_a_limpiar){
     string_array_destroy(response_a_limpiar->bloques_encontrados);
@@ -386,8 +364,17 @@ void limpiarBitsPorStringArray(char** bloques_a_limpiar){
     log_debug(logger_storage, "Debug - (limpiarBitsPorStringArray) - Se liberaron bloques del bitmap");
 }
 
+//Limpia el bit, hasta el tuje te limpia
+void desasignarBloque(int nro_bloque){ 
+    
+    
+    bitarray_clean_bit(bitmap_gb,nro_bloque);
+    
+    log_debug(logger_storage, "Debug - (limpiarBitsPorStringArray) - Se liberaron bloques del bitmap");
+}
 
-char* obtenerNombreBloqueFisico(int numero){
+
+char* obtenerNombreBloqueConCeros(int numero){
     char* nombre;
     //NANO
     sprintf(nombre, "%04d", numero);  

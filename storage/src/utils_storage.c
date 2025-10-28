@@ -129,3 +129,9 @@ void crearYAgregarBloqueFisicoIndividual(int id,char* nombre_bloque){
     list_add(bloques_fisicos_gb,bloque_fisico); 
     
 }
+
+void inicializarSemaforos(){
+    pthread_mutex_init(&mutex_bitmap,NULL);
+    pthread_mutex_init(&mutex_bloques_fisicos,NULL);
+    pthread_mutex_init(&mutex_files,NULL);
+}

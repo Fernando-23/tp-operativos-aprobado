@@ -15,6 +15,7 @@
         "memoria_interna.h": "c",
         "utils_storage.h": "c",
         "operaciones.h": "c",
-        "estructuras.h": "c"
+        "estructuras.h": "c",
+        "unistd.h": "c"
     }
 }

@@ -8,6 +8,7 @@
 
 
 void iniciarStorage();
+void inicializarSemaforos();
 void cargarConfigStorage(char* path_config);
 void cargarConfigSuperblock();
 int calcularCantBloques();
