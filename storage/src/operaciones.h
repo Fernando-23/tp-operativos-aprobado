@@ -29,7 +29,11 @@ void crearDirectorio(char* path_directorio);
 void asignarFileTagAChars(char* nombre_file,char* tag,char* file_a_cortar);
 File* buscarFilePorNombre(char* nombre);
 Tag* buscarTagPorNombre(t_list* tags,char* nombre_tag);
+
 BloqueLogico* crearBloqueLogico(BloqueFisico* block0, int nro_bloque,char* id_bloque_fisico_hlink);
+void liberarBloqueLogico(BloqueLogico* bloque_a_liberar);
+
+
 
 void asignarBloquesFisicosATag(Tag* tag_a_asignar_hardlinks,char** bloques_fisicos_asignados);
 

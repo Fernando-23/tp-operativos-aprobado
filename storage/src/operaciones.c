@@ -147,12 +147,12 @@ void realizarTRUNCATE(int query_id,char* file_completo,int tamanio_a_truncar){
     //probar funcionamiento
     asignarFileTagAChars(nombre_file,nombre_tag,file_completo);
 
-    //mutex_lock
+    pthread_mutex_lock(&mutex_files);
     File* file = buscarFilePorNombre(nombre_file);
-    //mutex_unlock
     if (file == NULL){
         // errno()
         //gestionar mejor el error
+        pthread_mutex_unlock(&mutex_files);
         return;
     }
 
@@ -160,16 +160,18 @@ void realizarTRUNCATE(int query_id,char* file_completo,int tamanio_a_truncar){
     if (tag_concreto == NULL){
         // errno()
         //gestionar mejor el error
+        pthread_mutex_unlock(&mutex_files);
         return;
     }
 
     bool hubo_tamanio = gestionarTruncateSegunTamanio(tag_concreto,tamanio_a_truncar);
     if (!hubo_tamanio){
         //MATAR A LA QUERY
+        pthread_mutex_unlock(&mutex_files);
         return;
     }
 
-
+    pthread_mutex_unlock(&mutex_files);
     free(nombre_file);
     free(nombre_tag);
 }
@@ -254,11 +256,10 @@ bool gestionarTruncateSegunTamanio(Tag* tag_concreto, int tamanio_a_truncar){
     
     if(tag_concreto->tamanio == tamanio_a_truncar){
         return true;
-    } else if (tag_concreto->tamanio >= tamanio_a_truncar){
+    } else if (tag_concreto->tamanio > tamanio_a_truncar){
         ferConLaMexicana(tag_concreto,tamanio_a_truncar); // siempre te podes achicar, sino miralo a Fer
         return true;
     } else {
-        // fer con la novia de agus
         return agrandarEnTruncate(tag_concreto,tamanio_a_truncar);
     }
 }
@@ -266,8 +267,17 @@ bool gestionarTruncateSegunTamanio(Tag* tag_concreto, int tamanio_a_truncar){
 //war
 void ferConLaMexicana(Tag* tag, int nuevo_tamanio){ // tag tamanio 
     int cant_bloques_a_desasignar = (tag->tamanio - nuevo_tamanio)/ datos_superblock_gb->tamanio_bloque;
+    //aca falta algo cuales?
+    for(int i = 0; i < cant_bloques_a_desasignar; i++){
+        BloqueLogico* bloque_popeado = (BloqueLogico* )list_remove(tag->bloques_logicos,list_size(tag->bloques_logicos));
+        int id_fisico = bloque_popeado->ptr_bloque_fisico->id_fisico;
+        liberarBloqueLogico(bloque_popeado);
+        desasignarBloque(id_fisico);//TODO hay que ver como le pasamos el id_fisico
+        
+    }
     
-    
+
+
 }
 
 bool agrandarEnTruncate(Tag* tag,int nuevo_tamanio){
@@ -367,7 +377,6 @@ void limpiarBitsPorStringArray(char** bloques_a_limpiar){
 //Limpia el bit, hasta el tuje te limpia
 void desasignarBloque(int nro_bloque){ 
     
-    
     bitarray_clean_bit(bitmap_gb,nro_bloque);
     
     log_debug(logger_storage, "Debug - (limpiarBitsPorStringArray) - Se liberaron bloques del bitmap");
@@ -379,4 +388,10 @@ char* obtenerNombreBloqueConCeros(int numero){
     //NANO
     sprintf(nombre, "%04d", numero);  
     return nombre;
+}
+
+void liberarBloqueLogico(BloqueLogico* bloque_a_liberar){
+    free(bloque_a_liberar->directorio);
+    free(bloque_a_liberar->nombre);
+    free(bloque_a_liberar); 
 }

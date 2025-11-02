@@ -5,8 +5,8 @@ void inicializarBitmapYMapeo(){
     int arch_bitmap_fd = fileno(arch_bitmap);
     cant_bloques_en_bytes_gb = datos_superblock_gb->cant_bloques / 8;
     bitmap_mmap_gb = mmap(
-        arch_bitmap_fd,cant_bloques_en_bytes_gb,PROT_WRITE | PROT_READ, MAP_SHARED, arch_bitmap_fd, 0);    
-    bitmap_gb = bitarray_create_with_mode(bitmap_mmap_gb,cant_bloques_en_bytes,LSB_FIRST);
+        NULL,cant_bloques_en_bytes_gb,PROT_WRITE | PROT_READ, MAP_SHARED, arch_bitmap_fd, 0);    
+    bitmap_gb = bitarray_create_with_mode(bitmap_mmap_gb,cant_bloques_en_bytes_gb,LSB_FIRST);
     
 }
 
