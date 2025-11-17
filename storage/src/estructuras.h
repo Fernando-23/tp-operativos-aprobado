@@ -7,7 +7,7 @@
 typedef struct{
     int id_fisico;
     char* nombre;
-    int contador_hard_links;
+    char* ruta_absoluta;
 }BloqueFisico;
 
 // ### /storage/files/archX/tags...
@@ -21,7 +21,6 @@ typedef struct{
     char* directorio;
     t_config* metadata_config_tag; //config del tag
     t_list* bloques_logicos; //lista de bloques logicos asignados al tag que son hardlinks a fisicos
-    int tamanio;
 }Tag;
 
 

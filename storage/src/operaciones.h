@@ -43,6 +43,20 @@ void eliminarRespuestaConsultaBitmap(RespuestaConsultaBitmap* response_a_limpiar
 void limpiarBitsPorStringArray(char** bloques_a_limpiar);
 char* obtenerNombreBloqueConCeros(int numero);
 
+bool tieneHLinks(char* ruta_abs_a_consultar);
+//////////////////////////////////////////////////////////////////////////
+// FER 
+// y
+// la 
+//mexicana 
+
+void ferConLaMexicana(Tag* tag, int tamanio_actual,int nuevo_tamanio);
+//esto fue pusheado en un liveshare
+// fer no se hace responsable del bullying que le hacen
+//////////////////////////////////////////////////////////////////////////
+
+char* stringArrayConfigAString(char** array_a_pasar_a_string);
+
 //--------RETARDOS----------
 void hacerRetardoOperacion();
 

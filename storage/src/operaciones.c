@@ -136,6 +136,11 @@ bool realizarCREATE(char* query_id,char* nombre_file, char* nombre_tag){
     char* query_id = "2"; //a cambiar en un futuro
     sprintf(path_archivo,"/utnso/home/%s",nombre_file);
     sprintf(path_tag,"%s/%s",path_archivo, nombre_tag);
+
+    
+    // PROXIMAMENTE EN DBZ
+    // NOS QUEDAMOS EN DEFINIR RUTA EN CREARTAG Y BLOQUES LOGICOS
+    // /utnso/home/Desktop/
     
     File* nuevo_file = crearFile(nombre_file,path_archivo);
     Tag* nuevo_tag = crearTag(nombre_tag,path_tag);
@@ -214,7 +219,8 @@ Tag* crearTag(char* nombre_tag, char* path_tag){
     tag->nombre_tag = nombre_tag;
     tag->metadata_config_tag = crearMetadata(path_tag);
     tag->bloques_logicos = list_create();
-    tag->tamanio = 0;
+
+    //tag->tamanio = 0;
 
     log_debug(logger_storage,"Debug - (crearTag) - Se creo el tag %s", nombre_tag);
     
@@ -272,82 +278,89 @@ Tag* buscarTagPorNombre(t_list* tags,char* nombre_tag){
 }
 
 void gestionarTruncateSegunTamanio(Tag* tag_concreto, int tamanio_a_truncar){
+    int tamanio_actual = config_get_int_value(tag_concreto->metadata_config_tag,"TAMANIO");
     
-    if(tag_concreto->tamanio == tamanio_a_truncar){
+    if(tamanio_actual == tamanio_a_truncar){
+        log_debug(logger_storage, "DEBUG -(gestionarTruncateSegunTamanio)- Mismo nuevo tamanio recibido en TRUNCATE");
         return true;
-    } else if (tag_concreto->tamanio > tamanio_a_truncar){
-        ferConLaMexicana(tag_concreto, tamanio_a_truncar); // siempre te podes achicar, sino miralo a Fer
+    } else if (tamanio_actual > tamanio_a_truncar){
+        ferConLaMexicana(tag_concreto, tamanio_actual, tamanio_a_truncar); // siempre te podes achicar, sino miralo a Fer
         return true;
     } else {
-        return agrandarEnTruncate(tag_concreto,tamanio_a_truncar);
+        return agrandarEnTruncate(tag_concreto, tamanio_actual, tamanio_a_truncar);
     }
 }
 
-//war
-void ferConLaMexicana(Tag* tag, int nuevo_tamanio){ // tag tamanio 
-    int cant_bloques_a_desasignar = (tag->tamanio - nuevo_tamanio)/ datos_superblock_gb->tamanio_bloque;
-    //aca falta algo cuales?
+
+void ferConLaMexicana(Tag* tag, int tamanio_actual,int nuevo_tamanio){ // tag tamanio 
+    int cant_bloques_a_desasignar = (tamanio_actual - nuevo_tamanio)/ datos_superblock_gb->tamanio_bloque;
+    
     for(int i = 0; i < cant_bloques_a_desasignar; i++){
         BloqueLogico* bloque_popeado = (BloqueLogico* )list_remove(tag->bloques_logicos,list_size(tag->bloques_logicos));
         BloqueFisico* bloque_fisico_asociado = bloque_popeado->ptr_bloque_fisico;
         
-        //TODO
-        //unlink al bloque popeado
-        //consultar con el path del ... st_nlink para liberar el bitmap
-        
-        if (){
+        //  /files/tag/logical-blocks/0002.dat
+        unlink(bloque_popeado->directorio); //quitarle el hlink
+        bloque_popeado->ptr_bloque_fisico = NULL; // JORGE EL CURIOSO - Capaz por enunciado deberia apuntar al block0; 
+
+
+        if (!tieneHLinks(bloque_fisico_asociado->ruta_absoluta)){ // 1 hard links -> liberar en el bitmap 
             liberarBloqueDeBitmap(bloque_fisico_asociado->id_fisico);
+            log_debug(logger_storage,"DEBUG -(ferConLaMexicana)- El bloque fisico %s fue liberado",bloque_fisico_asociado->nombre);
         }
         
-        liberarBloqueLogico(bloque_popeado); // 
-        //TODO hay que ver como le pasamos el id_fisico
+
+        liberarBloqueLogico(bloque_popeado); 
+        log_debug(logger_storage,"DEBUG - (ferConLaMexicana) - FER lo hizo de nuevo");
+
     }
     
 }
 
 
 
-
-bool agrandarEnTruncate(Tag* tag,int nuevo_tamanio){
-    int tamanio_a_agrandar = nuevo_tamanio - tag->tamanio;
+ 
+bool agrandarEnTruncate(Tag* tag, int tamanio_acutal,int nuevo_tamanio){
+    int tamanio_a_agrandar = nuevo_tamanio - tamanio_acutal;
     int cant_bloques_necesarios = tamanio_a_agrandar / datos_superblock_gb->tamanio_bloque;
-
+    
     asignarBloquesFisicosATag(tag,cant_bloques_necesarios);
     // actualizar metadata
-    
-    tag->tamanio = nuevo_tamanio;
+    config_set_value(tag->metadata_config_tag,"TAMANIO",itoa(nuevo_tamanio));
+    config_save(tag->metadata_config_tag);
 
     return true;
 }
 
-//Asumo que pase todos los chequeos
-void asignarBloquesFisicosATag(Tag* tag_a_asignar_hardlinks,int cant_bloques_necesarios){  // 2 3 4 6 7   
+
+void asignarBloquesFisicosATagEnTruncate(Tag* tag_a_asignar_hardlinks,int cant_bloques_necesarios){     
     BloqueFisico* block0 = (BloqueFisico *)list_get(bloques_fisicos_gb,0); //esto puede ser global (block0)
 
     t_list* logicos_a_asignar = tag_a_asignar_hardlinks->bloques_logicos;
     int cant_bloques_antes_de_asignacion = list_size(logicos_a_asignar); // 5 8 3
-    /*
-    TRUNCATE 2132
-    NECESITO CREAR 3 BLOGICOS (004, 005 Y 006)
-    tagv1_2_3
-    ---/000
-       /001
-       /002
-       /003
-       
-    */
     
-    //agregar a la metadata cositas
+    char** bloques_logicos = config_get_array_value(tag_a_asignar_hardlinks->metadata_config_tag,"BLOCKS");
+
     for (int i =  0; i < cant_bloques_necesarios; i++){
         BloqueLogico* logico_a_crear = crearBloqueLogico(cant_bloques_antes_de_asignacion);
-        // se libero  bloque_popeado
+        
+        string_array_push(&bloques_logicos,string_duplicate("0"));
+
         list_add(logicos_a_asignar,logico_a_crear);
         cant_bloques_antes_de_asignacion++;
     }
+
+    char *nueva_info_blocks_metadata = stringArrayConfigAString(bloques_logicos);
+
+    config_set_value(tag_a_asignar_hardlinks->metadata_config_tag, "BLOCKS", nueva_info_blocks_metadata);
+    config_save(tag_a_asignar_hardlinks->metadata_config_tag);
+
+    free(nueva_info_blocks_metadata);
+    string_array_destroy(bloques_logicos);
 }
 
-BloqueLogico* crearBloqueLogico(int nro_bloque_logico){
-    BloqueLogico* bloque_logico = malloc (sizeof(BloqueLogico));
+BloqueLogico* crearBloqueLogico(int nro_bloque_logico){//-- ta checkkkk
+    BloqueLogico* bloque_logico = malloc(sizeof(BloqueLogico));
     BloqueFisico* block0 = (BloqueFisico *)list_get(bloques_fisicos_gb,0);
     bloque_logico->ptr_bloque_fisico = block0;
     bloque_logico->id_logico = nro_bloque_logico;
@@ -401,7 +414,6 @@ void limpiarBitsPorStringArray(char** bloques_a_limpiar){
     log_debug(logger_storage, "Debug - (limpiarBitsPorStringArray) - Se liberaron bloques del bitmap");
 }
 
-//Limpia el bit, hasta el tuje te limpia
 void liberarBloqueDeBitmap(int nro_bloque){ 
      
     bitarray_clean_bit(bitmap_gb,nro_bloque);
@@ -420,4 +432,32 @@ void liberarBloqueLogico(BloqueLogico* bloque_a_liberar){
     free(bloque_a_liberar->directorio);
     free(bloque_a_liberar->nombre);
     free(bloque_a_liberar); 
+}
+
+bool tieneHLinks(char* ruta_abs_a_consultar){
+    struct stat info;
+    if (stat(path, &info) == -1) {
+        log_debug(logger_storage,"Debug -(contarHLinks)- Error en stat");
+        abort(); 
+    }
+
+    return (info.st_nlink > 1);    
+}
+
+//LIBERAR STRING RETORNADO CON CoFREE con Leche
+char* stringArrayConfigAString(char** array_a_pasar_a_string){
+    char* string_a_retornar = string_new();
+    string_append(&string_a_retornar,"[");
+
+    for (int i = 0; i < string_array_size(array_a_pasar_a_string); i++){
+        
+        string_append(&string_a_retornar,array[i]);
+
+        if (i != string_array_size(array_a_pasar_a_string)-1){
+            string_append(&string_a_retornar,",");
+        }
+    }
+    string_append(&string_a_retornar,"]");
+
+    return string_a_retornar;
 }
