@@ -16,7 +16,7 @@ typedef struct frame {
 typedef struct entrada_pagina {
     int nro_pag;
     int nro_frame;        // -1 si no residente
-    uint8_t bitPresencia; // R
+    uint8_t bitPresencia; // P
     uint8_t bitUso;       // U
     uint8_t bitModificado;// M
     tabla_paginas_t* tabla; // back-pointer

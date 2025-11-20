@@ -364,7 +364,7 @@ static void vaciar_frame(frame_t *f)
             e->bitModificado = 0;
         }
 
-        
+        e->nro_pag = -1;
         e->bitPresencia = 0;
         e->bitUso       = 0;
         e->nro_frame    = -1;

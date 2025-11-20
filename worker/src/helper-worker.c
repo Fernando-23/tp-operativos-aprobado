@@ -85,11 +85,34 @@ void esperando_query(int socket){
     }
     
     char ** lista_de_datos = string_split(datos_query->mensaje," ");
+
+    if (lista_de_datos == NULL || lista_de_datos[0] == NULL || lista_de_datos[1] == NULL || lista_de_datos[2] == NULL) {
+        log_error(logger_worker, "Datos de Query incompletos");
+        if (lista_de_datos) {
+            for (int i = 0; lista_de_datos[i] != NULL; i++) {
+                free(lista_de_datos[i]);
+            }
+            free(lista_de_datos);
+        }
+        liberarMensajito(datos_query);
+        return;
+    }
+
     query->id_query = atoi(lista_de_datos[0]);
     query->pc_query = atoi(lista_de_datos[1]);
-    *(query->path_query) = lista_de_datos[2]; //ESTO CHEQUEAR MUUUUY DETENIDAMENTE
 
-    log_info("## Query %d : Se recibe la Query. El path de operaciones es: %s",query->id_query, query->path_query);
+    if (query->path_query != NULL) {
+        free(query->path_query);
+    }
+    query->path_query = string_duplicate(lista_de_datos[2]);
+
+    log_info(logger_worker, "## Query %d : Se recibe la Query. El path de operaciones es: %s", query->id_query, query->path_query);
+
+    for (int i = 0; lista_de_datos[i] != NULL; i++) {
+        free(lista_de_datos[i]);
+    }
+    free(lista_de_datos);
+
     liberarMensajito(datos_query);
 }
 

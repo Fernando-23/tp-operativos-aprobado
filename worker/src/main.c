@@ -68,6 +68,7 @@ int main(int argc, char* argv[]) {
 
         interrumpir_query = false;
 
+        //revisar con los pibes de master el tema de los desalojos
         ChequearSiTengoQueActualizarEnKernel(requiere_realmente_desalojo);
     }
 
