@@ -8,4 +8,8 @@ ConfigSuperblock* datos_superblock_gb = NULL;
 char* bitmap_mmap_gb = NULL;
 int cant_bloques_en_bytes_gb;
 t_bitarray* bitmap_gb = NULL;
-char* PATH_PHYSICAL_BLOCKS = "/storage/physical_blocks/";
+
+
+const char* PATH_PHYSICAL_BLOCKS = "/home/utnso/storage/physical_blocks";
+const char* RUTA_BASE_STORAGE = config_storage->PUNTO_MONTAJE;
+const char* RUTA_FILES = "/home/utnso/storage/files";

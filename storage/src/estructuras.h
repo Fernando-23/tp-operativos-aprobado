@@ -4,15 +4,16 @@
 #include <commons/bitarray.h>
 #include <pthread.h>
 
+// /utnso/home/tp-blablabla/storage/
 typedef struct{
     int id_fisico;
     char* nombre;
     char* ruta_absoluta;
 }BloqueFisico;
 
-// ### /storage/files/archX/tags...
+// ### /storage/files/arch1/tags...
 typedef struct{
-    char* nombre_file;
+    char* nombre_file; // /utnso/home/tp-blablabla/storage/files/arch1
     t_list* tags; // tipo Tag
 }File;
 
@@ -66,5 +67,7 @@ extern pthread_mutex_t mutex_bloques_fisicos;
 
 
 extern const char* PATH_PHYSICAL_BLOCKS;
+extern const char* RUTA_BASE_STORAGE;
+extern const char* RUTA_FILES;
 
 #endif //ESTRUCTURAS_H_

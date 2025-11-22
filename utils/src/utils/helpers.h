@@ -22,6 +22,18 @@ typedef enum {
     STORAGE
 }Modulo;
 
+typedef enum {
+	FILE_INEXISTENTE,
+	TAG_INEXISTENTE,
+	FILE_PREEXISTENTE,
+	TAG_PREEXISTENTE,
+	ESPACIO_INSUFICIENTE,
+	ESCRITURA_NO_PERMITIDA,
+	LECTURA_FUERA_DE_LIMITE,
+	ESCRITURA_FUERA_DE_LIMITE
+	
+}ErrorStorage;
+
 typedef struct {
 	u_int32_t size;  
 	//int offset; //desplazamiento del payload
@@ -43,9 +55,12 @@ typedef struct{
     char *mensaje;
 }Mensaje;
 
+extern const int CANT_MODULOS;
+extern const int CANT_ERRORES;
 
-extern char* NOMBRE_MODULOS[4];
-extern int CANT_MODULOS;
+extern char* NOMBRE_MODULOS[CANT_MODULOS];
+extern char* NOMBRE_ERRORES[CANT_ERRORES];
+
 
 t_log* iniciarLogger(char* nombre_modulo, int nivel_log);
 t_config* iniciarConfig(char* nombre_config); 
@@ -62,6 +77,6 @@ void enviarMensajito(Mensaje* mensaje_a_enviar,int fd,t_log* logger);
 Mensaje* recibirMensajito(int socket_cliente);
 void liberarMensajito(Mensaje* mensajito_a_liberar);
 Mensaje* mensajitoOk();
-Mensaje* mensajitoError();
+Mensaje* mensajitoError(ErrorStorage error_a_enviar);
 
 #endif 

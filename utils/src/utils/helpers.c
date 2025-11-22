@@ -1,7 +1,15 @@
 #include "helpers.h"
 
-char* NOMBRE_MODULOS[4] = {"QUERY","MASTER","WORKER","STORAGE"};
-int CANT_MODULOS = 4;
+
+const int CANT_MODULOS = 4;
+char* NOMBRE_MODULOS[CANT_MODULOS] = {"QUERY","MASTER","WORKER","STORAGE"};
+
+
+const int CANT_ERRORES = 7;
+char* NOMBRE_ERRORES[CANT_ERRORES] = 
+	{"FILE_INEXISTENTE", "TAG_INEXISTENTE","FILE_PREEXISTENTE","TAG_PREEXISTENTE",
+	 "ESPACIO_INSUFICIENTE","ESCRITURA_NO_PERMITIDA","LECTURA_FUERA_DE_LIMITE","ESCRITURA_FUERA_DE_LIMITE"};
+
 
 t_log* iniciarLogger(char* nombre_modulo,int nivel_log)
 {
@@ -93,10 +101,10 @@ Mensaje* crearMensajito(char* mensaje){
 void enviarMensajito(Mensaje* mensaje_a_enviar,int fd,t_log* logger){ //envia query
 	
 	send(fd,&mensaje_a_enviar->size,sizeof(int),0);
-	log_debug(logger,"Debug - (enviarMensajito) - Mensaje Length: %d\n",mensaje_a_enviar->size);
+	// log_debug(logger,"Debug - (enviarMensajito) - Mensaje Length: %d\n",mensaje_a_enviar->size);
 	
 	send(fd,mensaje_a_enviar->mensaje,mensaje_a_enviar->size,0);
-	log_debug(logger,"Debug - (enviarMensajito) - Mensaje: %s\n",mensaje_a_enviar->mensaje);
+	// log_debug(logger,"Debug - (enviarMensajito) - Mensaje: %s\n",mensaje_a_enviar->mensaje);
 
 	liberarMensajito(mensaje_a_enviar);
 }
@@ -138,11 +146,16 @@ Mensaje* mensajitoOk(){
     return mensajito;
 }
 
-Mensaje* mensajitoError(){
+Mensaje* mensajitoError(ErrorStorage cod_error){
     Mensaje* mensajito = malloc(sizeof(Mensaje));
-    mensajito->mensaje = string_new();
-    mensajito->mensaje = "ERROR";
+	
+	char* aux_armado_msg_error; 
+	//---------------------------ERROR MOTIVO_ERROR
+	sprintf(aux_armado_msg_error,"ERROR %s", NOMBRE_ERRORES[cod_error]);
+
+    mensajito->mensaje = string_duplicate(aux_armado_msg_error);
     mensajito->size = string_length(mensajito->mensaje);
+	
     return mensajito;
 }
 
