@@ -42,8 +42,13 @@ bool espacioInsuficiente(){
 
 }
 
-bool estructuraNoPermitida(){
+bool tieneEstadoCOMMITED(Tag* tag_a_consultar){
+    char* estado_commit = config_get_string_value(tag_a_consultar->metadata_config_tag,"ESTADO"); 
     
+    if (string_contains(estado_commit,"COMMITED"))
+        return true;
+
+    return false;
 }
 
 bool lecturaOEscrituraFueraDeLimite(){

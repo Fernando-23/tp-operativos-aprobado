@@ -5,9 +5,9 @@ const int CANT_MODULOS = 4;
 char* NOMBRE_MODULOS[CANT_MODULOS] = {"QUERY","MASTER","WORKER","STORAGE"};
 
 
-const int CANT_ERRORES = 7;
+const int CANT_ERRORES = 9;
 char* NOMBRE_ERRORES[CANT_ERRORES] = 
-	{"FILE_INEXISTENTE", "TAG_INEXISTENTE","FILE_PREEXISTENTE","TAG_PREEXISTENTE",
+	{"OK","FILE_INEXISTENTE", "TAG_INEXISTENTE","FILE_PREEXISTENTE","TAG_PREEXISTENTE",
 	 "ESPACIO_INSUFICIENTE","ESCRITURA_NO_PERMITIDA","LECTURA_FUERA_DE_LIMITE","ESCRITURA_FUERA_DE_LIMITE"};
 
 
@@ -146,7 +146,7 @@ Mensaje* mensajitoOk(){
     return mensajito;
 }
 
-Mensaje* mensajitoError(ErrorStorage cod_error){
+Mensaje* mensajitoError(ErrorStorageEnum cod_error){
     Mensaje* mensajito = malloc(sizeof(Mensaje));
 	
 	char* aux_armado_msg_error; 

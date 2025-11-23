@@ -43,10 +43,11 @@ void pedidoDeLaburante(int mail_laburante){
         
     case CREATE:
     //CREATE QUERY_ID NOMBRE_FILE TAG
-        char* nombre_file = mensajito_cortado[2];
+        char* nombre_file = mensajito_cortado[2]; // TODO MANY A LA OBRA
         char* tag = mensajito_cortado[3];
         
-        if (!realizarCREATE(query_id,nombre_file,tag)){
+        int resultado_CREATE = realizarCREATE(query_id,nombre_file,tag);
+        if (resultado_CREATE != OK){
             enviarMensajito(mensajitoError(FILE_PREEXISTENTE),mail_laburante,logger_storage);
             log_error(logger_storage,"NO SE PUDO REALIZAR CREATE POR MOTIVO FILE_PREEXISTENTE"); // JOE PINO 
         }
@@ -60,7 +61,7 @@ void pedidoDeLaburante(int mail_laburante){
         int tamanio_a_truncar = atoi(mensajito_cortado[3]);\
 
         int resultado = realizarTRUNCATE(query_id,nombre_full_file_truncate,tamanio_a_truncar);
-        if (resultado != -1){
+        if (resultado != OK){
             enviarMensajito(mensajitoError(resultado),mail_laburante,logger_storage);
             log_error(logger_storage,"NO SE PUDO REALIZAR TRUNCATE POR MOTIVO %s",NOMBRE_ERRORES[resultado]); // JOE PINO 
         }
@@ -75,13 +76,25 @@ void pedidoDeLaburante(int mail_laburante){
         enviarMensajito(mensajitoOk(), mail_laburante, logger_storage);
         
         int resultado_tag = realizarTAG(query_id,nombre_completo_origen,nombre_completo_destino);
+        if (resultado_tag != OK){
+            enviarMensajito(mensajitoError(resultado_tag),mail_laburante,logger_storage);
+            log_error(logger_storage,"NO SE PUDO REALIZAR TAG POR MOTIVO %s",NOMBRE_ERRORES[resultado_tag]);
+        }
+
         string_array_destroy(mensajito_cortado); 
         
         break;
 
     case COMMIT:
-        enviarMensajito(mensajitoOk(), mail_laburante, logger_storage);
-        
+    //COMMIT QUERY_ID FILE:TAG
+        char* nombre_completo_commit = mensajito_cortado[2];
+
+        int resultado_commit = realizarCOMMIT(nombre_completo_commit);
+        if (resultado_commit != OK){
+            enviarMensajito(mensajitoError(resultado_commit),mail_laburante,logger_storage);
+            log_error(logger_storage,"NO SE PUDO REALIZAR COMMIT POR MOTIVO %s",NOMBRE_ERRORES[resultado_commit]);
+        }
+        log_info(logger_storage,"## %d - Commit de File:Tag %s",query_id,nombre_completo_commit);
         string_array_destroy(mensajito_cortado);
         
         break;
@@ -137,11 +150,10 @@ Deberá crear el archivo de metadata en estado WORK_IN_PROGRESS y no asignarle n
 
 bool realizarCREATE(char* query_id,char* nombre_file, char* nombre_tag){
     
-    
-    if (filePreexistente(nombre_file)) return false; //chequeo de error del enunciado
+    if (filePreexistente(nombre_file)) return FILE_PREEXISTENTE; //chequeo de error del enunciado
 
-    
     File* nuevo_file = crearFile(nombre_file);
+    list_add(lista_files_gb, nuevo_file);
     Tag* nuevo_tag = crearTag(nombre_tag,nombre_file);
     
     list_add(nuevo_file->tags, nuevo_tag);
@@ -150,10 +162,10 @@ bool realizarCREATE(char* query_id,char* nombre_file, char* nombre_tag){
         logger_storage,"## %s - File Creado %s:%s",
         query_id,nombre_file,nombre_tag);
         
-    return true;
+    return OK;
 }
 
-int realizarTRUNCATE(int query_id,char* file_completo,int tamanio_a_truncar){
+ErrorStorageEnum realizarTRUNCATE(int query_id,char* file_completo,int tamanio_a_truncar){
     char* nombre_file; 
     char* nombre_tag;
     
@@ -185,7 +197,8 @@ int realizarTRUNCATE(int query_id,char* file_completo,int tamanio_a_truncar){
     pthread_mutex_unlock(&mutex_files);
     free(nombre_file);
     free(nombre_tag);
-    return true;
+
+    return OK;
 }
 
 void hacerRetardoOperacion(){
@@ -211,7 +224,7 @@ void crearDirectorio(char* path_directorio){
 
 File* crearFile(char* nombre_file){
     File* nuevo_file = malloc(sizeof(File));
-    nuevo_file->nombre_file = nombre_file;
+    nuevo_file->nombre_file = string_duplicate(nombre_file); // LIBERAR
     char* dir_a_crear;
     sprintf(dir_a_crear,"%s/%s",RUTA_FILES,nuevo_file->nombre_file); //asignas la ruta abs del file
 
@@ -222,10 +235,10 @@ File* crearFile(char* nombre_file){
 
 Tag* crearTag(char* nombre_tag, char* nombre_file_asociado){
     Tag* tag = malloc(sizeof(Tag));
+    
+    tag->nombre_tag = string_duplicate(nombre_tag); // LIBERAR
 
-    tag->nombre_tag = nombre_tag;
-
-    // Creo carpeta tag
+    // home/utnso/rerewr/reewrwe/ewr/wer/nombrefile/nombretag
     sprintf(tag->directorio,"%s/%s/%s",RUTA_FILES,nombre_file_asociado,tag->nombre_tag);
     crearDirectorio(tag->directorio);
 
@@ -266,8 +279,8 @@ t_config* crearMetadata(char* path_tag){
 void asignarFileTagAChars(char* nombre_file,char* tag,char* file_a_cortar){
     char** file_cortado = string_split(file_a_cortar,":"); //FILE:TAG
  
-    nombre_file = string_duplicate(file_cortado[0]);
-    tag = string_duplicate(file_cortado[1]);
+    nombre_file = string_duplicate(file_cortado[0]); //LIBERAR
+    tag = string_duplicate(file_cortado[1]); //LIBERAR
 
     string_array_destroy(file_cortado);
 }
@@ -280,7 +293,7 @@ File* buscarFilePorNombre(char* nombre){
         File* file = (File *)ptr;
         return (strcmp(nombre,file->nombre_file));
     }
-    return list_find(files_gb,tieneMismoNombre);
+    return list_find(lista_files_gb,tieneMismoNombre);
 }
 
 Tag* buscarTagPorNombre(t_list* tags,char* nombre_tag){
@@ -333,9 +346,6 @@ void unlinkearBloquesLogicos(int cant_a_unlinkear, t_list* bloques_logicos){
     }
 }
 
-
-
- 
 bool agrandarEnTruncate(Tag* tag, int tamanio_acutal,int nuevo_tamanio){
     int tamanio_a_agrandar = nuevo_tamanio - tamanio_acutal;
     int cant_bloques_necesarios = tamanio_a_agrandar / datos_superblock_gb->tamanio_bloque;
@@ -358,9 +368,9 @@ void asignarBloquesFisicosATagEnTruncate(Tag* tag_a_asignar_hardlinks,int cant_b
     char** bloques_logicos = config_get_array_value(tag_a_asignar_hardlinks->metadata_config_tag,"BLOCKS");
 
     for (int i =  0; i < cant_bloques_necesarios; i++){
-        BloqueLogico* logico_a_crear = crearBloqueLogico(cant_bloques_antes_de_asignacion);
+        BloqueLogico* logico_a_crear = crearBloqueLogico(cant_bloques_antes_de_asignacion,block0,tag_a_asignar_hardlinks->directorio);
         
-        string_array_push(&bloques_logicos,string_duplicate("0"));
+        string_array_push(&bloques_logicos,string_duplicate("0")); //LIBERAR
 
         list_add(logicos_a_asignar,logico_a_crear);
         cant_bloques_antes_de_asignacion++;
@@ -376,38 +386,32 @@ void asignarBloquesFisicosATagEnTruncate(Tag* tag_a_asignar_hardlinks,int cant_b
 }
 
 // TODO - PROXIMAMENTE EN DBZ - arreglar bien tema directorios en bloque logico y tag
-BloqueLogico* crearBloqueLogico(int nro_bloque_logico,char* directorio_tag ,BloqueFisico* bloque_fisico_a_asignar){ //-- ta checkkkk  -- update 22/11/25 que hijo de puta, firma Joe 
+// ----------------------/home/utnso/storage/files/tag1_0_0
+BloqueLogico* crearBloqueLogico(int nro_bloque_logico, BloqueFisico* bloque_fisico_a_asignar,char *path_tag){ //-- ta checkkkk  -- update 22/11/25 que hijo de puta, firma Joe 
     BloqueLogico* bloque_logico = malloc(sizeof(BloqueLogico));
     bloque_logico->ptr_bloque_fisico = bloque_fisico_a_asignar;
     bloque_logico->id_logico = nro_bloque_logico;
-    sprintf(bloque_logico->directorio,"%s/logical_blocks"); 
-    crearArchBloqueLogico(nro_bloque_logico, bloque_logico->directorio, bloque_fisico_a_asignar->id_fisico); 
-    return bloque_logico;
-}
 
-// ESTA CHECKKKK
-void crearArchBloqueLogico(int nro_bloque_logico,char* path_directorio_logico, int nro_bloque_fisico){
-    char* full_path_logico;
-    char* full_path_fisico;
-    //----------------- fisico ------------------
-    //----------------- block0 ------------------
-    sprintf(full_path_fisico,"%sblock%04d.dat",PATH_PHYSICAL_BLOCKS,nro_bloque_fisico);
-    
-    // ---------------- logico -----------------
-    sprintf(full_path_logico,"%s/%04s.dat",path_directorio_logico, nro_bloque_logico);
-    
-    FILE* dat_a_crear = fopen(full_path_logico,"a+"); //logical block a crear
-    fclose(dat_a_crear);
-    
-    if(!link(full_path_fisico,full_path_logico)){
+    sprintf(bloque_logico->directorio,"%s/logical_blocks/%04d.dat",path_tag,nro_bloque_logico);
+     
+    if(!crearHLink(bloque_logico->directorio, bloque_fisico_a_asignar->ruta_absoluta)){
         log_error(logger_storage,"(crearArchBloqueLogico) - Error al hacer link :(");
         abort();
     }
 
     log_debug(
-        logger_storage,"(crearArchBloqueLogico) - Bloque %d del directorio %s correctamente creado",nro_bloque_logico,path_directorio_logico);
-    
-    return;
+        logger_storage,"(crearArchBloqueLogico) - Bloque %d del directorio %s correctamente creado",nro_bloque_logico,bloque_logico->directorio);
+    return bloque_logico;
+}
+
+// ESTA CHECKKKK
+bool crearHLink(char* bloque_logico, char* bloque_fisico_a_hardlinkear){
+
+    FILE* dat_a_crear = fopen(bloque_logico,"a+"); //logical block a crear
+    fclose(dat_a_crear);
+    if(!link(bloque_fisico_a_hardlinkear,bloque_logico)) 
+        return false; 
+    return true;
 }
 
 
@@ -477,7 +481,7 @@ char* stringArrayConfigAString(char** array_a_pasar_a_string){
 }
 
 
-int realizarTAG(int query_id,char* nombre_origen_completo,char* nombre_destino_completo){
+ErrorStorageEnum realizarTAG(int query_id,char* nombre_origen_completo,char* nombre_destino_completo){
     
     char* nombre_file_origen;
     char* tag_origen;
@@ -488,8 +492,9 @@ int realizarTAG(int query_id,char* nombre_origen_completo,char* nombre_destino_c
     //probar funcionamiento
     asignarFileTagAChars(nombre_file_origen,tag_origen, nombre_origen_completo); //TODO
 
-    // chequeo errores
+    // ======================== chequeo errores
     pthread_mutex_lock(&mutex_files);
+    //NO EXISTE FILE ORIGEN
     if (fileInexistente(nombre_file_origen)){
         free(nombre_file_origen);
         free(tag_origen);
@@ -498,51 +503,57 @@ int realizarTAG(int query_id,char* nombre_origen_completo,char* nombre_destino_c
     } 
 
     File* file_origen = buscarFilePorNombre(nombre_file_origen);
+    //NO EXISTE TAG ORIGEN
     if (tagInexistente(file_origen->tags,tag_origen,nombre_file_origen)){
         free(nombre_file_origen);
         free(tag_origen);
         pthread_mutex_unlock(&mutex_files);
         return TAG_INEXISTENTE;
     }
-
     asignarFileTagAChars(nombre_file_destino,tag_destino, nombre_destino_completo);
-    
+
+    // CASOS
     // file creado 
     // file tag creado
     // ninguno creado
 
+    //NINGUNO CREADO
+    
+    if (!filePreexistente(nombre_file_destino)){
+        File *file_destino_creado = crearFile(nombre_file_destino);
+        Tag *tag_destino_creado = crearTag(tag_destino,nombre_file_destino);
+        asignarBloquesFisicosATagCopiado(tag_destino_creado);
+        
+        pthread_mutex_unlock(&mutex_files);
+        free(nombre_file_origen);
+        free(tag_origen);
+        free(nombre_file_destino);
+        free(tag_destino);
+        return OK;
+    }
 
-    //TODO LO DE ABAJO ES RECONTRA INCHEQUEABLE, FIRMA JOE PINO
-    //REVISA SI FILE DESTINO SE TIENE QUE CHEQUEAR POR PREEXISTENTE - ERRORES RAROS A CHECKEAR DSP 
-    if (filePreexistente(nombre_file_destino)){
+    // FILE CREADO, TAG INEXISTENTE
+    File* file_destino = buscarFilePorNombre(nombre_file_destino);
+    if (!tagPreexistente(file_destino->tags,tag_destino,nombre_file_destino)){
+        Tag* tag_destino_a_crear = crearTag(tag_destino,nombre_file_destino);
+        asignarBloquesFisicosATagCopiado(tag_destino_a_crear);
 
         pthread_mutex_unlock(&mutex_files);
         free(nombre_file_origen);
         free(tag_origen);
         free(nombre_file_destino);
         free(tag_destino);
-        return FILE_PREEXISTENTE;
-    }
-
-    File* file_destino = buscarFilePorNombre(nombre_file_destino);
-    if (tagPreexistente(file_destino->tags,tag_destino,nombre_file_destino)){
-        pthread_mutex_unlock(&mutex_files);
-        return TAG_PREEXISTENTE;
+        log_info(logger_storage,"## %d - Tag creado %s",query_id,nombre_destino_completo);
+        return OK;
     }
     
-    Tag* nuevo_tag_origen = buscarTagPorNombre(file_origen->tags,tag_origen);
-
-    //File* nuevo_file_destino = crearFile(nombre_file);
-    //Tag* nuevo_tag = crearTag(nombre_tag,nombre_file);
+    // TODO CREADO, SOLO COPIA
+    Tag* tag_destino_encontrado = buscarTagPorNombre(file_origen->tags,tag_origen);
+    asignarBloquesFisicosATagCopiado(tag_destino);
     
-   // list_add(nuevo_file->tags, nuevo_tag);
-
-   //log_info(
-    //    logger_storage,"## %s - File Creado %s:%s",
-    //    query_id,nombre_file,nombre_tag);
-        
-    return true;
+    return OK;
 }
+
 
 int copiarTag(Tag* tag_origen,Tag* tag_destino){
 
@@ -554,6 +565,7 @@ int copiarTag(Tag* tag_origen,Tag* tag_destino){
     config_set_value(tag_destino,"ESTADO","WORK_IN_PROGRESS");
 
     //------------------------------- tag_destino ---------------> [10,2,0,0,0,0]
+    asignarBloquesFisicosATagCopiado(tag_destino);
 }
 
 void asignarBloquesFisicosATagCopiado(Tag* tag_destino){     
@@ -567,16 +579,56 @@ void asignarBloquesFisicosATagCopiado(Tag* tag_destino){
 
     for (int i = 0; i < string_array_size(bloques_logicos_a_copiar); i++){
         int nro_bloque_fisico = atoi(bloques_logicos_a_copiar[i]);
-        BloqueFisico* bloque_a_asignar = obtenerBloqueFisico(nro_bloque_fisico);
-        BloqueLogico* logico_a_crear = crearBloqueLogico(i, bloque_a_asignar);
+        BloqueFisico* bloque_fisico_a_asignar = obtenerBloqueFisico(nro_bloque_fisico);
+        BloqueLogico* logico_a_crear = crearBloqueLogico(i, bloque_fisico_a_asignar,tag_destino->directorio);
 
         list_add(logicos_a_copiar,logico_a_crear);
     }
 
-    log_debug(logger_storage,"(asignarBloquesFisicosATagCopiado) - Bloques");
+    log_debug(logger_storage,"(asignarBloquesFisicosATagCopiado) - Bloques asignados");
     string_array_destroy(bloques_logicos_a_copiar);
 }
 
 BloqueFisico* obtenerBloqueFisico(int nro_bloque_a_buscar){
     return (BloqueFisico *)list_get(bloques_fisicos_gb,nro_bloque_a_buscar);
 }
+
+
+ErrorStorageEnum realizarCOMMIT(char* nombre_completo){
+    char* nombre_file;
+    char* nombre_tag;   
+    
+    asignarFileTagAChars(nombre_file,nombre_tag, nombre_completo);
+
+    if(fileInexistente(nombre_file)){
+        free(nombre_file);
+        free(nombre_tag);
+        return FILE_INEXISTENTE;
+    }  
+    File* file_a_commitear = buscarFilePorNombre(nombre_file);
+    
+    if(tagInexistente(file_a_commitear->tags, nombre_tag, nombre_file)){
+        free(nombre_file);
+        free(nombre_tag);
+        return TAG_INEXISTENTE;
+    }   
+    
+    Tag* tag_a_commitear = buscarTagPorNombre(file_a_commitear->tags, nombre_tag);
+    
+    if (tieneEstadoCOMMITED(tag_a_commitear)){
+        log_debug(logger_storage, "(realizarCOMMIT) - El estado del tag %s es COMMITED",tag_a_commitear->nombre_tag);
+        free(nombre_file);
+        free(nombre_tag);
+        return OK;
+    }
+    
+    /*
+    ACA PASA EL BIRI BARA DE HASH INDEX
+    */
+
+    free(nombre_file);
+    free(nombre_tag);
+    return OK;
+    //funcion que vreo fer
+}
+

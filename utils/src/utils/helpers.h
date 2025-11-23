@@ -23,6 +23,7 @@ typedef enum {
 }Modulo;
 
 typedef enum {
+	OK,
 	FILE_INEXISTENTE,
 	TAG_INEXISTENTE,
 	FILE_PREEXISTENTE,
@@ -31,8 +32,7 @@ typedef enum {
 	ESCRITURA_NO_PERMITIDA,
 	LECTURA_FUERA_DE_LIMITE,
 	ESCRITURA_FUERA_DE_LIMITE
-	
-}ErrorStorage;
+}ErrorStorageEnum;
 
 typedef struct {
 	u_int32_t size;  

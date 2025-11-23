@@ -57,7 +57,7 @@ extern ConfigStorage* config_storage;
 extern ConfigSuperblock* datos_superblock_gb;
 extern t_log* logger_storage;
 extern t_list* bloques_fisicos_gb;
-extern t_list* files_gb;
+extern t_list* lista_files_gb;
 extern char* bitmap_mmap_gb;
 extern t_bitarray* bitmap_gb;
 extern int cant_bloques_en_bytes_gb;
