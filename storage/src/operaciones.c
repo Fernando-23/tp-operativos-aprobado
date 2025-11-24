@@ -273,8 +273,6 @@ t_config* crearMetadata(char* path_tag){
 }
 
 
-
-
 //tenes que hacer free nombre_file y tag
 void asignarFileTagAChars(char* nombre_file,char* tag,char* file_a_cortar){
     char** file_cortado = string_split(file_a_cortar,":"); //FILE:TAG
@@ -622,13 +620,35 @@ ErrorStorageEnum realizarCOMMIT(char* nombre_completo){
         return OK;
     }
     
-    /*
-    ACA PASA EL BIRI BARA DE HASH INDEX
-    */
+    int cant_blogicos = list_size(tag_a_commitear->bloques_logicos);
+    escribirEnHashIndex(tag_a_commitear);
 
     free(nombre_file);
     free(nombre_tag);
     return OK;
     //funcion que vreo fer
+}
+/*
+Bloques Logicos. Cada uno apunta a un bloque fisico.
+Commitear: 5: cambie 2 
+
+
+
+
+*/
+void escribirEnHashIndex(Tag* tag){
+    int cant_blogicos = list_size(tag->bloques_logicos);
+
+    for (int i = 0; i < cant_blogicos; i++){
+        BloqueLogico* bloque_logico_a_consultar = list_get(tag->bloques_logicos,i);
+        //-------------------------INCHEQUEABLE, MALMALMAL
+        char* nombre_del_bloque_fisico = bloque_logico_a_consultar->ptr_bloque_fisico->nombre;
+        char* hash_bloque_logico = crypto_md5(nombre_del_bloque_fisico, 9); // block0000 // 9
+        config_set_value (hash_index_config, hash_bloque_logico, nombre_del_bloque_fisico);
+        //-------------------------INCHEQUEABLE, MALMALMAL
+
+        free(hash_bloque_logico);
+    }
+    
 }
 

@@ -52,7 +52,7 @@ typedef struct{
     char** bloques_encontrados;
 }RespuestaConsultaBitmap;
 
-
+extern t_config* hash_index_config;
 extern ConfigStorage* config_storage;
 extern ConfigSuperblock* datos_superblock_gb;
 extern t_log* logger_storage;
@@ -69,5 +69,7 @@ extern pthread_mutex_t mutex_bloques_fisicos;
 extern const char* PATH_PHYSICAL_BLOCKS;
 extern const char* RUTA_BASE_STORAGE;
 extern const char* RUTA_FILES;
+extern const char* RUTA_HASH_INDEX;
+extern const char* RUTA_AUX_FSTART_HASH_INDEX;
 
 #endif //ESTRUCTURAS_H_

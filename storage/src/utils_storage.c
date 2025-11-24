@@ -17,13 +17,22 @@ void iniciarStorage(){
     
     if (string_equals_ignore_case(config_storage->fresh_start,"FRESH_START")){
         //ACA IRIA LA_SANGUINARIA();
-       
-  
+        
+        limpiarHashIndexConfig();
     }
+
+    hash_index_config = config_create(RUTA_HASH_INDEX);
+
     bloques_fisicos_gb = list_create();
     files_gb = list_create();
     crearBloquesFisicos();
-        
+
+}
+
+void limpiarHashIndexConfig(){
+    t_config* aux_para_vaciar_hash_index = config_create(RUTA_AUX_FSTART_HASH_INDEX);
+    config_save_in_file(aux_para_vaciar_hash_index,RUTA_HASH_INDEX);
+    config_destroy(aux_para_vaciar_hash_index);
 }
 
 void cargarConfigStorage(char* path_config){

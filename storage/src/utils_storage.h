@@ -3,6 +3,7 @@
 #include "estructuras.h"
 #include <commons/string.h>
 #include <unistd.h>
+#include <commons/crypto.h>
 #include <pthread.h>
 
 
@@ -15,5 +16,6 @@ int calcularCantBloques();
 void crearBloquesFisicos();
 void crearYAgregarBloqueFisicoIndividual(int id,char* nombre_bloque);
 void handshake(int fd);
+void limpiarHashIndexConfig();
 
 #endif //UTILS_STORAGE
