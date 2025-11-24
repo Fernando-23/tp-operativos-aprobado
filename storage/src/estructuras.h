@@ -48,6 +48,10 @@ typedef struct{
 }ConfigSuperblock;
 
 typedef struct{
+    size_t tamanio;
+    void* contenido;
+}DatosParaHash;
+typedef struct{
     bool hubo_bloques_libres;
     char** bloques_encontrados;
 }RespuestaConsultaBitmap;
