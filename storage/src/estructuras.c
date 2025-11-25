@@ -1,7 +1,7 @@
 #include "estructuras.h"
 
 ConfigStorage* config_storage = NULL;
-t_config* hash_index_config = NULL;
+t_config* hash_index_config_gb = NULL;
 t_log* logger_storage = NULL;
 t_list* bloques_fisicos_gb = NULL;
 t_list* lista_files_gb = NULL;

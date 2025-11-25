@@ -96,7 +96,7 @@ void pedidoDeLaburante(int mail_laburante)
         // COMMIT QUERY_ID FILE:TAG
         char *nombre_completo_commit = mensajito_cortado[2];
 
-        int resultado_commit = realizarCOMMIT(nombre_completo_commit);
+        int resultado_commit = realizarCOMMIT(query_id,nombre_completo_commit);
         if (resultado_commit != OK)
         {
             enviarMensajito(mensajitoError(resultado_commit), mail_laburante, logger_storage);
@@ -348,20 +348,18 @@ void ferConLaMexicana(Tag *tag, int tamanio_actual, int nuevo_tamanio)
     unlinkearBloquesLogicos(cant_bloques_a_desasignar, tag->bloques_logicos);
 }
 
-void unlinkearBloquesLogicos(int cant_a_unlinkear, t_list *bloques_logicos)
-{
-    for (int i = 0; i < cant_a_unlinkear; i++)
-    {
+void unlinkearBloquesLogicos(int cant_a_unlinkear, t_list *bloques_logicos){
+    for (int i = 0; i < cant_a_unlinkear; i++){
         BloqueLogico *bloque_popeado = (BloqueLogico *)list_remove(bloques_logicos, list_size(bloques_logicos));
         BloqueFisico *bloque_fisico_asociado = bloque_popeado->ptr_bloque_fisico;
 
         //---------------------------------- /files/tag/logical-blocks/0002.dat
-        unlink(bloque_popeado->directorio);       // quitarle el hlink
+        unlink(bloque_popeado->ruta_hl);       // quitarle el hlink
         bloque_popeado->ptr_bloque_fisico = NULL; // JORGE EL CURIOSO - Capaz por enunciado deberia apuntar al block0;
 
-        if (!tieneHLinks(bloque_fisico_asociado->ruta_absoluta))
-        { // 1 hard links -> liberar en el bitmap
+        if (!tieneHLinks(bloque_fisico_asociado->ruta_absoluta)){ // 1 hard links -> liberar en el bitmap
             liberarBloqueDeBitmap(bloque_fisico_asociado->id_fisico);
+
             log_debug(logger_storage, "(unlinkearBloquesLogicos)- El bloque fisico %s fue liberado", bloque_fisico_asociado->nombre);
         }
 
@@ -408,7 +406,6 @@ void asignarBloquesFisicosATagEnTruncate(Tag *tag_a_asignar_hardlinks, int cant_
     config_save(tag_a_asignar_hardlinks->metadata_config_tag);
 
     free(nueva_info_blocks_metadata);
-    string_array_destroy(bloques_logicos);
 }
 
 // TODO - PROXIMAMENTE EN DBZ - arreglar bien tema directorios en bloque logico y tag
@@ -419,26 +416,25 @@ BloqueLogico *crearBloqueLogico(int nro_bloque_logico, BloqueFisico *bloque_fisi
     bloque_logico->ptr_bloque_fisico = bloque_fisico_a_asignar;
     bloque_logico->id_logico = nro_bloque_logico;
 
-    sprintf(bloque_logico->directorio, "%s/logical_blocks/%04d.dat", path_tag, nro_bloque_logico);
+    sprintf(bloque_logico->ruta_hl, "%s/logical_blocks/%04d.dat", path_tag, nro_bloque_logico);
 
-    if (!crearHLink(bloque_logico->directorio, bloque_fisico_a_asignar->ruta_absoluta))
+    if (!crearHLink(bloque_logico->ruta_hl, bloque_fisico_a_asignar->ruta_absoluta))
     {
         log_error(logger_storage, "(crearArchBloqueLogico) - Error al hacer link :(");
         abort();
     }
 
     log_debug(
-        logger_storage, "(crearArchBloqueLogico) - Bloque %d del directorio %s correctamente creado", nro_bloque_logico, bloque_logico->directorio);
+        logger_storage, "(crearArchBloqueLogico) - Bloque %d del directorio %s correctamente creado", nro_bloque_logico, bloque_logico->ruta_hl);
     return bloque_logico;
 }
 
 // ESTA CHECKKKK
-bool crearHLink(char *bloque_logico, char *bloque_fisico_a_hardlinkear)
+bool crearHLink(char *ruta_hl_del_bloque_logico, char *bloque_fisico_a_hardlinkear)
 {
-
-    FILE *dat_a_crear = fopen(bloque_logico, "a+"); // logical block a crear
+    FILE *dat_a_crear = fopen(ruta_hl_del_bloque_logico, "a+"); // logical block a crear
     fclose(dat_a_crear);
-    if (!link(bloque_fisico_a_hardlinkear, bloque_logico))
+    if (!link(bloque_fisico_a_hardlinkear, ruta_hl_del_bloque_logico))
         return false;
     return true;
 }
@@ -514,7 +510,7 @@ char *stringArrayConfigAString(char **array_a_pasar_a_string)
         }
     }
     string_append(&string_a_retornar, "]");
-
+    string_array_destroy(array_a_pasar_a_string);
     return string_a_retornar;
 }
 
@@ -639,8 +635,7 @@ BloqueFisico *obtenerBloqueFisico(int nro_bloque_a_buscar)
     return (BloqueFisico *)list_get(bloques_fisicos_gb, nro_bloque_a_buscar);
 }
 
-ErrorStorageEnum realizarCOMMIT(char *nombre_completo)
-{
+ErrorStorageEnum realizarCOMMIT(char* query_id,char *nombre_completo){
     char *nombre_file;
     char *nombre_tag;
 
@@ -665,7 +660,7 @@ ErrorStorageEnum realizarCOMMIT(char *nombre_completo)
 
     if (tieneEstadoCOMMITED(tag_a_commitear))
     {
-        log_debug(logger_storage, "(realizarCOMMIT) - El estado del tag %s es COMMITED", tag_a_commitear->nombre_tag);
+        log_debug(logger_storage, "(realizarCOMMIT) - El estado del tag %s ya estaba en COMMITED", tag_a_commitear->nombre_tag);
         free(nombre_file);
         free(nombre_tag);
         return OK;
@@ -673,46 +668,54 @@ ErrorStorageEnum realizarCOMMIT(char *nombre_completo)
 
     int cant_blogicos = list_size(tag_a_commitear->bloques_logicos);
     escribirEnHashIndex(tag_a_commitear);
-
+    log_info(logger_storage,"## %s - Commit de File:Tag %s",query_id,nombre_completo);
     free(nombre_file);
     free(nombre_tag);
     return OK;
-    // funcion que vreo fer
 }
 /*
 Bloques Logicos. Cada uno apunta a un bloque fisico.
 Commitear: 5: cambie 2
-
-
-
-
 */
-void escribirEnHashIndex(Tag *tag)
-{
-    int cant_blogicos = list_size(tag->bloques_logicos);
 
+
+void escribirEnHashIndex(Tag *tag){
+    int cant_blogicos = list_size(tag->bloques_logicos);
+    
     for (int i = 0; i < cant_blogicos; i++)
     {
         BloqueLogico *bloque_logico_a_consultar = list_get(tag->bloques_logicos, i);
         DatosParaHash *datos_para_hash = obtenerDatosParaHash(bloque_logico_a_consultar);
 
         char *hash_bloque_logico = crypto_md5(datos_para_hash->contenido, datos_para_hash->tamanio); // block0000 // 9
-        char *bloque_fisico_de_config = string_duplicate(config_get_string_value(hash_index_config,hash_bloque_logico));
-        log_debug(logger_storage,"(escribirEnHashIndex) - Obtuve comparando hashes el bloque: %s",bloque_fisico_de_config);
-        if (bloque_fisico_de_config!=NULL){
-            BloqueFisico* bloque_a_apuntar = buscarBloquePorNombre(bloque_fisico_de_config);
-            //unlink PROXIMAMENTE EN DBZ
-            //hrlink 
-            bloque_logico_a_consultar->ptr_bloque_fisico = bloque_a_apuntar;
-            //CAMBIAR ESE BLOQUE EN LA METADATA
-
-        }
-        //config_set_value(hash_index_config, hash_bloque_logico, nombre_del_bloque_fisico);
+        bool existe_hash = config_has_property(hash_index_config_gb,hash_bloque_logico);
         
+        if (existe_hash){
+            log_debug(logger_storage,"(escribirEnHashIndex) - Hash encontrado en el index config, tratando de reapuntar");
+            char* bloque_fisico_de_config = string_duplicate(config_get_string_value(hash_index_config_gb,hash_bloque_logico));
+            
+            BloqueFisico* bloque_fisico_a_apuntar = buscarBloquePorNombre(bloque_fisico_de_config);
+            reapuntarBloque(bloque_fisico_a_apuntar,bloque_logico_a_consultar);
 
-        liberarDatosParaHash()
+            log_debug(logger_storage,
+                "(escribirEnHashIndex) - Bloque logico %d reapuntado al Bloque fisico %d correctamente",
+                bloque_logico_a_consultar->id_logico,bloque_fisico_a_apuntar->id_fisico);
             free(hash_bloque_logico);
+            free(bloque_fisico_de_config);
+            liberarDatosParaHash(datos_para_hash);
+            continue;
+        }
+
+        //caso 2, no esta en la config de los hush, como el isaac 
+        config_set_value(hash_index_config_gb,
+            hash_bloque_logico,
+            bloque_logico_a_consultar->ptr_bloque_fisico->nombre); //creo key mi bro no se me preocupe, cierre los ojos y salte nomas.
+        config_save(hash_index_config_gb);
+        free(hash_bloque_logico);
+        liberarDatosParaHash(datos_para_hash);
     }
+    
+    log_debug(logger_storage, "Yo sali del barrio me dicen MOMO");
 }
 
 BloqueFisico *buscarBloqueFisicoPorNombre(char *nombre){
@@ -723,8 +726,6 @@ BloqueFisico *buscarBloqueFisicoPorNombre(char *nombre){
     }
     return list_find(bloques_fisicos_gb, tieneMismoNombre);
 }
-
-
 
 DatosParaHash *obtenerDatosParaHash(BloqueLogico *bloque_logico){
     FILE *arch_a_leer = fopen(bloque_logico->ptr_bloque_fisico->ruta_absoluta, "rw");
@@ -753,14 +754,13 @@ DatosParaHash *crearDatosHash(void *contenido, size_t tamanio)
     return datos;
 }
 
-void liberarDatosParaHash(DatosParaHash *dato_a_liberar)
-{
+void liberarDatosParaHash(DatosParaHash *dato_a_liberar){
     free(dato_a_liberar->contenido);
     free(dato_a_liberar);
 }
 
-void *obtenerContenidoBloqueFisico(BloqueLogico *bloque_logico, int tamanio)
-{
+void *obtenerContenidoBloqueFisico(BloqueLogico *bloque_logico, int tamanio){
+
     FILE *arch_a_leer = fopen(bloque_logico->ptr_bloque_fisico->ruta_absoluta, "rw");
     if (!arch_a_leer)
         abort();
@@ -770,4 +770,103 @@ void *obtenerContenidoBloqueFisico(BloqueLogico *bloque_logico, int tamanio)
     fclose(arch_a_leer);
 
     return contenido;
+}
+
+//este, 1) Unlinkea bloque viejo, 2) Actualiza metadata del nuevo bloque, 3) Hardlinkear al nuevo fisico
+void reapuntarBloque(BloqueFisico* bloque_fisico_a_reapuntar,BloqueLogico* bloque_logico,t_config* metadata){ 
+
+    if (!unlink(bloque_logico->ruta_hl)){
+        log_error(logger_storage,"(reapuntarBloque) - Pincho en unlinkear, ya fue todo loco abort");
+        log_error(logger_storage,"(reapuntarBloque) - Ruta del hlink fallido: %s",bloque_logico->ruta_hl);
+        abort();
+    }
+
+    char** array_blocks = config_get_array_value(metadata,"BLOCKS"); 
+    char* bloque_a_modificar = array_blocks[bloque_logico->id_logico]; 
+
+    log_debug(logger_storage, "(reapuntarBloque) - Pequenio chequeo antes del reapuntamiento");
+    log_debug(logger_storage, "(reapuntarBloque) - Id bloque fisico en logico(estructura): %d , Bloque obtenido de la metadata(.config) %s. DEBEN SER IGUALES", bloque_logico->ptr_bloque_fisico->id_fisico,bloque_a_modificar);
+    sprintf(bloque_a_modificar,"%d",bloque_fisico_a_reapuntar->id_fisico);
+
+    char* nuevo_array_blocks = stringArrayConfigAString(array_blocks);
+    config_set_value(metadata, "BLOCKS", nuevo_array_blocks);
+
+    bloque_logico->ptr_bloque_fisico = bloque_fisico_a_reapuntar;
+
+    crearHLink(bloque_logico->ruta_hl,bloque_fisico_a_reapuntar->ruta_absoluta);
+    log_debug(logger_storage,"(reapuntarBLoque) - Hardlink reecho");
+}
+
+ErrorStorageEnum realizarELIMINAR_UN_TAG(char* query_id,char* nombre_completo){ 
+    char *nombre_file;
+    char *nombre_tag;
+
+    asignarFileTagAChars(nombre_file, nombre_tag, nombre_completo);
+
+    if (fileInexistente(nombre_file)){
+        free(nombre_file);
+        free(nombre_tag);
+        return FILE_INEXISTENTE;
+    }
+
+    File *file_a_commitear = buscarFilePorNombre(nombre_file);
+
+    if (tagInexistente(file_a_commitear->tags, nombre_tag, nombre_file)){
+        free(nombre_file);
+        free(nombre_tag);
+        return TAG_INEXISTENTE;
+    }
+
+    Tag *tag_a_commitear = buscarTagPorNombre(file_a_commitear->tags, nombre_tag);
+
+    unlinkearBloquesLogicosELIMINAR_UN_TAG(list_size(tag_a_commitear->bloques_logicos), tag_a_commitear->bloques_logicos);
+    char* ruta_metadata_config;
+    
+    sprintf(ruta_metadata_config, "%s/metadata.config",tag_a_commitear->directorio);
+    remove(ruta_metadata_config);
+    rmdir(tag_a_commitear->directorio);
+    log_info(logger_storage,"## %s - Tag Eliminado %s",query_id,nombre_completo);
+    
+    free(nombre_file);
+    free(nombre_tag);
+}
+
+
+
+void unlinkearBloquesLogicosParaELIMINAR_UN_TAG(int cant_a_unlinkear,Tag* tag){
+    t_list* bloques_logicos = tag->bloques_logicos;
+    bool esta_commiteado = estaCommiteado(tag->metadata_config_tag);
+    
+    for (int i = 0; i < cant_a_unlinkear; i++){
+        BloqueLogico *bloque_popeado = (BloqueLogico *)list_remove(bloques_logicos, list_size(bloques_logicos));
+        BloqueFisico *bloque_fisico_asociado = bloque_popeado->ptr_bloque_fisico;
+
+        //---------------------------------- /files/tag/logical-blocks/0002.dat
+        unlink(bloque_popeado->ruta_hl);       // quitarle el hlink
+        bloque_popeado->ptr_bloque_fisico = NULL; // JORGE EL CURIOSO - Capaz por enunciado deberia apuntar al block0;
+
+        if (!tieneHLinks(bloque_fisico_asociado->ruta_absoluta)){ // 1 hard links -> liberar en el bitmap
+            liberarBloqueDeBitmap(bloque_fisico_asociado->id_fisico);
+            
+            if(esta_commiteado){
+                DatosParaHash* datos_para_hash = obtenerDatosParaHash(bloque_popeado);
+                char* hash_a_remover = crypto_md5(datos_para_hash->contenido,datos_para_hash->tamanio);      
+                config_remove_key(hash_index_config_gb,hash_a_remover);
+
+                config_save(hash_index_config_gb);
+                liberarDatosParaHash(datos_para_hash);
+                free(hash_a_remover);
+            }
+            
+            log_debug(logger_storage, "(unlinkearBloquesLogicos)- El bloque fisico %s fue liberado", bloque_fisico_asociado->nombre);
+        }
+
+        liberarBloqueLogico(bloque_popeado);
+        log_debug(logger_storage, "(unlinkearBloquesLogicos) - FER lo hizo de nuevo");
+    }
+}
+
+
+bool estaCommiteado(t_config* metadata){
+    return string_contains(config_get_string_value(metadata, "ESTADO"), "COMMITED");
 }

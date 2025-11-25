@@ -27,7 +27,7 @@ typedef struct{
 
 typedef struct{
     int id_logico; //id del bloque logico
-    char* directorio; //para mas comodidad
+    char* ruta_hl; //para mas comodidad
     char* nombre;
     BloqueFisico* ptr_bloque_fisico; //puntero al bloque fisico asociado
 }BloqueLogico;
@@ -56,7 +56,7 @@ typedef struct{
     char** bloques_encontrados;
 }RespuestaConsultaBitmap;
 
-extern t_config* hash_index_config;
+extern t_config* hash_index_config_gb;
 extern ConfigStorage* config_storage;
 extern ConfigSuperblock* datos_superblock_gb;
 extern t_log* logger_storage;

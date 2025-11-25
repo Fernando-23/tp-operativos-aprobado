@@ -2,6 +2,7 @@
 #define OPERACIONES_H_
 #include "utils_storage.h"
 #include <sys/stat.h>
+#include <stdlib.h>
 #include "../../utils/src/utils/helpers.h"
 #include "errores.h"
 
