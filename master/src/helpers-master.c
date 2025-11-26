@@ -1,13 +1,18 @@
 #include "helpers-master.h"
+#include "querys.h"
+#include "prioridades.h"
 
-int nivel_multiprocesamiento = 0;
+const int nivel_multiprocesamiento = 0;
 ConfigMaster* config_master = NULL;
 t_log* logger_master = NULL;
 
-void cargarConfigMaster(char* path_config){
-    char* path_completo = string_new();
-    string_append(&path_completo, "../configs/");
-    string_append(&path_completo, path_config);
+t_list* lista_workers = NULL;
+t_list* lista_ready = NULL;
+pthread_mutex_t mutex_lista_ready;
+pthread_mutex_t mutex_workers;
+
+void cargarConfigMaster(char* nombre_config_sin_formato){
+    char* path_completo = string_from_format("../configs/%s.config", nombre_config_sin_formato);
 
     t_config* config = config_create(path_completo);
     config_master = malloc(sizeof(ConfigMaster));
@@ -28,13 +33,16 @@ void* atenderClientes(void *args){
     int socket = *(int*)args;
     
     while(1){
-        int* fd_cliente = malloc(sizeof(int));
-        *fd_cliente = esperarCliente(socket,logger_master);
+        //int* fd_cliente = malloc(sizeof(int));
+        //*fd_cliente = esperarCliente(socket,logger_master);
+        int fd_nuevo = esperarCliente(socket,logger_master);
+        int* p_fd = malloc(sizeof(int));
+        *p_fd = fd_nuevo;
         
 
-        pthread_t thread_query;
-        pthread_create(&thread_query, NULL, gestionarClienteIndividual, (void *)fd_cliente);
-        pthread_detach(thread_query); //creo que no hace falta, pero pensar a futuro
+        pthread_t thread;
+        pthread_create(&thread, NULL, gestionarClienteIndividual, p_fd);
+        pthread_detach(thread); //creo que no hace falta, pero pensar a futuro
         
     }
     
@@ -43,7 +51,7 @@ void* atenderClientes(void *args){
 void* gestionarClienteIndividual(void* args){
     int* fd_conexion = (int *)args; //clarisimo mi rey
     
-    Mensaje* mensaje_a_recibir = recibirMensajito(*fd_conexion);
+    Mensaje* mensaje_a_recibir = recibirMensajito(*fd_conexion, logger_master);
     log_debug(logger_master,
         "Debug - (gestionarClienteIndividual) - Recibi el mensaje %s",mensaje_a_recibir->mensaje);
 
@@ -79,6 +87,8 @@ void* gestionarClienteIndividual(void* args){
     }
     
     liberarMensajito(mensaje_a_recibir);
+
+    return NULL; // tira warn sino
 }
 
 
@@ -101,7 +111,7 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
 
 
     //PRIORIDADES
-    if (config_master->algoritmo_plani == "PRIORIDADES"){
+    if (string_equals_ignore_case(config_master->algoritmo_plani, "PRIORIDADES")){
         
         list_sort(lista_ready,ordenarPorPrioridad);
         Query* primer_elemento = list_get(lista_ready,0);
@@ -123,11 +133,11 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
             // Calienta Karol
             Query* query_desalojando = list_remove(lista_ready,0);
             
-            Mensaje* respuesta = recibirMensajito(worker->fd);
+            Mensaje* respuesta = recibirMensajito(worker->fd,logger_master);
             char** mensaje_cortado = string_split(respuesta->mensaje," ");
             char* estado_query_desalojada = mensaje_cortado[0];
 
-            if (estado_query_desalojada == "EXECUTE") {
+            if (string_equals_ignore_case(estado_query_desalojada, "EXECUTE")) {
                 int nuevo_pc = atoi(mensaje_cortado[1]);
                 Query* query_desalojada = worker->query;
                 query_desalojada->pc = nuevo_pc; //actualizo pc
@@ -166,8 +176,6 @@ void intentarEnviarQueryAExecute(Query *query_que_quiere_laburar){
         log_debug(logger_master,"Debug - (intentarEnviarQueryAExecute) - Query %d consiguio laburo con el worker %d",
         query_que_quiere_laburar->quid,laburito_disponible->id);
     }
-
-    
 }
 
 bool ordenarPorPrioridad(void *query_vigente_void,void* query_desafiante_void){

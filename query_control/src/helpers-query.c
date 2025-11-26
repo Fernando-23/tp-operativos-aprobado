@@ -4,22 +4,22 @@ ConfigQuery* config_query = NULL;
 t_log* logger_query = NULL;
 t_list* lista_ready = NULL;
 
-void cargarConfigQuery(char* path_config){
-    char* path_completo = string_new();
-    string_append(&path_completo, "../configs/");
-    string_append(&path_completo, path_config);
+void cargarConfigQuery(char* nombre_config_sin_extension){
+    char* path_completo = string_from_format("../configs/%s.config", nombre_config_sin_extension); // tremendo
 
     t_config* config = iniciarConfig(path_completo);
     config_query = malloc(sizeof(ConfigQuery));
     
     if (config_query == NULL) {
-        abort();
+		printf("(cargarConfigQuery) - Fallo asignacion config_query");
+		exit(EXIT_FAILURE);
     }
 
     config_query->ip_master = string_duplicate(config_get_string_value(config, "IP_MASTER"));
     config_query->puerto_master = string_duplicate(config_get_string_value(config, "PUERTO_MASTER"));
     config_query->log_level = config_get_int_value(config, "LOG_LEVEL");
     
+	printf("holamama\n");
     free(path_completo);
     config_destroy(config);
 }
@@ -52,7 +52,7 @@ int gestionarOrdenMaestro(Mensaje* orden_de_mi_maestro){ //pasar logger
 		char* motivo = orden_cortada[1];
 		log_info(logger_query,"###Query Finalizada - <%s>", motivo);
 		string_array_destroy(orden_cortada);
-		return 1; //terminar programa
+		return 0; //terminar programa
 		
 		break;
 	case 1:
@@ -61,13 +61,13 @@ int gestionarOrdenMaestro(Mensaje* orden_de_mi_maestro){ //pasar logger
 		char* contenido = orden_cortada[3];
 		log_info(logger_query,"### Lectura realizada: Archivo %s:%s, contenido: %s",nombre_archivo,tag,contenido);
 		string_array_destroy(orden_cortada);
-		return 0; //siga nomas
+		return 1; //siga nomas
 		break;
 	
 	default:
 		log_error(logger_query,"Me llego codigo de operación erroneo: %d",cod_op);
 		log_debug(logger_query,"desicion: la mismisima morision del modulo");
 		string_array_destroy(orden_cortada);
-		return 1; //terminar programa
+		return 0; //terminar programa
 	}
 }

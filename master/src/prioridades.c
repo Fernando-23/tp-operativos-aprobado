@@ -9,7 +9,7 @@ Worker* buscarWorkerLibre(){
 		return worker->esta_libre;
 	}
 
-	return list_find(workers, libre);
+	return list_find(lista_workers, libre);
 }
 
 Worker* buscarWorkerPorPrioridad(int prioridad_a_comparar){
@@ -18,7 +18,7 @@ Worker* buscarWorkerPorPrioridad(int prioridad_a_comparar){
         Worker* worker = (Worker *)ptr;
         return (worker->query->prioridad > prioridad_a_comparar);
     }
-    return list_find(workers,tieneMayorPrioridad);
+    return list_find(lista_workers,tieneMayorPrioridad);
 }
 
 void enviarDesalojo(int fd_worker){

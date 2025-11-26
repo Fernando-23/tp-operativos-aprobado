@@ -55,8 +55,8 @@ typedef struct{
     char *mensaje;
 }Mensaje;
 
-extern const int CANT_MODULOS;
-extern const int CANT_ERRORES;
+#define CANT_MODULOS 4
+#define CANT_ERRORES 9
 
 extern char* NOMBRE_MODULOS[CANT_MODULOS];
 extern char* NOMBRE_ERRORES[CANT_ERRORES];
@@ -64,7 +64,12 @@ extern char* NOMBRE_ERRORES[CANT_ERRORES];
 
 t_log* iniciarLogger(char* nombre_modulo, int nivel_log);
 t_config* iniciarConfig(char* nombre_config); 
-void chequearArgs(int cant_args_ingresados,int limite_cant_args);
+
+
+bool chequearCantArgs(int arg, int cant_esperada);
+void chequearCantArgsPasadosPorTerminal(int argc, int cant_esperada);
+
+
 void eliminar_paquete(t_paquete *paquete);
 void *serializar_paquete(t_paquete *paquete, uint32_t bytes);
 void *recibir_buffer(uint32_t *size, int socket_cliente);
@@ -74,9 +79,9 @@ int obtenerModuloCodOp(char *string_modulo);
 
 Mensaje* crearMensajito(char* mensaje);
 void enviarMensajito(Mensaje* mensaje_a_enviar,int fd,t_log* logger);
-Mensaje* recibirMensajito(int socket_cliente);
+Mensaje* recibirMensajito(int socket_cliente, t_log* logger);
 void liberarMensajito(Mensaje* mensajito_a_liberar);
 Mensaje* mensajitoOk();
-Mensaje* mensajitoError(ErrorStorage error_a_enviar);
+Mensaje* mensajitoError(ErrorStorageEnum error_a_enviar);
 
 #endif 

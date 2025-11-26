@@ -16,6 +16,11 @@
         "utils_storage.h": "c",
         "operaciones.h": "c",
         "estructuras.h": "c",
-        "unistd.h": "c"
+        "unistd.h": "c",
+        "netdb.h": "c",
+        "errno.h": "c",
+        "in.h": "c",
+        "random": "c",
+        "algorithm": "c"
     }
 }

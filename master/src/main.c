@@ -1,9 +1,11 @@
 #include "helpers-master.h"
 
 int main(int argc, char* argv[]) {
-    //ChequearArgs(argc, 2);    de momento no recibe nada, para la entrega agregar config
-    char* path_config = argv[1];
-    cargarConfigMaster(path_config);
+    
+    chequearCantArgsPasadosPorTerminal(argc, 1); 
+
+    char* nombre_config = argv[1]; //pasalo sin el .config
+    cargarConfigMaster(nombre_config); 
     
     logger_master = iniciarLogger("master", config_master->log_level);
     inicializarSemaforosMaster();
@@ -12,6 +14,8 @@ int main(int argc, char* argv[]) {
     pthread_t thread_adm;
 
     int socket_sv = iniciarServidor(config_master->puerto_escucha,"master",logger_master);
+
+    if(socket_sv == -1) return 1;
 
     pthread_create(&thread_adm,NULL,atenderClientes,(void *)&socket_sv); 
       

@@ -8,9 +8,6 @@
 #include <commons/collections/list.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include "querys.h"
-#include "prioridades.h"
-
 
 typedef struct{
     char* puerto_escucha;
@@ -52,7 +49,7 @@ extern const int cant_estados;
 extern const int nivel_multiprocesamiento;
 
 
-void cargarConfigMaster(char* path_config);
+void cargarConfigMaster(char* nombre_config_sin_formato);
 
 void* atenderClientes(void*);
 void* gestionarClienteIndividual(void* args);
@@ -68,6 +65,8 @@ bool hayLaburo(t_list* lista);
 bool buscarLaburanteSinLaburo(void *args);
 void inicializarSemaforosMaster();
 void inicializarListas();
+
+Worker* crearWorker(int id_worker_a_crear_ahora, int contacto_empleado);
 
 
 void inicializarSemaforos();

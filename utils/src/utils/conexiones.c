@@ -1,26 +1,45 @@
 #include "conexiones.h"
 
-int crearConexion(char *ip, char* puerto)
+int crearConexion(char *ip, char* puerto, t_log* logger)
 {
     struct addrinfo hints;
     struct addrinfo *server_info;
+     struct addrinfo *p;
+    int socket_cliente;
+    int resultado;
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = 0;
 
-    getaddrinfo(ip, puerto, &hints, &server_info);
 
-    int socket_cliente = socket(server_info->ai_family,
-                            	server_info->ai_socktype,
-                            	server_info->ai_protocol);
-
-    if(connect(socket_cliente, server_info->ai_addr, server_info->ai_addrlen) == -1){
-        perror("No se pudo conectar");
+    if ((resultado = getaddrinfo(ip, puerto, &hints, &server_info)) != 0) {
+        log_error(logger, "Error en getaddrinfo() para puerto %s", puerto);
         return -1;
     }
 
+    for (p = server_info; p != NULL; p = p->ai_next) {
+        socket_cliente = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+        if (socket_cliente == -1) {
+            continue; 
+        }
+        if (connect(socket_cliente, p->ai_addr, p->ai_addrlen) != -1) {
+            break;
+        }
+        close(socket_cliente);
+    }
+
     freeaddrinfo(server_info);
+
+    if (p == NULL) {
+         log_error(logger, "No se pudo conectar a %s:%s...", ip, puerto);
+        return -1;
+    }
+
+    log_info(logger, "Conectado exitosamente a %s:%s", ip, puerto);
+
+    
     return socket_cliente;
 }
 
@@ -35,19 +54,45 @@ int iniciarServidor(char *puerto, char *nombre_servidor,t_log* logger){
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
+    int optval = 1; // para que me de el socket igual
 
-	getaddrinfo(NULL, puerto, &hints, &servinfo);
+	if (getaddrinfo(NULL, puerto, &hints, &servinfo) != 0) {
+        log_error(logger, "Error en getaddrinfo() para puerto %s", puerto);
+        return -1;
+    }
 
-	// Creo el socket de escucha del servidor
-	socket_servidor = socket(servinfo->ai_family,
-							 servinfo->ai_socktype,
-							 servinfo->ai_protocol);
 
-	// Asociamos el socket a un puerto
-	bind(socket_servidor, servinfo->ai_addr, servinfo->ai_addrlen);
+	socket_servidor = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+	
+	if (socket_servidor == -1) {
+        log_error(logger, "Error creando socket: %s", strerror(errno));
+        freeaddrinfo(servinfo);
+        return -1;
+    }
 
-	// Escuchamos las conexiones entrantes
-	listen(socket_servidor, SOMAXCONN);
+
+	
+    if (setsockopt(socket_servidor, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1) {
+        log_error(logger, "Error en setsockopt(SO_REUSEADDR): %s", strerror(errno));
+        close(socket_servidor);
+        freeaddrinfo(servinfo);
+        return -1;
+    }
+
+
+	if (bind(socket_servidor, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
+        log_error(logger, "Error en bind(): %s", strerror(errno));
+        close(socket_servidor);
+        freeaddrinfo(servinfo);
+        return -1;
+    }
+
+	if (listen(socket_servidor, SOMAXCONN) == -1) {
+        log_error(logger, "Error en listen(): %s", strerror(errno));
+        close(socket_servidor);
+        freeaddrinfo(servinfo);
+        return -1;
+    }
 
 	freeaddrinfo(servinfo);
 	log_trace(logger, "Listo para escuchar a mi cliente");
@@ -56,7 +101,7 @@ int iniciarServidor(char *puerto, char *nombre_servidor,t_log* logger){
 	return socket_servidor;
 }
 
-void *recibir_buffer(uint32_t *size, int socket_cliente){
+void* recibir_buffer(uint32_t *size, int socket_cliente){
 	void *buffer;
 
 	recv(socket_cliente, size, sizeof(uint32_t), MSG_WAITALL); 
@@ -86,10 +131,10 @@ int esperarCliente(int socket_servidor,t_log* logger){ //santi, no se entendio
     // Aceptamos un nuevo cliente
     int socket_cliente = accept(socket_servidor,NULL,NULL);
 	if (socket_cliente == -1){
-		log_error(logger,"SE PUDRIO TODO, fallo el accept");
-		abort();
+		log_error(logger,"(esperarCliente) - SE PUDRIO TODO, fallo el accept");
+		exit(EXIT_FAILURE);
 	}
-    log_info(logger, "Se conecto un cliente!");
+    log_info(logger, "(esperarCliente) - Se conecto un cliente!");
 
     return socket_cliente;
 }
