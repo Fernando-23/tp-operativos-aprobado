@@ -19,51 +19,38 @@ int main(int argc, char* argv[]) {
 
     //conexion a storage que devuelve el tamanio de pagina
 
-    pthread_mutex_lock(&conexion_storage);
-    socket_storage = conexion_storage();
-    pthread_mutex_unlock(&conexion_storage);
+    pthread_mutex_lock(&mx_conexion_storage);
+    socket_storage = conexionStorage();
+    pthread_mutex_unlock(&mx_conexion_storage);
     
 
     //conexion a master (pero el recv se hace a parte)
-    pthread_mutex_lock(&conexion_master);
-    socket_master = conexion_master();  
-    pthread_mutex_unlock(&conexion_master);
+    pthread_mutex_lock(&mx_conexion_master);
+    socket_master = conexionMaster();  
+    pthread_mutex_unlock(&mx_conexion_master);
      
     
-    IniciarMemoria(&tam_pag);  //chequear despues si esta bien asignado
+    iniciarMemoria();  //chequear despues si esta bien asignado
     
     while (1) {
 
         ("Esperando datos de master \n");
-        esperando_query(socket_master);
-        
-
-        t_list* lista_de_instrucciones = crear_lista();
-
+        esperandoQuery(socket_master);
+    
         while (!interrumpir_query) {
             
-            char* instruccion = Fetch(lista_de_instrucciones);  // "WRITE 345 42"
-           
-            if (instruccion == NULL || instruccion[0] == '\0') {
-                printf("[ERROR] No hay una instrucción válida para este PC.\n");
-                return 1;
-            }
-
-            if (strcmp(instruccion, "TODO MAL") == 0) {
-                printf("[ERROR] Instrucción inválida.\n");
-                return 1;
-            }
-
+            char* instruccion = Fetch();  // "WRITE 345 42"
 
             Decode(instruccion);
-            printf("Instrucción a ejecutar: %s\n", instruccion);
+            log_debug(logger_worker,"Instrucción a ejecutar: %s\n", instruccion);
 
             requiere_realmente_desalojo = Execute();
-            printf("Execute terminó, requiere_desalojo=%d\n", requiere_realmente_desalojo);
-
+            if(requiere_realmente_desalojo){
+                log_debug("Execute terminó, requiere_desalojo=%d\n", requiere_realmente_desalojo);
+            }
             query->pc_query++; // avanzar PC como ejemplo
         }
-        list_destroy_and_destroy_elements(lista_de_instrucciones,destruir);
+        list_destroy_and_destroy_elements(query->instrucciones,destruir);
         printf("[DEBUG] Se va a cambiar el contexto\n");
 
         interrumpir_query = false;

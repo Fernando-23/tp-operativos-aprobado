@@ -41,7 +41,7 @@ typedef struct{
 
 
 extern t_list* lista_ready;
-extern t_list* workers;
+extern t_list* lista_workers;
 extern pthread_mutex_t mutex_lista_ready;
 extern pthread_mutex_t mutex_workers;
 

@@ -114,8 +114,15 @@ void pedidoDeLaburante(int mail_laburante)
         break;
 
     case DELETE:
-        enviarMensajito(mensajitoOk(), mail_laburante, logger_storage);
+    // DELETE QUERY_ID FILE:TAG
+        char *nombre_completo_delete = mensajito_cortado[2];
+        int resultado_delete = realizarELIMINAR_UN_TAG(query_id,nombre_completo_delete);
+        if (resultado_delete != OK){
+            enviarMensajito(mensajitoError(resultado_delete), mail_laburante, logger_storage);
+            log_error(logger_storage, "No se pudo realizar DELETE por motivo %s", NOMBRE_ERRORES[resultado_commit]);
+        }
 
+        log_info(logger_storage,"## %s - Tag Eliminado %s",query_id,nombre_completo_delete);
         string_array_destroy(mensajito_cortado);
         break;
 
@@ -630,8 +637,7 @@ void asignarBloquesFisicosATagCopiado(Tag *tag_destino)
     string_array_destroy(bloques_logicos_a_copiar);
 }
 
-BloqueFisico *obtenerBloqueFisico(int nro_bloque_a_buscar)
-{
+BloqueFisico *obtenerBloqueFisico(int nro_bloque_a_buscar){
     return (BloqueFisico *)list_get(bloques_fisicos_gb, nro_bloque_a_buscar);
 }
 
@@ -668,7 +674,7 @@ ErrorStorageEnum realizarCOMMIT(char* query_id,char *nombre_completo){
 
     int cant_blogicos = list_size(tag_a_commitear->bloques_logicos);
     escribirEnHashIndex(tag_a_commitear);
-    log_info(logger_storage,"## %s - Commit de File:Tag %s",query_id,nombre_completo);
+    
     free(nombre_file);
     free(nombre_tag);
     return OK;
@@ -825,10 +831,10 @@ ErrorStorageEnum realizarELIMINAR_UN_TAG(char* query_id,char* nombre_completo){
     sprintf(ruta_metadata_config, "%s/metadata.config",tag_a_commitear->directorio);
     remove(ruta_metadata_config);
     rmdir(tag_a_commitear->directorio);
-    log_info(logger_storage,"## %s - Tag Eliminado %s",query_id,nombre_completo);
     
     free(nombre_file);
     free(nombre_tag);
+    return OK;
 }
 
 

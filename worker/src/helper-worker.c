@@ -40,7 +40,7 @@ void cargarConfigWorker(char* path_config){
     config_destroy(config);
 }
 
-int conexion_storage(){
+int conexionStorage(){
 
     int socket_storage = crear_conexion(config_worker->ip_storage,config_worker->puerto_storage);
     if(socket_storage == -1){
@@ -58,7 +58,7 @@ int conexion_storage(){
 }
 
 
-int conexion_master(){
+int conexionMaster(){
 
     int socket_master = crear_conexion(config_worker->ip_master,config_worker->puerto_master);
     if(socket_master == -1){
@@ -73,13 +73,13 @@ int conexion_master(){
     return socket_master;
 }
 
-void esperando_query(int socket){
+void esperandoQuery(int socket){
     
     // Espero los datos de Master para continuar
     // id_query, pc_query y path_query
-    pthread_mutex_lock(&recibir_query);
+    pthread_mutex_lock(&mx_recibir_query);
     Mensaje* datos_query = recibirMensajito(socket);
-    pthread_mutex_unlock(&recibir_query);
+    pthread_mutex_unlock(&mx_recibir_query);
     if(datos_query == NULL){
         log_error(logger_worker,"No me llegaron datos de Master");
     }
@@ -100,13 +100,9 @@ void esperando_query(int socket){
 
     query->id_query = atoi(lista_de_datos[0]);
     query->pc_query = atoi(lista_de_datos[1]);
-
-    if (query->path_query != NULL) {
-        free(query->path_query);
-    }
-    query->path_query = string_duplicate(lista_de_datos[2]);
-
-    log_info(logger_worker, "## Query %d : Se recibe la Query. El path de operaciones es: %s", query->id_query, query->path_query);
+    query->nombre = string_duplicate(lista_de_datos[2]);
+    query->instrucciones = crearListaDeInstrucciones();
+    log_info(logger_worker, "## Query %d : Se recibe la Query. El path de operaciones es: %s", query->id_query, query->nombre);
 
     for (int i = 0; lista_de_datos[i] != NULL; i++) {
         free(lista_de_datos[i]);

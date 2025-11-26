@@ -21,10 +21,10 @@ void iniciarStorage(){
         limpiarHashIndexConfig();
     }
 
-    hash_index_config = config_create(RUTA_HASH_INDEX);
+    hash_index_config_gb = config_create(RUTA_HASH_INDEX);
 
     bloques_fisicos_gb = list_create();
-    files_gb = list_create();
+    lista_files_gb = list_create();
     crearBloquesFisicos();
 
 }
@@ -88,15 +88,17 @@ int calcularCantBloques(){
 
 void crearBloquesFisicos(){
 
-    for (int i = 0; i < datos_superblock_gb->cant_bloques; i++)
-    {
+    for (int i = 0; i < datos_superblock_gb->cant_bloques; i++){
         char* nombre_bloque;
-        asignarNombreBloqueFisico(nombre_bloque,i);
-        
-        FILE* arch = fopen(nombre_bloque, "w+");
+        sprintf(nombre_bloque, "block%04d",i);
+
+        char* ruta_absoluta;
+        sprintf(ruta_absoluta,"%s/%s.dat",PATH_PHYSICAL_BLOCKS,nombre_bloque);
+
+        FILE* arch = fopen(ruta_absoluta, "a+");
         fclose(arch);
         
-        crearYAgregarBloqueFisicoIndividual(i,nombre_bloque);        
+        crearYAgregarBloqueFisicoIndividual(i,nombre_bloque,ruta_absoluta);        
     }
     log_debug(logger_storage,"Debug - (crearBloquesFisicos) - Bloques fisicos creados");
 }
@@ -129,14 +131,13 @@ void asignarNombreBloqueFisico(char* nombre_bloque,int i){
 }
 
 //sirve para inicializar el fs
-void crearYAgregarBloqueFisicoIndividual(int id,char* nombre_bloque){
+void crearYAgregarBloqueFisicoIndividual(int id,char* nombre_bloque, char* ruta_absoluta){//JORGE EL CURIOSO
     BloqueFisico* bloque_fisico = malloc(sizeof(BloqueFisico));
     bloque_fisico->id_fisico = id;
     bloque_fisico->nombre = nombre_bloque;
-    bloque_fisico->contador_hard_links = 0;
+    bloque_fisico->ruta_absoluta = ruta_absoluta;
     
     list_add(bloques_fisicos_gb,bloque_fisico); 
-    
 }
 
 void inicializarSemaforos(){

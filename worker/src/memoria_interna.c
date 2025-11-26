@@ -14,13 +14,12 @@ t_list* tabla_general;
 int socket_master;
 int socket_storage;
 
-void IniciarMemoria(tam_pag)
-{
+void iniciarMemoria(){
     memoria = malloc((size_t) config_worker->tam_memoria);
     int cant_frames = config_worker->tam_memoria / tam_pag;
 
     //inicializo bitmap
-    bitMap = (int*) malloc(cant_frames * sizeof(int));
+    bitMap = malloc(cant_frames * sizeof(int));
     for (int i = 0; i < cant_frames; i++) {
         bitMap[i] = 0; //esta libre
     }
@@ -31,10 +30,11 @@ void IniciarMemoria(tam_pag)
         lista_frames[i].nro_frame = i;
         lista_frames[i].entrada = NULL; 
     }
-    puntero=0;
+    puntero = 0;
 }
 
-tabla_paginas_t* buscar_o_crear_tabla(char* file, char* tag) {
+
+tabla_paginas_t* buscarTablaPags(char* file, char* tag){
     for (int i = 0; i < list_size(tabla_general); i++) {
         tabla_paginas_t* t = list_get(tabla_general, i);
         if (string_equals_ignore_case(t->file, file) &&
@@ -42,19 +42,27 @@ tabla_paginas_t* buscar_o_crear_tabla(char* file, char* tag) {
             return t; 
         }
     }
-    
-    tabla_paginas_t* nueva = malloc(sizeof(tabla_paginas_t));
-    nueva->file = strdup(file);
-    nueva->tag = strdup(tag);
-    nueva->entradas = NULL;
-    nueva->cant_paginas = 0;
-
-    list_add(tabla_general, nueva); //agrega la tabla a la tabla_general
-    return nueva;
+    return NULL;
 }
 
-int escribir_en_memoria_paginada(char* file, char* tag, int pagina, int desplazamiento, char* contenido)
-{
+tabla_paginas_t* buscarOCrearTabla(char* file, char* tag) {
+
+    tabla_paginas_t* tabla = buscarTablaPags( file, tag);
+
+    if(tabla == NULL){
+        tabla = malloc(sizeof(tabla_paginas_t));
+        tabla->file = string_duplicate(file);
+        tabla->tag = string_duplicate(tag);
+        tabla->entradas = list_create();
+        tabla->cant_paginas = 0;
+
+    list_add(tabla_general, tabla);
+    }
+    return tabla;
+}
+
+int escribir_en_memoria_paginada(char* file, char* tag, int pagina, int desplazamiento, char* contenido){
+     
     if (!contenido) return -1;
     if (pagina < 0 || desplazamiento < 0 || desplazamiento >= tam_pag) {
         log_error(logger_worker, "Parametros invalidos (pagina=%d, desp=%d)", pagina, desplazamiento);
@@ -67,7 +75,7 @@ int escribir_en_memoria_paginada(char* file, char* tag, int pagina, int desplaza
     int    pag_actual      = pagina;
     int    desp_actual     = desplazamiento;
 
-    tabla_paginas_t* tabla = buscar_o_crear_tabla(file, tag);
+    tabla_paginas_t* tabla = buscarOCrearTabla(file, tag);
     if (!tabla) {
         log_error(logger_worker, "No se pudo obtener/crear tabla de paginas");
         return -1;
@@ -138,12 +146,7 @@ char* leer_en_memoria_paginada(char* file, char* tag, int pagina, int desplazami
     int    pag_actual    = pagina;
     int    desp_actual   = desplazamiento;
 
-    tabla_paginas_t* tabla = buscar_o_crear_tabla(file, tag);
-    if (!tabla) {
-        log_error(logger_worker, "No se pudo obtener/crear tabla de paginas");
-        free(mensaje);
-        return NULL;
-    }
+    tabla_paginas_t* tabla = buscarOCrearTabla(file, tag);
 
     while (bytesLeidos < bytesObjetivo) {
         entrada_pagina_t* ent = buscar_o_crear_entrada_pagina(tabla, pag_actual, file, tag);
@@ -200,7 +203,6 @@ char* leer_en_memoria_paginada(char* file, char* tag, int pagina, int desplazami
 entrada_pagina_t *buscar_o_crear_entrada_pagina(tabla_paginas_t *tabla, int pag_actual, char *file, char *tag)
 {
     entrada_pagina_t *entrada = buscar_entrada_pagina(tabla, pag_actual);
-    // no existe la entrada, creo un ENTRADA
     if (entrada == NULL)
     {
         entrada = malloc(sizeof(entrada_pagina_t));
@@ -251,6 +253,8 @@ entrada_pagina_t *buscar_entrada_pagina(tabla_paginas_t *tabla, int pag_actual)
     }
     return NULL; // No encontrada
 }
+
+
 frame_t* buscar_frame_libre()
 {
     for (int i = 0; i < cant_frames; i++) {
@@ -359,7 +363,6 @@ static void vaciar_frame(frame_t *f)
     if (e) {
        
         if (e->bitModificado) {
-            // Tomamos file/tag desde la propia tabla
             enviarFrameModificadoStorage(f, e->tabla->file, e->tabla->tag);
             e->bitModificado = 0;
         }
@@ -370,8 +373,6 @@ static void vaciar_frame(frame_t *f)
         e->nro_frame    = -1;
         e->last_used_ms = 0;
     }
-
-    // liberar frame en el bitmap y desvincular
     bitMap[f->nro_frame] = 0;
     f->entrada = NULL;
     
@@ -380,7 +381,7 @@ static void vaciar_frame(frame_t *f)
 
 void enviarFrameModificadoStorage(frame_t* frame, char* file, char* tag){
     char* base_frame = (char*)memoria + ((size_t)frame->nro_frame * (size_t)tam_pag);
-
+    
     char* contenidoPagina = malloc((size_t)tam_pag + 1);
     memcpy(contenidoPagina, base_frame, (size_t)tam_pag);
     contenidoPagina[tam_pag] = '\0';
@@ -389,7 +390,8 @@ void enviarFrameModificadoStorage(frame_t* frame, char* file, char* tag){
     Mensaje* mensajito = malloc(sizeof(Mensaje));
     mensajito->mensaje = contenidoPagina;
     mensajito->size = tam_pag + 1;
-    EnviarString(mensajito,socket_storage,logger_worker);
+    //ACTUALIZAR_FRAME QUERY_ID FILE:TAG CONTENIDO
+    enviarMensajito(mensajito,socket_storage,logger_worker);
     pthread_mutex_unlock(&frame_modificado);
     //Liberamos porque se envia a storage y me chupa un huevo lo que hace :)
     free(contenidoPagina);
@@ -400,3 +402,38 @@ uint64_t now_ms(void){
     clock_gettime(CLOCK_MONOTONIC, &ts); // evita cambios de hora del sistema
     return (uint64_t)ts.tv_sec * 1000ull + (uint64_t)ts.tv_nsec / 1000000ull;
 }
+
+entrada_pagina_t* buscarEntradaPorNroPag(t_list* entradas,int nro_pag){
+
+    bool tieneMismoNroPag(void *ptr){
+        entrada_pagina_t* entrada = (entrada_pagina_t *)ptr;
+        return (entrada->nro_pag == nro_pag);
+    }
+    return list_find(entradas, tieneMismoNroPag);
+}
+
+/*tabla_paginas_t* buscarTablaPaginaEnGlobal(char* file, char* tag){
+   
+    bool tieneMismoFileTag(void *ptr){
+        tabla_paginas_t* tabla = (tabla_paginas_t *)ptr;
+        return (string_contains(tabla->file,file) && string_contains(tabla->tag,tag));
+    }
+    return list_find(tabla_general,tieneMismoFileTag);
+}*/
+
+
+// tabla_paginas_t buscar
+
+/*
+file tag direccion base contenido
+
+= base / tamBlqoue 
+
+
+tamBloque = 10
+
+
+
+
+
+*/

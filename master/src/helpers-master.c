@@ -1,6 +1,5 @@
 #include "helpers-master.h"
 
-
 int nivel_multiprocesamiento = 0;
 ConfigMaster* config_master = NULL;
 t_log* logger_master = NULL;
@@ -29,7 +28,7 @@ void* atenderClientes(void *args){
     int socket = *(int*)args;
     
     while(1){
-        int *fd_cliente = malloc(sizeof(int));
+        int* fd_cliente = malloc(sizeof(int));
         *fd_cliente = esperarCliente(socket,logger_master);
         
 
@@ -42,9 +41,9 @@ void* atenderClientes(void *args){
 }
 
 void* gestionarClienteIndividual(void* args){
-    int *fd_conexion = (int *)args; //clarisimo mi rey
+    int* fd_conexion = (int *)args; //clarisimo mi rey
     
-    Mensaje* mensaje_a_recibir = recibirMensajito(fd_conexion);
+    Mensaje* mensaje_a_recibir = recibirMensajito(*fd_conexion);
     log_debug(logger_master,
         "Debug - (gestionarClienteIndividual) - Recibi el mensaje %s",mensaje_a_recibir->mensaje);
 
@@ -157,7 +156,7 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
 //despacha si hay worker libre
 void intentarEnviarQueryAExecute(Query *query_que_quiere_laburar){
     
-    Worker* laburito_disponible = (Worker *)list_find(workers,buscarLaburanteSinLaburo); //probar esto che
+    Worker* laburito_disponible = (Worker *)list_find(lista_workers,buscarLaburanteSinLaburo); //probar esto che
     if (laburito_disponible!=NULL){
         Mensaje *mensajito_a_despachar = crearMensajito(query_que_quiere_laburar->query);
         enviarMensajito(mensajito_a_despachar,query_que_quiere_laburar->fd,logger_master);
@@ -187,7 +186,7 @@ void gestionarWorkerIndividual(int id_worker ,int fd_conexion){
     intentarEnviarQueryAExecutePorWorker(nuevo_laburante_devuelto_por_la_funcion_que_crea_y_devuelve_worker);
     
     pthread_mutex_lock(&mutex_workers);
-    list_add(workers, nuevo_laburante_devuelto_por_la_funcion_que_crea_y_devuelve_worker);
+    list_add(lista_workers, nuevo_laburante_devuelto_por_la_funcion_que_crea_y_devuelve_worker);
     pthread_mutex_unlock(&mutex_workers);
 
 }
@@ -253,6 +252,6 @@ void inicializarSemaforosMaster(){
 
 void inicializarListas(){
     lista_ready = list_create();
-    workers = list_create();
+    lista_workers = list_create();
 }
 

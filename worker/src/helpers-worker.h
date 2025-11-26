@@ -20,11 +20,11 @@ typedef struct{
     int log_level;
 }ConfigWorker;
 
-typedef struct 
-{
+typedef struct {
     int id_query;
     int pc_query;
-    char* path_query
+    char* nombre;
+    t_list* instrucciones;
 }Query;
 
 
@@ -35,13 +35,13 @@ extern int tam_pag;
 extern bool interrumpir_query;
 extern bool requiere_realmente_desalojo;
 
-extern pthread_mutex_t conexion_storage;
-extern pthread_mutex_t conexion_master;
-extern pthread_mutex_t recibir_query;
+extern pthread_mutex_t mx_conexion_storage;
+extern pthread_mutex_t mx_conexion_master;
+extern pthread_mutex_t mx_recibir_query;
 
 void cargarConfigWorker(char* path_config);
-int conexion_storage();
-int conexion_master();
-void esperando_query(int socket);
+int conexionStorage();
+int conexionMaster();
+void esperandoQuery(int socket);
 
 #endif /* HELPERS_WORKER_H_ */
