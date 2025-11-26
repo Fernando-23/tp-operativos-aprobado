@@ -3,13 +3,15 @@
 
 
 int main(int argc, char* argv[]) {
-    //chequearArgs(argc, 2);
+    chequearCantArgsPasadosPorTerminal(argc, 1);
 
     cargarConfigStorage(argv[1]);
 
     logger_storage = iniciarLogger("storage", config_storage->log_level);
     
     int socket_sv = iniciarServidor(config_storage->puerto_escucha,"Storage",logger_storage);
+
+    if (socket_sv == -1) return 1;
     // FRESH_STORAGE
     iniciarStorage();
     pthread_t thread_rrhh;

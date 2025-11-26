@@ -1,9 +1,12 @@
 #ifndef OPERACIONES_H_
 #define OPERACIONES_H_
-#include "utils_storage.h"
+
 #include <sys/stat.h>
 #include <stdlib.h>
 #include "../../utils/src/utils/helpers.h"
+#include "../../utils/src/utils/conexiones.h"
+
+#include "utils_storage.h"
 #include "errores.h"
 
 typedef enum{
@@ -26,7 +29,25 @@ void* recursosHumanos(void*);//atenderClientes
 
 void* atenderLaburanteDisconforme(void*);//atenderCliente
 void pedidoDeLaburante(int mail_laburante);
-bool realizarCREATE(char* query_id,char* nombre_file, char* nombre_tag);
+
+void actualizarTamanioMetadata(char *nombre_file, Tag *tag, int tamanio_a_truncar);
+
+void unlinkearBloquesLogicos(int cant_a_unlinkear, t_list *bloques_logicos);
+
+void agrandarEnTruncate(Tag *tag, int tamanio_acutal, int nuevo_tamanio);
+
+ErrorStorageEnum realizarELIMINAR_UN_TAG(char* query_id,char* nombre_completo);
+ErrorStorageEnum realizarCREATE(char *query_id, char *nombre_file, char *nombre_tag);
+ErrorStorageEnum realizarTAG(char* query_id, char *nombre_origen_completo, char *nombre_destino_completo);
+ErrorStorageEnum realizarCOMMIT(char* query_id,char *nombre_completo);
+
+
+
+
+
+
+
+
 t_config* crearMetadata(char* path_tag);
 File* crearFile(char* nombre_file);
 Tag* crearTag(char* nombre_tag, char* nombre_file_asociado);
@@ -36,12 +57,18 @@ void asignarFileTagAChars(char* nombre_file,char* tag,char* file_a_cortar);
 File* buscarFilePorNombre(char* nombre);
 Tag* buscarTagPorNombre(t_list* tags,char* nombre_tag);
 
-BloqueLogico* crearBloqueLogico(int nro_bloque_logico);
+BloqueLogico *crearBloqueLogico(int nro_bloque_logico, BloqueFisico *bloque_fisico_a_asignar, char *path_tag);
+
+bool crearHLink(char *ruta_hl_del_bloque_logico, char *bloque_fisico_a_hardlinkear);
+
+void asignarBloquesFisicosATagCopiado(Tag *tag_destino);
+
 void liberarBloqueLogico(BloqueLogico* bloque_a_liberar);
+void liberarBloqueDeBitmap(int nro_bloque);
 
 void gestionarTruncateSegunTamanio(Tag* tag_concreto, int tamanio_a_truncar);
 
-void asignarBloquesFisicosATag(Tag* tag_a_asignar_hardlinks,char** bloques_fisicos_asignados);
+void asignarBloquesFisicosATagEnTruncate(Tag *tag_a_asignar_hardlinks, int cant_bloques_necesarios);
 
 void crearArchBloqueLogico(int nro_bloque,char* path_directorio_logico);
 
@@ -64,7 +91,11 @@ void ferConLaMexicana(Tag* tag, int tamanio_actual,int nuevo_tamanio);
 
 char* stringArrayConfigAString(char** array_a_pasar_a_string);
 
-int realizarTRUNCATE(int query_id,char* file_completo,int tamanio_a_truncar);
+
+ErrorStorageEnum realizarTRUNCATE(int query_id, char *file_completo, int tamanio_a_truncar);
+
+
+
 
 //--------RETARDOS----------
 void hacerRetardoOperacion();

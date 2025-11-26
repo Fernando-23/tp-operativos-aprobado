@@ -2,6 +2,27 @@
 
 
 
+char* NOMBRE_ERRORES[CANT_ERRORES] = 
+	{"OK","FILE_INEXISTENTE", "TAG_INEXISTENTE","FILE_PREEXISTENTE","TAG_PREEXISTENTE",
+	 "ESPACIO_INSUFICIENTE","ESCRITURA_NO_PERMITIDA","LECTURA_FUERA_DE_LIMITE","ESCRITURA_FUERA_DE_LIMITE"};
+
+int obtenerTareaCodOperacion(char *string_modulo){
+    for (int i = 0; i < CANT_ERRORES; i++)
+    {
+        if (strcmp(NOMBRE_ERRORES[i],string_modulo)==0)
+		 return i;
+    }
+    return -1;
+}
+
+
+
+
+
+
+
+
+
 void handshake(int fd){
     Mensaje* mensajito_hanshake = malloc(sizeof(Mensaje));
     mensajito_hanshake->mensaje = string_itoa(datos_superblock_gb->tamanio_bloque);
@@ -144,4 +165,13 @@ void inicializarSemaforos(){
     pthread_mutex_init(&mutex_bitmap,NULL);
     pthread_mutex_init(&mutex_bloques_fisicos,NULL);
     pthread_mutex_init(&mutex_files,NULL);
+}
+
+Mensaje* mensajitoError(ErrorStorageEnum cod_error){
+    Mensaje* mensajito = malloc(sizeof(Mensaje));
+	
+    mensajito->mensaje = string_from_format("ERROR %s", NOMBRE_ERRORES[cod_error]);
+    mensajito->size = string_length(mensajito->mensaje);
+	
+    return mensajito;
 }
