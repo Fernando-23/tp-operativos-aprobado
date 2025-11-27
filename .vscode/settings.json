@@ -21,6 +21,9 @@
         "errno.h": "c",
         "in.h": "c",
         "random": "c",
-        "algorithm": "c"
+        "algorithm": "c",
+        "errores.h": "c",
+        "crypto.h": "c",
+        "stat.h": "c"
     }
 }

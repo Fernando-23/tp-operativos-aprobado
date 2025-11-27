@@ -52,9 +52,9 @@ void ejecutarFlush(char* file, char* tag);
 void ejecutarDelete(char* file, char* tag);
 void ejecutarEnd(); 
 void frameAStorage(char* file, char* tag, int nro_pag);
-entrada_pagina_t* buscar_o_crear_entrada_pagina(tabla_paginas_t* tabla, int pag_actual);
-entrada_pagina_t* buscar_entrada_pagina(tabla_paginas_t* tabla, int pag_actual);
-frame_t* buscar_frame_libre();
+EntradaDeTabla* buscar_o_crear_entrada_pagina(TablaPaginas* tabla, int pag_actual);
+EntradaDeTabla* buscar_entrada_pagina(TablaPaginas* tabla, int pag_actual);
+Frame* buscar_frame_libre();
 int obtenerOperacionCodOp(char *string_operacion);
 
 #endif /* CICLO_INSTRUCCION_H_ */

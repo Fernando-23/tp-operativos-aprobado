@@ -3,11 +3,11 @@
 #include "helpers-worker.h"
 #include <time.h>
 
-void* memoria;
+void* memoria; // 
 int* bitMap;
 int cant_frames;
 
-frame_t* lista_frames;
+Frame* lista_frames;
 
 t_list* tabla_general;
 
@@ -25,7 +25,7 @@ void iniciarMemoria(){
     }
 
     //inicializo lista de frames
-    lista_frames = (frame_t*) malloc(cant_frames * sizeof(frame_t));
+    lista_frames = (Frame*) malloc(cant_frames * sizeof(Frame));
     for (int i = 0; i < cant_frames; i++) {
         lista_frames[i].nro_frame = i;
         lista_frames[i].entrada = NULL; 
@@ -34,9 +34,9 @@ void iniciarMemoria(){
 }
 
 
-tabla_paginas_t* buscarTablaPags(char* file, char* tag){
+TablaPaginas* buscarTablaPags(char* file, char* tag){
     for (int i = 0; i < list_size(tabla_general); i++) {
-        tabla_paginas_t* t = list_get(tabla_general, i);
+        TablaPaginas* t = list_get(tabla_general, i);
         if (string_equals_ignore_case(t->file, file) &&
             string_equals_ignore_case(t->tag, tag)) {
             return t; 
@@ -45,12 +45,12 @@ tabla_paginas_t* buscarTablaPags(char* file, char* tag){
     return NULL;
 }
 
-tabla_paginas_t* buscarOCrearTabla(char* file, char* tag) {
+TablaPaginas* buscarOCrearTabla(char* file, char* tag) {
 
-    tabla_paginas_t* tabla = buscarTablaPags( file, tag);
+    TablaPaginas* tabla = buscarTablaPags( file, tag);
 
     if(tabla == NULL){
-        tabla = malloc(sizeof(tabla_paginas_t));
+        tabla = malloc(sizeof(TablaPaginas));
         tabla->file = string_duplicate(file);
         tabla->tag = string_duplicate(tag);
         tabla->entradas = list_create();
@@ -61,28 +61,35 @@ tabla_paginas_t* buscarOCrearTabla(char* file, char* tag) {
     return tabla;
 }
 
+/*  
+
+    for()
+
+
+*/
 int escribir_en_memoria_paginada(char* file, char* tag, int pagina, int desplazamiento, char* contenido){
      
-    if (!contenido) return -1;
+    if (!contenido) 
+        return -1;
     if (pagina < 0 || desplazamiento < 0 || desplazamiento >= tam_pag) {
         log_error(logger_worker, "Parametros invalidos (pagina=%d, desp=%d)", pagina, desplazamiento);
         return -1;
     }
 
-    size_t bytesContenido  = strlen(contenido);
-    size_t totalAEscribir  = bytesContenido + 1; 
-    size_t escritos        = 0;
-    int    pag_actual      = pagina;
-    int    desp_actual     = desplazamiento;
+    size_t bytesContenido = strlen(contenido);
+    size_t totalAEscribir = bytesContenido + 1; 
+    size_t escritos = 0;
+    int pag_actual = pagina;
+    int desp_actual = desplazamiento;
 
-    tabla_paginas_t* tabla = buscarOCrearTabla(file, tag);
+    TablaPaginas* tabla = buscarOCrearTabla(file, tag);
     if (!tabla) {
         log_error(logger_worker, "No se pudo obtener/crear tabla de paginas");
         return -1;
     }
 
     while (escritos < totalAEscribir) {
-        entrada_pagina_t* ent = buscar_o_crear_entrada_pagina(tabla, pag_actual, file, tag);
+        EntradaDeTabla* ent = buscar_o_crear_entrada_pagina(tabla, pag_actual, file, tag);
         if (!ent) {
             log_error(logger_worker, "Fallo al obtener/crear entrada de pagina %d", pag_actual);
             return -1;
@@ -90,8 +97,8 @@ int escribir_en_memoria_paginada(char* file, char* tag, int pagina, int desplaza
 
         char* base_frame       = (char*)memoria + ((size_t)ent->nro_frame * (size_t)tam_pag);
         size_t espacioLibre    = (size_t)tam_pag - (size_t)desp_actual;
-        size_t por_copiar      = totalAEscribir - escritos;
-        if (por_copiar > espacioLibre) por_copiar = espacioLibre;
+        size_t por_copiar      = totalAEscribir - escritos; // Out en nueva func
+        if (por_copiar > espacioLibre) por_copiar = espacioLibre; 
 
         // Copia del tramo que cae en ESTA página
         memcpy(base_frame + desp_actual, contenido + escritos, por_copiar);
@@ -110,7 +117,7 @@ int escribir_en_memoria_paginada(char* file, char* tag, int pagina, int desplaza
                  (unsigned long long)dfis,
                  (const char*)(contenido + escritos));
 
-        escritos    += por_copiar;
+        escritos += por_copiar;
 
         // ¿Siguiente página?
         if (por_copiar == espacioLibre && escritos < totalAEscribir) {
@@ -146,10 +153,10 @@ char* leer_en_memoria_paginada(char* file, char* tag, int pagina, int desplazami
     int    pag_actual    = pagina;
     int    desp_actual   = desplazamiento;
 
-    tabla_paginas_t* tabla = buscarOCrearTabla(file, tag);
+    TablaPaginas* tabla = buscarOCrearTabla(file, tag);
 
     while (bytesLeidos < bytesObjetivo) {
-        entrada_pagina_t* ent = buscar_o_crear_entrada_pagina(tabla, pag_actual, file, tag);
+        EntradaDeTabla* ent = buscar_o_crear_entrada_pagina(tabla, pag_actual, file, tag);
         if (!ent) {
             log_error(logger_worker, "No se encontro/creo la entrada de pagina %d", pag_actual);
             free(mensaje);
@@ -200,21 +207,19 @@ char* leer_en_memoria_paginada(char* file, char* tag, int pagina, int desplazami
     return mensaje;
 }
 
-entrada_pagina_t *buscar_o_crear_entrada_pagina(tabla_paginas_t *tabla, int pag_actual, char *file, char *tag)
+
+EntradaDeTabla *buscar_o_crear_entrada_pagina(TablaPaginas *tabla, int pag_actual, char *file, char *tag)
 {
-    entrada_pagina_t *entrada = buscar_entrada_pagina(tabla, pag_actual);
-    if (entrada == NULL)
-    {
-        entrada = malloc(sizeof(entrada_pagina_t));
-        if (entrada == NULL)
-        {
-            log_error(logger_worker, "No se pudo asignar memoria para nueva entrada de pagina");
+    EntradaDeTabla *entrada = buscar_entrada_pagina(tabla, pag_actual);
+    if (entrada == NULL){
+        entrada = malloc(sizeof(EntradaDeTabla));
+        if (entrada == NULL){
+            log_error(logger_worker, "(buscar_o_crear_entrada_pagina) - Fallo malloc");
             return NULL;
         }
         // busco frame libre ya que estoy creando una nueva entrada
-        frame_t *frameLibre = buscar_frame_libre(file, tag);
-        if (frameLibre == NULL)
-        {
+        Frame *frameLibre = buscar_frame_libre(file, tag);
+        if (frameLibre == NULL){
             log_error(logger_worker, "No se pudo obtener un frame libre para la nueva entrada de pagina");
             free(entrada);
             return NULL;
@@ -231,21 +236,25 @@ entrada_pagina_t *buscar_o_crear_entrada_pagina(tabla_paginas_t *tabla, int pag_
 
         entrada->last_used_ms = t;
 
-        frameLibre->entrada = entrada;
-        bitMap[frameLibre->nro_frame] = 1;
+        frameLibre->entrada = entrada;  //chauuu
+        bitMap[frameLibre->nro_frame] = 1;  //chau dos
 
         list_add(tabla->entradas, entrada);
 
         frameLibre->entrada = entrada; 
     }
+    else{
+        Frame *frameLibre = buscarFrameLibre(file, tag);
+        entrada->bitPresencia = 1;
+    }
     return entrada;
 }
 
-entrada_pagina_t *buscar_entrada_pagina(tabla_paginas_t *tabla, int pag_actual)
-{
+EntradaDeTabla* buscarEntradaPagina(TablaPaginas* tabla, int pag_actual){
+    
     for (int i = 0; i < list_size(tabla->entradas); i++)
     {
-        entrada_pagina_t *entrada = list_get(tabla->entradas, i);
+        EntradaDeTabla *entrada = list_get(tabla->entradas, i);
         if (entrada->nro_pag == pag_actual)
         {
             return entrada;
@@ -255,8 +264,22 @@ entrada_pagina_t *buscar_entrada_pagina(tabla_paginas_t *tabla, int pag_actual)
 }
 
 
-frame_t* buscar_frame_libre()
-{
+int buscarFrameLibreEnBitmap(){
+    // pthread_mutex_lock(mx_bitmap);
+    for (int i = 0; i < cant_frames; i++) {
+        if (bitMap[i] == 0) {
+            bitMap[i] = 1;
+            //mutex bitmap unlock
+            return i;
+        }
+    }
+    // pthread_mutex_unlock(mx_bitmap);
+    return -1; // no encontro bitmap libre
+}
+
+
+
+Frame* buscarFrameLibre(){
     for (int i = 0; i < cant_frames; i++) {
         if (bitMap[i] == 0) {
             bitMap[i] = 1;
@@ -265,21 +288,21 @@ frame_t* buscar_frame_libre()
     }
 
     // Abi borre el comentario perdonameeeeeeee    
-    frame_t *victima = aplicar_politica_reemplazo();
+    Frame *victima = aplicar_politica_reemplazo();
     if (!victima) return NULL;
 
-    vaciar_frame(victima);     
+    vaciarFrame(victima);     
     bitMap[victima->nro_frame] = 1;
     return victima;
 }
 
 
-frame_t *aplicar_politica_reemplazo(void)
+Frame *aplicar_politica_reemplazo(void)
 {
     const char *algoritmo = config_worker->algoritmo_reemplazo;
 
     if (strcmp(algoritmo, "CLOCK-M") == 0) {
-        frame_t *v = NULL;
+        Frame *v = NULL;
         v = CicloCLockM(0, 0, 0); if (v) return v;
         v = CicloCLockM(1, 0, 1); if (v) return v;
         v = CicloCLockM(0, 0, 0); if (v) return v;  
@@ -289,7 +312,7 @@ frame_t *aplicar_politica_reemplazo(void)
         return NULL;
     }
     else if (strcmp(algoritmo, "LRU") == 0) {
-        frame_t *v = elegir_victima_lru();
+        Frame *v = elegir_victima_lru();
         return v; 
     }
     else {
@@ -299,14 +322,14 @@ frame_t *aplicar_politica_reemplazo(void)
 }
 
 
-frame_t *CicloCLockM(int reset_u, int valor_uso, int valor_modificado)
+Frame *CicloCLockM(int reset_u, int valor_uso, int valor_modificado)
 {
     if (cant_frames <= 0 || !lista_frames) return NULL;
 
     // 1) de puntero a fin
     for (int i = puntero; i < cant_frames; i++) {
-        frame_t *f = &lista_frames[i];
-        entrada_pagina_t *e = f->entrada;
+        Frame *f = &lista_frames[i];
+        EntradaDeTabla *e = f->entrada;
         if (!e) continue;
 
         if (e->bitUso == valor_uso && e->bitModificado == valor_modificado) {
@@ -321,8 +344,8 @@ frame_t *CicloCLockM(int reset_u, int valor_uso, int valor_modificado)
 
     // 2) de 0 a puntero
     for (int i = 0; i < puntero; i++) {
-        frame_t *f = &lista_frames[i];
-        entrada_pagina_t *e = f->entrada;
+        Frame *f = &lista_frames[i];
+        EntradaDeTabla *e = f->entrada;
         if (!e) continue;
 
         if (e->bitUso == valor_uso && e->bitModificado == valor_modificado) {
@@ -338,14 +361,13 @@ frame_t *CicloCLockM(int reset_u, int valor_uso, int valor_modificado)
     return NULL;
 }
 
- frame_t* elegir_victima_lru(void)
-{
-    frame_t* victima = NULL;
+Frame* elegirVictimaLRU(){
+    Frame* victima = NULL;
     uint64_t oldest  = UINT64_MAX;
 
     for (int i = 0; i < cant_frames; i++) {
-        frame_t* f = &lista_frames[i];
-        entrada_pagina_t* e = f->entrada;
+        Frame* f = &lista_frames[i];
+        EntradaDeTabla* e = f->entrada;
         if (!e || e->bitPresencia == 0) continue;
 
         if (e->last_used_ms < oldest) {
@@ -356,10 +378,9 @@ frame_t *CicloCLockM(int reset_u, int valor_uso, int valor_modificado)
     return victima;
 }
 
-static void vaciar_frame(frame_t *f)
-{
+static void vaciarFrame(Frame* f){
    
-    entrada_pagina_t *e = f->entrada;
+    EntradaDeTabla *e = f->entrada;
     if (e) {
        
         if (e->bitModificado) {
@@ -379,7 +400,7 @@ static void vaciar_frame(frame_t *f)
 }
 
 
-void enviarFrameModificadoStorage(frame_t* frame, char* file, char* tag){
+void enviarFrameModificadoStorage(Frame* frame, char* file, char* tag){
     char* base_frame = (char*)memoria + ((size_t)frame->nro_frame * (size_t)tam_pag);
     
     char* contenidoPagina = malloc((size_t)tam_pag + 1);
@@ -403,26 +424,26 @@ uint64_t now_ms(void){
     return (uint64_t)ts.tv_sec * 1000ull + (uint64_t)ts.tv_nsec / 1000000ull;
 }
 
-entrada_pagina_t* buscarEntradaPorNroPag(t_list* entradas,int nro_pag){
+EntradaDeTabla* buscarEntradaPorNroPag(t_list* entradas,int nro_pag){
 
     bool tieneMismoNroPag(void *ptr){
-        entrada_pagina_t* entrada = (entrada_pagina_t *)ptr;
+        EntradaDeTabla* entrada = (EntradaDeTabla *)ptr;
         return (entrada->nro_pag == nro_pag);
     }
     return list_find(entradas, tieneMismoNroPag);
 }
 
-/*tabla_paginas_t* buscarTablaPaginaEnGlobal(char* file, char* tag){
+/*TablaPaginas* buscarTablaPaginaEnGlobal(char* file, char* tag){
    
     bool tieneMismoFileTag(void *ptr){
-        tabla_paginas_t* tabla = (tabla_paginas_t *)ptr;
+        TablaPaginas* tabla = (TablaPaginas *)ptr;
         return (string_contains(tabla->file,file) && string_contains(tabla->tag,tag));
     }
     return list_find(tabla_general,tieneMismoFileTag);
 }*/
 
 
-// tabla_paginas_t buscar
+// TablaPaginas buscar
 
 /*
 file tag direccion base contenido

@@ -91,6 +91,11 @@ void ferConLaMexicana(Tag* tag, int tamanio_actual,int nuevo_tamanio);
 
 char* stringArrayConfigAString(char** array_a_pasar_a_string);
 
+BloqueFisico *obtenerBloqueFisico(int nro_bloque_a_buscar);
+
+void escribirEnHashIndex(Tag *tag);
+DatosParaHash *obtenerDatosParaHash(BloqueLogico *bloque_logico);
+
 
 ErrorStorageEnum realizarTRUNCATE(int query_id, char *file_completo, int tamanio_a_truncar);
 

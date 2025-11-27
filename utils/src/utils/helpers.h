@@ -9,6 +9,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#define CANT_ERRORES 9
+#define CANT_MODULOS 4
+
+
 
 typedef enum{
     MENSAJE,
@@ -55,12 +59,11 @@ typedef struct{
     char *mensaje;
 }Mensaje;
 
-#define CANT_MODULOS 4
-#define CANT_ERRORES 9
+
+
 
 extern char* NOMBRE_MODULOS[CANT_MODULOS];
 extern char* NOMBRE_ERRORES[CANT_ERRORES];
-
 
 t_log* iniciarLogger(char* nombre_modulo, int nivel_log);
 t_config* iniciarConfig(char* nombre_config); 
@@ -82,6 +85,5 @@ void enviarMensajito(Mensaje* mensaje_a_enviar,int fd,t_log* logger);
 Mensaje* recibirMensajito(int socket_cliente, t_log* logger);
 void liberarMensajito(Mensaje* mensajito_a_liberar);
 Mensaje* mensajitoOk();
-Mensaje* mensajitoError(ErrorStorageEnum error_a_enviar);
 
 #endif 

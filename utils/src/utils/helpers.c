@@ -2,11 +2,12 @@
 
 
 char* NOMBRE_MODULOS[CANT_MODULOS] = {"QUERY","MASTER","WORKER","STORAGE"};
-
-
 char* NOMBRE_ERRORES[CANT_ERRORES] = 
 	{"OK","FILE_INEXISTENTE", "TAG_INEXISTENTE","FILE_PREEXISTENTE","TAG_PREEXISTENTE",
 	 "ESPACIO_INSUFICIENTE","ESCRITURA_NO_PERMITIDA","LECTURA_FUERA_DE_LIMITE","ESCRITURA_FUERA_DE_LIMITE"};
+
+
+
 
 
 t_log* iniciarLogger(char* nombre_modulo,int nivel_log)
@@ -174,14 +175,6 @@ Mensaje* mensajitoOk(){
     return mensajito;
 }
 
-Mensaje* mensajitoError(ErrorStorageEnum cod_error){
-    Mensaje* mensajito = malloc(sizeof(Mensaje));
-	
-    mensajito->mensaje = string_from_format("ERROR %s", NOMBRE_ERRORES[cod_error]);
-    mensajito->size = string_length(mensajito->mensaje);
-	
-    return mensajito;
-}
 
 /*
 Tremendo Fer

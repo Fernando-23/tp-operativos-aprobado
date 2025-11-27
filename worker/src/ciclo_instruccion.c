@@ -237,25 +237,131 @@ void ejecutarTruncate(char *file, char *tag, int tamanio)
 }
 
 // PROXIMAMENTE EN DBZ --- HACER TODO LO DEL PAGE FAULT
-void ejecutarWrite(char *file, char *tag, int dir_base, char *contenido){
-    int pagina = dir_base / tam_pag; 
-    if (!estaPagEnMemoria(file, tag, pagina)){
-      Mensaje* mensajito = crearMensajito("PAGE_FAULT");
-    }
+
+/*
+    master             -                               worker
+    query que creo que estas ejecutando            query ejecutando
+    bool estoy esperando que se desaloje worker
+    false                                                ok
+      
+
+
+*/
+
+void ejecutarWrite(char *file, char *tag, int dir_base, char *contenido_a_escribir){
+    int nro_pagina = dir_base / tam_pag; // nro de bloque logico
     int desplazamiento = dir_base % tam_pag;
+     
 
-    int estado = escribir_en_memoria_paginada(file, tag, pagina, desplazamiento, contenido);
+    size_t bytesContenido = strlen(contenido_a_escribir);
+    size_t totalAEscribir = bytesContenido + 1; 
+    size_t escritos = 0;
+    int pag_actual = nro_pagina;
+    int desp_actual = desplazamiento;
 
-        log_info(logger_worker, "Escritura en memoria realizada con exito");              
+    TablaPaginas* tabla_paginas = buscarOCrearTabla(file, tag);
+
+
+    while(escritos < totalAEscribir){
+
+        // existir entrada asignar- 
+        // bit de presencia esta en 1 
+
+        if (!estaPagEnMemoria(file, tag, nro_pagina)){ // La pagina no esta en memoria principal
+        char* mensaje_formateado = string_from_format("LEER %s:%s %d" ,file, tag, nro_pagina); // storage lee toda la pagina y decime que tiene
+        Mensaje* mensajito = crearMensajito(mensaje_formateado);
+        enviarMensajito(mensajito, socket_storage, logger_worker);
+        free(mensaje_formateado);
+         
+        Mensaje* mensaje_recibido = recibirMensajito(socket_storage, logger_worker); // ENUMSERRORSTORAGE CONTENIDO 
+        char ** datos_recibidos = string_split(mensaje_recibido->mensaje," "); //LIBERAR
+        ErrorStorageEnum cod_op_storage_recv = atoi(datos_recibidos[0]);
+        switch (cod_op_storage_recv){
+        case OK:
+            char* contenido_pagina = datos_recibidos[1];
+            TablaPaginas* tabla_paginas = buscarOCrearTabla(file, tag);
+            EntradaDeTabla* entrada_pagina = buscarEntradaPorNroPag(tabla_paginas->entradas, nro_pagina);
+            if(entrada_pagina == NULL){
+                // entrada la creamos siempre
+                // tenemos que asignarle un marco a la entrada creada para escribir el contenido
+                // puede haber marco disponible o no (bitmap)
+                // caso feliz: asignamos el frame y escribimos contenido en ese frame
+                // caso llorona: elegimos una victima, y vemos si esta modificado
+                // caso llorona feliz: no mandamos nada a storage y le asignamos el marco a nuestra entrada y escribimos
+                // caso llorona llorona: mandamos write a storage de pag victima y dsp asignamos el marco a nuesta entrada y escribimos
+
+                int frame = buscarFrameLibreEnBitmap();
+                if (frame != -1){
+                    EntradaDeTabla* entrada_creada = crearEntradaPagina(nro_pagina, frame, tabla_paginas);
+                    //escribo
+                    list_add(tabla_paginas->entradas,entrada_creada); //agregas entrada a tabla
+                    
+                    // caso lindo:Frame libre, asigno y punto
+                }
+                
+                //caso feo: Buscar victima, manejar desalojo de pag, etc
+                EntradaDeTabla* entrada_creada = crearEntradaPagina();
+                list_add(tabla_paginas->entradas,entrada_creada);
+            }
+            
+            break;
+        case ESCRITURA_FUERA_DE_LIMITE:
+        case ESCRITURA_NO_PERMITIDA:
+        {
+            log_debug(logger_worker,"(ejecutarWrite) - Error manejable recibido: %s", NOMBRE_ERRORES[cod_op_storage_recv]);
+            break;
+        }
+            
+        default: log_error(logger_worker, "Storage mando cualquier cosa, Cosa que mando: %s", cod_op_storage_recv);
+        }
+    } 
+        char* base_frame       = (char*)memoria + ((size_t)ent->nro_frame * (size_t)tam_pag);
+        size_t espacioLibre    = (size_t)tam_pag - (size_t)desp_actual;
+        size_t por_copiar      = totalAEscribir - escritos; // Out en nueva func
+        if (por_copiar > espacioLibre) por_copiar = espacioLibre; 
+
+        // Copia del tramo que cae en ESTA página
+        memcpy(base_frame + desp_actual, contenido + escritos, por_copiar);
+
+       
+        ent->bitUso        = 1;
+        ent->bitModificado = 1;
+        ent->last_used_ms  = now_ms();
+
+       
+        uint64_t dfis = dir_fisica(ent->nro_frame, desp_actual);
+        
+        log_info(logger_worker,
+                 "Query %d: Acción: ESCRIBIR - Dirección Física: %llu - Valor: %.*s",
+                 query->id_query,
+                 (unsigned long long)dfis,
+                 (const char*)(contenido + escritos));
+
+        escritos += por_copiar;
+
+        // ¿Siguiente página?
+        if (por_copiar == espacioLibre && escritos < totalAEscribir) {
+            pag_actual++;
+            desp_actual = 0;
+        } else {
+            desp_actual += (int)por_copiar;
+        }
+    }
+
+
+   // int escribir_en_memoria_paginada(char* file, char* tag, int pagina, int desplazamiento, char* contenido);
+
+
+    
 }
 
 bool estaPagEnMemoria(char* file, char* tag, int nro_pag){
 
-    tabla_paginas_t* tabla_a_consultar = buscarTablaPags(file,tag);
+    TablaPaginas* tabla_a_consultar = buscarTablaPags(file,tag);
     if(tabla_a_consultar != NULL){
-        entrada_pagina_t* entrada = buscarEntradaPorNroPag(tabla_a_consultar->entradas,nro_pag);
+        EntradaDeTabla* entrada = buscarEntradaPorNroPag(tabla_a_consultar->entradas,nro_pag);
         if (entrada!=NULL){
-            return (entrada->bitPresencia == 1);        
+            return (entrada->bit_presencia == 1);        
         }
         
         log_debug(logger_worker, "(estaPagEnMemoria) - No se encontro la entrada en memoria");
@@ -351,3 +457,61 @@ void ejecutarEnd()
     pthread_mutex_unlock(&sem_instruccion);
 }
 
+
+
+EntradaDeTabla* crearEntradaPagina(int pag_a_asignar, int frame_asignado, TablaPaginas* tabla){ // tercer parametro cuestionable
+    EntradaDeTabla* entrada_tabla = malloc(sizeof(EntradaDeTabla));
+
+    uint64_t timestamp = now_ms();
+    entrada_tabla->nro_pag = pag_a_asignar;
+    entrada_tabla->nro_frame = frame_asignado;
+    entrada_tabla->bit_presencia = 1;
+    entrada_tabla->bit_modificado = 0; // puede usar solo lo leido sin modificar
+    entrada_tabla->bit_uso = 1;
+    entrada_tabla->tabla = tabla;
+    entrada_tabla->last_used_ms = timestamp;
+    
+    return entrada_tabla;
+}
+
+EntradaDeTabla *buscar_o_crear_entrada_pagina(TablaPaginas *tabla, int pag_actual, char *file, char *tag)
+{
+    EntradaDeTabla *entrada = buscar_entrada_pagina(tabla, pag_actual);
+    if (entrada == NULL){
+        entrada = malloc(sizeof(EntradaDeTabla));
+        if (entrada == NULL){
+            log_error(logger_worker, "(buscar_o_crear_entrada_pagina) - Fallo malloc");
+            return NULL;
+        }
+        // busco frame libre ya que estoy creando una nueva entrada
+        Frame *frameLibre = buscar_frame_libre(file, tag);
+        if (frameLibre == NULL){
+            log_error(logger_worker, "No se pudo obtener un frame libre para la nueva entrada de pagina");
+            free(entrada);
+            return NULL;
+        }
+
+        uint64_t t = now_ms();
+
+        entrada->nro_pag = pag_actual;
+        entrada->nro_frame = frameLibre->nro_frame;
+        entrada->bit_presencia = 1;
+        entrada->bit_modificado = 0;
+        entrada->bit_uso = 1;
+        entrada->tabla = tabla;
+
+        entrada->last_used_ms = t;
+
+        frameLibre->entrada = entrada;  //chauuu
+        bitMap[frameLibre->nro_frame] = 1;  //chau dos
+
+        list_add(tabla->entradas, entrada);
+
+        frameLibre->entrada = entrada; 
+    }
+    else{
+        Frame *frameLibre = buscarFrameLibre(file, tag);
+        entrada->bit_presencia = 1;
+    }
+    return entrada;
+}

@@ -44,11 +44,11 @@ int conexionStorage(){
 
     int socket_storage = crear_conexion(config_worker->ip_storage,config_worker->puerto_storage);
     if(socket_storage == -1){
-        log_error(logger_worker,"No se pudo conectar con Storage");
-        exit(EXIT_FAILURE);
+        log_error(logger_worker,"(conexionStorage) - No se pudo conectar con Storage");
+        return -1;
     }
-    Mensaje* mensajito = crearMensajito("Riding in my storage, right after a commit.");
-    enviarMensajito(mensajito,socket_storage,logger_worker);
+    Mensaje* mensajito = crearMensajito("Riding in my storage, right after a commit."); // polemico
+    enviarMensajito(mensajito,socket_storage, logger_worker);
     recv(socket_storage,&tam_pag,sizeof(int),MSG_WAITALL);
     log_info(logger_worker,"Tamanio pag recibido %d",tam_pag);
     
@@ -62,8 +62,8 @@ int conexionMaster(){
 
     int socket_master = crear_conexion(config_worker->ip_master,config_worker->puerto_master);
     if(socket_master == -1){
-        log_error(logger_worker,"No se pudo conectar con Master");
-        exit(EXIT_FAILURE);
+        log_error(logger_worker,"(conexionMaster) - No se pudo conectar con Master");
+        return -1;
     }
     Mensaje* mensajito = crearMensajito("hola mi estimado master, soy tu worker");
     enviarMensajito(mensajito,socket_master,logger_worker);
@@ -78,7 +78,7 @@ void esperandoQuery(int socket){
     // Espero los datos de Master para continuar
     // id_query, pc_query y path_query
     pthread_mutex_lock(&mx_recibir_query);
-    Mensaje* datos_query = recibirMensajito(socket);
+    Mensaje* datos_query = recibirMensajito(socket, logger_worker);
     pthread_mutex_unlock(&mx_recibir_query);
     if(datos_query == NULL){
         log_error(logger_worker,"No me llegaron datos de Master");

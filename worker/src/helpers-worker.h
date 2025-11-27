@@ -38,6 +38,7 @@ extern bool requiere_realmente_desalojo;
 extern pthread_mutex_t mx_conexion_storage;
 extern pthread_mutex_t mx_conexion_master;
 extern pthread_mutex_t mx_recibir_query;
+extern pthread_mutex_t mx_bitmap;
 
 void cargarConfigWorker(char* path_config);
 int conexionStorage();

@@ -21,12 +21,15 @@ int main(int argc, char* argv[]) {
 
     pthread_mutex_lock(&mx_conexion_storage);
     socket_storage = conexionStorage();
+
+    if(socket_storage == -1) return 1;
     pthread_mutex_unlock(&mx_conexion_storage);
     
 
     //conexion a master (pero el recv se hace a parte)
     pthread_mutex_lock(&mx_conexion_master);
     socket_master = conexionMaster();  
+    if(socket_master == -1) return 1;
     pthread_mutex_unlock(&mx_conexion_master);
      
     

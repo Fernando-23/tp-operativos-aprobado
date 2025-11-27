@@ -329,6 +329,7 @@ Tag *buscarTagPorNombre(t_list *tags, char *nombre_tag)
     return list_find(tags, tieneMismoNombreTag);
 }
 
+
 void gestionarTruncateSegunTamanio(Tag *tag_concreto, int tamanio_a_truncar)
 {
     int tamanio_actual = config_get_int_value(tag_concreto->metadata_config_tag, "TAMANIO");
@@ -618,7 +619,7 @@ void asignarBloquesFisicosATagCopiado(Tag *tag_destino)
 
     if (!list_is_empty(logicos_a_copiar))
     { // caso donde el tag estaba creado y CAPAZ tenia blogicos asignados
-        log_debug(logger_storage, "(asignarBloquesFisicosATagCopiado) - El tag %s destino tenia cosas, se liberaron");
+        log_debug(logger_storage, "(asignarBloquesFisicosATagCopiado) - El tag %s destino tenia cosas, se liberaron",tag_destino->nombre_tag);
         unlinkearBloquesLogicos(list_size(logicos_a_copiar), logicos_a_copiar);
     }
 
@@ -635,7 +636,8 @@ void asignarBloquesFisicosATagCopiado(Tag *tag_destino)
     string_array_destroy(bloques_logicos_a_copiar);
 }
 
-BloqueFisico *obtenerBloqueFisico(int nro_bloque_a_buscar){
+BloqueFisico *obtenerBloqueFisico(int nro_bloque_a_buscar)
+{
     return (BloqueFisico *)list_get(bloques_fisicos_gb, nro_bloque_a_buscar);
 }
 
@@ -670,7 +672,6 @@ ErrorStorageEnum realizarCOMMIT(char* query_id,char *nombre_completo){
         return OK;
     }
 
-    int cant_blogicos = list_size(tag_a_commitear->bloques_logicos);
     escribirEnHashIndex(tag_a_commitear);
     
     free(nombre_file);
@@ -683,7 +684,8 @@ Commitear: 5: cambie 2
 */
 
 
-void escribirEnHashIndex(Tag *tag){
+void escribirEnHashIndex(Tag *tag)
+{
     int cant_blogicos = list_size(tag->bloques_logicos);
     
     for (int i = 0; i < cant_blogicos; i++)
