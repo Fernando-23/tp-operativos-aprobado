@@ -132,7 +132,7 @@ void pedidoDeLaburante(int mail_laburante)
         string_array_destroy(mensajito_cortado);
         break;
 
-    case ACTUALIZAR_FRAME_MODIFICADO:
+    case ESCRIBIR_BLOQUE:
         enviarMensajito(mensajitoOk(), mail_laburante, logger_storage);
 
         string_array_destroy(mensajito_cortado);

@@ -24,6 +24,7 @@
         "algorithm": "c",
         "errores.h": "c",
         "crypto.h": "c",
-        "stat.h": "c"
+        "stat.h": "c",
+        "numbers": "c"
     }
 }

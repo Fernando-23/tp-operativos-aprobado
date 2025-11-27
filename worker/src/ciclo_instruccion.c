@@ -251,127 +251,61 @@ void ejecutarTruncate(char *file, char *tag, int tamanio)
 void ejecutarWrite(char *file, char *tag, int dir_base, char *contenido_a_escribir){
     int nro_pagina = dir_base / tam_pag; // nro de bloque logico
     int desplazamiento = dir_base % tam_pag;
-     
-
-    size_t bytesContenido = strlen(contenido_a_escribir);
-    size_t totalAEscribir = bytesContenido + 1; 
+    
+    size_t bytes_contenido = strlen(contenido_a_escribir);
+    size_t total_a_escribir = bytes_contenido + 1; 
     size_t escritos = 0;
     int pag_actual = nro_pagina;
     int desp_actual = desplazamiento;
-
+    int frame_seleccionado;
     TablaPaginas* tabla_paginas = buscarOCrearTabla(file, tag);
 
+    while(escritos < total_a_escribir){
 
-    while(escritos < totalAEscribir){
-
-        // existir entrada asignar- 
-        // bit de presencia esta en 1 
-
-        if (!estaPagEnMemoria(file, tag, nro_pagina)){ // La pagina no esta en memoria principal
-        char* mensaje_formateado = string_from_format("LEER %s:%s %d" ,file, tag, nro_pagina); // storage lee toda la pagina y decime que tiene
-        Mensaje* mensajito = crearMensajito(mensaje_formateado);
-        enviarMensajito(mensajito, socket_storage, logger_worker);
-        free(mensaje_formateado);
-         
-        Mensaje* mensaje_recibido = recibirMensajito(socket_storage, logger_worker); // ENUMSERRORSTORAGE CONTENIDO 
-        char ** datos_recibidos = string_split(mensaje_recibido->mensaje," "); //LIBERAR
-        ErrorStorageEnum cod_op_storage_recv = atoi(datos_recibidos[0]);
-        switch (cod_op_storage_recv){
-        case OK:
-            char* contenido_pagina = datos_recibidos[1];
-            TablaPaginas* tabla_paginas = buscarOCrearTabla(file, tag);
-            EntradaDeTabla* entrada_pagina = buscarEntradaPorNroPag(tabla_paginas->entradas, nro_pagina);
-            if(entrada_pagina == NULL){
-                // entrada la creamos siempre
-                // tenemos que asignarle un marco a la entrada creada para escribir el contenido
-                // puede haber marco disponible o no (bitmap)
-                // caso feliz: asignamos el frame y escribimos contenido en ese frame
-                // caso llorona: elegimos una victima, y vemos si esta modificado
-                // caso llorona feliz: no mandamos nada a storage y le asignamos el marco a nuestra entrada y escribimos
-                // caso llorona llorona: mandamos write a storage de pag victima y dsp asignamos el marco a nuesta entrada y escribimos
-
-                int frame = buscarFrameLibreEnBitmap();
-                if (frame != -1){
-                    EntradaDeTabla* entrada_creada = crearEntradaPagina(nro_pagina, frame, tabla_paginas);
-                    //escribo
-                    list_add(tabla_paginas->entradas,entrada_creada); //agregas entrada a tabla
-                    
-                    // caso lindo:Frame libre, asigno y punto
-                }
-                
-                //caso feo: Buscar victima, manejar desalojo de pag, etc
-                EntradaDeTabla* entrada_creada = crearEntradaPagina();
-                list_add(tabla_paginas->entradas,entrada_creada);
+        EntradaDeTabla* entrada_pag = buscarEntradaPagina(tabla_paginas, pag_actual);
+        if (entrada_pag == NULL || entrada_pag->bit_presencia == 0){
+            
+            if(entrada_pag == NULL){ 
+                entrada_pag = crearEntradaPagina(pag_actual,tabla_paginas);
+                list_add(tabla_paginas,entrada_pag);    
             }
-            
-            break;
-        case ESCRITURA_FUERA_DE_LIMITE:
-        case ESCRITURA_NO_PERMITIDA:
-        {
-            log_debug(logger_worker,"(ejecutarWrite) - Error manejable recibido: %s", NOMBRE_ERRORES[cod_op_storage_recv]);
-            break;
+
+            frame_seleccionado = gestionarPAGE_FAULT(file,tag,nro_pagina);
+            entrada_pag->nro_frame = frame_seleccionado;
         }
-            
-        default: log_error(logger_worker, "Storage mando cualquier cosa, Cosa que mando: %s", cod_op_storage_recv);
-        }
-    } 
-        char* base_frame       = (char*)memoria + ((size_t)ent->nro_frame * (size_t)tam_pag);
-        size_t espacioLibre    = (size_t)tam_pag - (size_t)desp_actual;
-        size_t por_copiar      = totalAEscribir - escritos; // Out en nueva func
+
+        void* base_frame = memoria + (entrada_pag->nro_frame * tam_pag);
+        size_t espacioLibre = tam_pag - desp_actual;
+        size_t por_copiar = total_a_escribir - escritos; 
         if (por_copiar > espacioLibre) por_copiar = espacioLibre; 
 
         // Copia del tramo que cae en ESTA página
-        memcpy(base_frame + desp_actual, contenido + escritos, por_copiar);
+        memcpy(base_frame + desp_actual, contenido_a_escribir + escritos, por_copiar);
+
+        entrada_pag->bit_uso = 1;
+        entrada_pag->bit_modificado = 1;
+        entrada_pag->last_used_ms = now_ms();
 
        
-        ent->bitUso        = 1;
-        ent->bitModificado = 1;
-        ent->last_used_ms  = now_ms();
-
-       
-        uint64_t dfis = dir_fisica(ent->nro_frame, desp_actual);
+        uint64_t dfis = dir_fisica(entrada_pag->nro_frame, desp_actual);
         
         log_info(logger_worker,
                  "Query %d: Acción: ESCRIBIR - Dirección Física: %llu - Valor: %.*s",
                  query->id_query,
                  (unsigned long long)dfis,
-                 (const char*)(contenido + escritos));
+                 (const char*)(contenido_a_escribir + escritos));
 
         escritos += por_copiar;
 
         // ¿Siguiente página?
-        if (por_copiar == espacioLibre && escritos < totalAEscribir) {
+        if (por_copiar == espacioLibre && escritos < total_a_escribir) {
             pag_actual++;
             desp_actual = 0;
         } else {
             desp_actual += (int)por_copiar;
         }
     }
-
-
-   // int escribir_en_memoria_paginada(char* file, char* tag, int pagina, int desplazamiento, char* contenido);
-
-
-    
 }
-
-bool estaPagEnMemoria(char* file, char* tag, int nro_pag){
-
-    TablaPaginas* tabla_a_consultar = buscarTablaPags(file,tag);
-    if(tabla_a_consultar != NULL){
-        EntradaDeTabla* entrada = buscarEntradaPorNroPag(tabla_a_consultar->entradas,nro_pag);
-        if (entrada!=NULL){
-            return (entrada->bit_presencia == 1);        
-        }
-        
-        log_debug(logger_worker, "(estaPagEnMemoria) - No se encontro la entrada en memoria");
-        return false;
-    }
-    
-    log_debug(logger_worker,"(estaPagEnMemoria) - No se encontro la tabla en memoria");
-    return false;
-}
-
 
 void ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
     
@@ -392,6 +326,28 @@ void ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
 
     log_debug(logger_worker, "File:Tag y tamanios enviados");
 }
+
+
+
+bool estaPagEnMemoria(char* file, char* tag, int nro_pag){
+
+    TablaPaginas* tabla_a_consultar = buscarTablaPags(file,tag);
+    if(tabla_a_consultar != NULL){
+        EntradaDeTabla* entrada = buscarEntradaPorNroPag(tabla_a_consultar->entradas,nro_pag);
+        if (entrada!=NULL){
+            return (entrada->bit_presencia == 1);        
+        }
+        
+        log_debug(logger_worker, "(estaPagEnMemoria) - No se encontro la entrada en memoria");
+        return false;
+    }
+    
+    log_debug(logger_worker,"(estaPagEnMemoria) - No se encontro la tabla en memoria");
+    return false;
+}
+
+
+
 
 void ejecutarTag(char *file_origen, char *tag_origen, char *file_destino, char *tag_destino)
 {
@@ -458,21 +414,6 @@ void ejecutarEnd()
 }
 
 
-
-EntradaDeTabla* crearEntradaPagina(int pag_a_asignar, int frame_asignado, TablaPaginas* tabla){ // tercer parametro cuestionable
-    EntradaDeTabla* entrada_tabla = malloc(sizeof(EntradaDeTabla));
-
-    uint64_t timestamp = now_ms();
-    entrada_tabla->nro_pag = pag_a_asignar;
-    entrada_tabla->nro_frame = frame_asignado;
-    entrada_tabla->bit_presencia = 1;
-    entrada_tabla->bit_modificado = 0; // puede usar solo lo leido sin modificar
-    entrada_tabla->bit_uso = 1;
-    entrada_tabla->tabla = tabla;
-    entrada_tabla->last_used_ms = timestamp;
-    
-    return entrada_tabla;
-}
 
 EntradaDeTabla *buscar_o_crear_entrada_pagina(TablaPaginas *tabla, int pag_actual, char *file, char *tag)
 {

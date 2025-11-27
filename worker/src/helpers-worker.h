@@ -27,7 +27,13 @@ typedef struct {
     t_list* instrucciones;
 }Query;
 
+typedef struct {
+    int nro_tabla;
+    int nro_entrada;
+}Puntero;
 
+
+extern Puntero ptr_gb;
 extern t_log* logger_worker;
 extern ConfigWorker* config_worker;
 extern Query* query;

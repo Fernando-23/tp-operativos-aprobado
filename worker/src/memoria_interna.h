@@ -1,5 +1,9 @@
 #ifndef MEMORIA_INTERNA_H_
 #define MEMORIA__INTERNA_H_
+#define _POSIX_C_SOURCE 200809L
+
+#include "helpers-worker.h"
+#include <time.h>
 
 typedef struct {
     char* file;
@@ -8,10 +12,17 @@ typedef struct {
     int cant_paginas;
 } TablaPaginas; //tabla_paginas_t
 
-typedef struct frame {
-    int nro_frame;
-    EntradaDeTabla* entrada; // <- puntero a la única entrada real
-} Frame;
+//typedef struct frame {
+//    int nro_frame;
+//    EntradaDeTabla* entrada; // <- puntero a la única entrada real
+//}Frame;*/
+
+typedef struct{
+    int tabla_index;
+    int entrada_index;
+    EntradaDeTabla* entrada;
+}RespuestaAlgoritmoReemplazo;
+
 
 typedef struct entrada_pagina {
     int nro_pag;                    // id bloque logico
@@ -21,13 +32,11 @@ typedef struct entrada_pagina {
     uint8_t bit_modificado;          // M
     TablaPaginas* tabla;         // a la tabla original
     uint64_t last_used_ms;          // última vez que se usó (READ/WRITE o page-in)
-} EntradaDeTabla;
-
-
-extern Frame* lista_frames; // Array de frames
+}EntradaDeTabla;
 
 extern int* bitMap;
 extern int cant_frames;
+// extern t_list* lista_frames; // Array de frames
 extern t_list* tabla_general;
 extern int puntero;
 extern void *memoria;
@@ -42,6 +51,7 @@ Frame* buscarFrameLibre();
 int buscarFrameLibreEnBitmap();
 void vaciarFrame(Frame* f);
 Frame* elegirVictimaLRU();
+EntradaDeTabla* crearEntradaPagina(int pag_a_asignar, TablaPaginas* tabla);
 
 #endif /* MEMORIA_INTERNA_H_ */
 

@@ -2,6 +2,7 @@
 #define CICLO__INSTRUCCION_H_
  
 #include "helpers-worker.h"
+#include "memoria_interna.h"
 
 typedef struct{
     op_code cod_op;

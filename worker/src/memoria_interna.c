@@ -1,7 +1,4 @@
-#define _POSIX_C_SOURCE 200809L
 #include "memoria_interna.h"
-#include "helpers-worker.h"
-#include <time.h>
 
 void* memoria; // 
 int* bitMap;
@@ -104,8 +101,8 @@ int escribir_en_memoria_paginada(char* file, char* tag, int pagina, int desplaza
         memcpy(base_frame + desp_actual, contenido + escritos, por_copiar);
 
        
-        ent->bitUso        = 1;
-        ent->bitModificado = 1;
+        ent->bit_uso        = 1;
+        ent->bit_modificado = 1;
         ent->last_used_ms  = now_ms();
 
        
@@ -177,7 +174,7 @@ char* leer_en_memoria_paginada(char* file, char* tag, int pagina, int desplazami
         memcpy(mensaje + bytesLeidos, base_frame + desp_actual, por_copiar);
 
       
-        ent->bitUso       = 1;
+        ent->bit_uso       = 1;
         ent->last_used_ms = now_ms();
 
         
@@ -229,9 +226,9 @@ EntradaDeTabla *buscar_o_crear_entrada_pagina(TablaPaginas *tabla, int pag_actua
 
         entrada->nro_pag = pag_actual;
         entrada->nro_frame = frameLibre->nro_frame;
-        entrada->bitPresencia = 1;
-        entrada->bitModificado = 0;
-        entrada->bitUso = 1;
+        entrada->bit_presencia = 1;
+        entrada->bit_modificado = 0;
+        entrada->bit_uso = 1;
         entrada->tabla = tabla;
 
         entrada->last_used_ms = t;
@@ -245,7 +242,7 @@ EntradaDeTabla *buscar_o_crear_entrada_pagina(TablaPaginas *tabla, int pag_actua
     }
     else{
         Frame *frameLibre = buscarFrameLibre(file, tag);
-        entrada->bitPresencia = 1;
+        entrada->bit_presencia = 1;
     }
     return entrada;
 }
@@ -297,23 +294,22 @@ Frame* buscarFrameLibre(){
 }
 
 
-Frame *aplicar_politica_reemplazo(void)
-{
+int aplicarPoliticaReemplazo(){
     const char *algoritmo = config_worker->algoritmo_reemplazo;
+    int frame_a_retornar = -1;
+    RespuestaAlgoritmoReemplazo* resp = NULL;
+    if (string_equals_ignore_case(algoritmo, "CLOCK-M")) {
+        
+        resp = cicloClockM(0, 0, 0); if (resp != NULL) return gestionarBitModificado(resp);
+        resp = cicloClockM(1, 0, 1); if (resp != NULL) return gestionarBitModificado(resp);
+        resp = cicloClockM(0, 0, 0); if (resp != NULL) return gestionarBitModificado(resp);
+        resp = cicloClockM(0, 0, 1); if (resp != NULL) return gestionarBitModificado(resp);
 
-    if (strcmp(algoritmo, "CLOCK-M") == 0) {
-        Frame *v = NULL;
-        v = CicloCLockM(0, 0, 0); if (v) return v;
-        v = CicloCLockM(1, 0, 1); if (v) return v;
-        v = CicloCLockM(0, 0, 0); if (v) return v;  
-        v = CicloCLockM(0, 0, 1); if (v) return v;
-
-        log_error(logger_worker, "CLOCK-M no encontró víctima");
+        log_error(logger_worker, "(aplicarPoliticaReemplazo) - CLOCK-M no encontró víctima");
         return NULL;
     }
-    else if (strcmp(algoritmo, "LRU") == 0) {
-        Frame *v = elegir_victima_lru();
-        return v; 
+    else if (string_equals_ignore_case(algoritmo, "LRU") == 0) {
+        resp = elegirVictimaLRU();return gestionarBitModificado(resp); 
     }
     else {
         log_error(logger_worker, "No se ingreso un algoritmo valido");
@@ -321,61 +317,108 @@ Frame *aplicar_politica_reemplazo(void)
     }
 }
 
-
-Frame *CicloCLockM(int reset_u, int valor_uso, int valor_modificado)
-{
-    if (cant_frames <= 0 || !lista_frames) return NULL;
-
-    // 1) de puntero a fin
-    for (int i = puntero; i < cant_frames; i++) {
-        Frame *f = &lista_frames[i];
-        EntradaDeTabla *e = f->entrada;
-        if (!e) continue;
-
-        if (e->bitUso == valor_uso && e->bitModificado == valor_modificado) {
-            puntero = i + 1 ;
-            if(puntero == cant_frames) {
-                puntero=0;
-            }
-            return f;                          
-        }
-        if (reset_u) e->bitUso = 0;            
-    }
-
-    // 2) de 0 a puntero
-    for (int i = 0; i < puntero; i++) {
-        Frame *f = &lista_frames[i];
-        EntradaDeTabla *e = f->entrada;
-        if (!e) continue;
-
-        if (e->bitUso == valor_uso && e->bitModificado == valor_modificado) {
-            puntero = i + 1 ;
-            if(puntero == cant_frames) {
-                puntero=0;
-            }
-            return f;
-        }
-        if (reset_u) e->bitUso = 0;
-    }
-
-    return NULL;
+RespuestaAlgoritmoReemplazo* cargarRespuestaAlgoritmoRemplazo(int id_tabla, int id_entrada, EntradaDeTabla* entrada){
+    RespuestaAlgoritmoReemplazo* resp = malloc(sizeof(RespuestaAlgoritmoReemplazo));
+    resp->entrada = entrada;
+    resp->tabla_index = id_tabla;
+    resp->entrada_index = id_entrada;
+    return resp;
 }
 
-Frame* elegirVictimaLRU(){
-    Frame* victima = NULL;
-    uint64_t oldest  = UINT64_MAX;
 
-    for (int i = 0; i < cant_frames; i++) {
-        Frame* f = &lista_frames[i];
-        EntradaDeTabla* e = f->entrada;
-        if (!e || e->bitPresencia == 0) continue;
+RespuestaAlgoritmoReemplazo* cicloClockM(int resetear_bit_uso, int bit_uso, int bit_modificado){
+    
+    int id_entrada;
+    int id_tabla;
+    
+    // 1) de puntero a fin
+    for(id_tabla = ptr_gb.nro_tabla; id_tabla < list_size(tabla_general);id_tabla++){ 
+        TablaPaginas* tabla_selec = (TablaPaginas *)list_get(tabla_general,id_tabla);
+        
+        for(id_entrada = ptr_gb.nro_entrada; id_entrada < list_size(tabla_selec->entradas); id_entrada++){
+            EntradaDeTabla* entrada = (EntradaDeTabla *)list_get(tabla_selec->entradas, id_entrada);
 
-        if (e->last_used_ms < oldest) {
-            oldest  = e->last_used_ms;
-            victima = f;
+            if (entrada->bit_presencia == 1 && entrada->bit_uso == bit_uso && entrada->bit_modificado == bit_modificado) {
+                id_entrada++;
+                
+                if(id_entrada == list_size(tabla_selec->entradas)) { 
+                    id_entrada = 0;
+                    id_tabla++;
+                    //TRAIGAN TUCO QUE EL SPAGUETTI YA ESTA SERVIDO
+                    if(id_tabla == list_size(tabla_general)) // volvi abi de Peru
+                        id_tabla = 0;
+                }
+
+                ptr_gb.nro_entrada = id_entrada;
+                ptr_gb.nro_tabla = id_tabla;
+                
+                return cargarRespuestaAlgoritmoRemplazo(id_tabla,id_entrada,entrada);                         
+            }
+            
+            if (resetear_bit_uso) 
+                entrada->bit_uso = 0;     
+        }
+        id_entrada = 0;
+    }
+
+    id_tabla = 0;
+    
+    for(id_tabla = 0; id_tabla <= ptr_gb.nro_tabla; id_tabla++){
+        TablaPaginas* tabla_selec = (TablaPaginas *)list_get(tabla_general,id_tabla);
+
+        for(id_entrada = 0; id_entrada < list_size(tabla_selec->entradas);id_entrada++){
+            EntradaDeTabla* entrada = (EntradaDeTabla *)list_get(tabla_selec->entradas, id_entrada);
+
+            if(id_tabla == ptr_gb.nro_tabla && id_entrada == ptr_gb.nro_entrada){
+                return NULL;
+            }
+            
+            if (entrada->bit_presencia == 1 && entrada->bit_uso == bit_uso && entrada->bit_modificado == bit_modificado) {
+                id_entrada++;
+                
+                if(id_entrada == list_size(tabla_selec->entradas)) { 
+                    id_entrada = 0;
+                    id_tabla++;
+                    //TRAIGAN TUCO QUE EL SPAGUETTI YA ESTA SERVIDO OTRA VEZ
+                    if(id_tabla == list_size(tabla_general)) // volvi abi de Peru
+                        id_tabla = 0;
+                }
+
+                ptr_gb.nro_entrada = id_entrada;
+                ptr_gb.nro_tabla = id_tabla;
+                return cargarRespuestaAlgoritmoRemplazo(id_tabla,id_entrada,entrada);                          
+            }
+            
+            if (resetear_bit_uso) 
+                entrada->bit_uso = 0;   
+            
+            
+        }
+        id_entrada = 0;
+    }
+}
+
+RespuestaAlgoritmoReemplazo* elegirVictimaLRU(){
+    uint64_t vistima_elegida = UINT64_MAX; //q se vacha
+    int id_tabla;
+    int id_entrada;
+    EntradaDeTabla* entrada_vistima;
+
+    for(int i = 0; i < list_size(tabla_general);i++){ 
+        TablaPaginas* tabla_selec = (TablaPaginas *)list_get(tabla_general,i);
+        
+        for(int j = 0; j < list_size(tabla_selec->entradas); j++){
+            EntradaDeTabla* entrada = (EntradaDeTabla *)list_get(tabla_selec->entradas, j);
+            if (entrada->bit_presencia == 1 && entrada->last_used_ms < vistima_elegida) {
+                log_debug(logger_worker,"AGUS TE QUEREMOS MUCHO, FORRO - Victima elegida %d",j);
+                vistima_elegida = entrada->last_used_ms;
+                entrada_vistima = entrada;
+                id_tabla = i;
+                id_entrada = j;                          
+            }
         }
     }
-    return victima;
+    return cargarRespuestaAlgoritmoRemplazo(id_tabla,id_entrada,entrada_vistima);
 }
 
 static void vaciarFrame(Frame* f){
@@ -399,25 +442,6 @@ static void vaciarFrame(Frame* f){
     
 }
 
-
-void enviarFrameModificadoStorage(Frame* frame, char* file, char* tag){
-    char* base_frame = (char*)memoria + ((size_t)frame->nro_frame * (size_t)tam_pag);
-    
-    char* contenidoPagina = malloc((size_t)tam_pag + 1);
-    memcpy(contenidoPagina, base_frame, (size_t)tam_pag);
-    contenidoPagina[tam_pag] = '\0';
-
-    pthread_mutex_lock(&frame_modificado);
-    Mensaje* mensajito = malloc(sizeof(Mensaje));
-    mensajito->mensaje = contenidoPagina;
-    mensajito->size = tam_pag + 1;
-    //ACTUALIZAR_FRAME QUERY_ID FILE:TAG CONTENIDO
-    enviarMensajito(mensajito,socket_storage,logger_worker);
-    pthread_mutex_unlock(&frame_modificado);
-    //Liberamos porque se envia a storage y me chupa un huevo lo que hace :)
-    free(contenidoPagina);
-}
-
 uint64_t now_ms(void){
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts); // evita cambios de hora del sistema
@@ -433,28 +457,131 @@ EntradaDeTabla* buscarEntradaPorNroPag(t_list* entradas,int nro_pag){
     return list_find(entradas, tieneMismoNroPag);
 }
 
-/*TablaPaginas* buscarTablaPaginaEnGlobal(char* file, char* tag){
-   
-    bool tieneMismoFileTag(void *ptr){
-        TablaPaginas* tabla = (TablaPaginas *)ptr;
-        return (string_contains(tabla->file,file) && string_contains(tabla->tag,tag));
+int gestionarPAGE_FAULT(char* file, char* tag, int nro_pagina){
+    char* mensaje_formateado = string_from_format("LEER %s:%s %d" ,file, tag, nro_pagina); // storage lee toda la pagina y decime que tiene
+    
+    Mensaje* mensajito = crearMensajito(mensaje_formateado);
+    enviarMensajito(mensajito, socket_storage, logger_worker);
+    free(mensaje_formateado);
+         
+    Mensaje* mensaje_recibido = recibirMensajito(socket_storage, logger_worker); // ENUMSERRORSTORAGE CONTENIDO 
+    char** datos_recibidos = string_split(mensaje_recibido->mensaje," "); //LIBERAR
+    ErrorStorageEnum cod_op_storage_recv = atoi(datos_recibidos[0]);
+    
+    switch (cod_op_storage_recv){
+        case OK:
+            char* contenido_pagina = datos_recibidos[1];
+            return devolverFrameLibre();
+
+        case ESCRITURA_FUERA_DE_LIMITE:
+        case ESCRITURA_NO_PERMITIDA:
+        {
+            log_debug(logger_worker,"(ejecutarWrite) - Error manejable recibido: %s", NOMBRE_ERRORES[cod_op_storage_recv]);
+            break;
+        }
+            
+        default: log_error(logger_worker, "Storage mando cualquier cosa, Cosa que mando: %s", cod_op_storage_recv);
+        }
+ }
+
+
+EntradaDeTabla* crearEntradaPagina(int pag_a_asignar, TablaPaginas* tabla){ // tercer parametro cuestionable
+    EntradaDeTabla* entrada_tabla = malloc(sizeof(EntradaDeTabla));
+
+    uint64_t timestamp = now_ms();
+    entrada_tabla->nro_pag = pag_a_asignar;
+    entrada_tabla->nro_frame = -1;
+    entrada_tabla->bit_presencia = 0;
+    entrada_tabla->bit_modificado = 0;
+    entrada_tabla->bit_uso = 1;
+    entrada_tabla->tabla = tabla;
+    entrada_tabla->last_used_ms = timestamp;
+    
+    return entrada_tabla;
+}
+
+//HICISTE TODAS LAS CHANCHADAS
+int devolverFrameLibre(){
+
+    // entrada la creamos siempre
+    // tenemos que asignarle un marco a la entrada creada para escribir el contenido
+    // puede haber marco disponible o no (bitmap)
+    // caso feliz: asignamos el frame y escribimos contenido en ese frame
+    // caso llorona: elegimos una victima, y vemos si esta modificado
+    // caso llorona feliz: no mandamos nada a storage y le asignamos el marco a nuestra entrada y escribimos
+    // caso llorona llorona: mandamos write a storage de pag victima y dsp asignamos el marco a nuesta entrada y escribimos
+
+    int frame = buscarFrameLibreEnBitmap();
+    if (frame != -1){
+        log_debug(logger_worker,"(gestionarAsignaccionFrame) - Frame libre en bitmap: %d, caso lindo",frame);
+        return frame;
     }
-    return list_find(tabla_general,tieneMismoFileTag);
-}*/
+    
+    log_debug(logger_worker,"(gestionarAsignaccionFrame) - No hubo frame libre, aplicando LA MATANZA");
+    frame = aplicarPoliticaReemplazo();
+    
+    log_debug(logger_worker,"(gestionarAsignaccionFrame) - Frame seleccionado %d",frame);
+    return frame;   
+}
 
+int obtenerCantEntradasDeTabla(TablaPaginas* tabla_a_consultar){
+    return list_size(tabla_a_consultar->entradas);
+}
 
-// TablaPaginas buscar
+void liberarTablaPaginas(TablaPaginas* tabla_a_liberar){
+    free(tabla_a_liberar->file);
+    free(tabla_a_liberar->tag);
+    free(tabla_a_liberar);
+}
 
-/*
-file tag direccion base contenido
+int gestionarBitModificado(RespuestaAlgoritmoReemplazo* resp){
 
-= base / tamBlqoue 
+    if(resp->entrada->bit_modificado == 1){
+        escribirEnStorage(resp->entrada); //TODO 
+    } 
+        
+    TablaPaginas* tabla_padre = resp->entrada->tabla;
 
+    EntradaDeTabla* entrada = list_remove(tabla_padre->entradas,resp->entrada_index);
+    log_debug(logger_worker,"(aplicarPoliticaReemplazo) - Entrada borrada");
+    int frame_a_retornar = entrada->nro_frame;    
+    free(entrada);
 
-tamBloque = 10
+    if (list_is_empty(tabla_padre->entradas)){
+        log_debug(logger_worker,"(aplicarPoliticaReemplazo) - Tabla padre sin mas entradas, se procede a volarla");
+        TablaPaginas* tabla_a_borrar = list_remove(tabla_general,resp->tabla_index);
+        liberarTablaPaginas(tabla_a_borrar);
+    }
 
+    free(resp);
+    return frame_a_retornar;
+}
 
+void escribirEnStorage(EntradaDeTabla* entrada_a_persistir){
+    TablaPaginas* tabla_padre = entrada_a_persistir->tabla;
+    char* contenido_a_persistir = 
+        string_from_format("ESCRIBIR_BLOQUE %s %s:%s %s",query->id_query,tabla_padre->file,tabla_padre->tag,leerBloque(entrada_a_persistir));
+    Mensaje* mensajito_a_enviar = crearMensajito(contenido_a_persistir); // ESCRIBIR_BLOQUE query_id file:tag contenido
+    free(contenido_a_persistir); 
+    enviarMensajito(mensajito_a_enviar,socket_storage,logger_worker);
+    Mensaje* respuesta_storage = recibirMensajito(socket_storage,logger_worker); // OK siempre... ponele
+    if(respuesta_storage == NULL || respuesta_storage->mensaje != "OK"){
+        liberarMensajito(respuesta_storage);
+        log_error(logger_worker, "(escribirEnStorage) Conexion cerrada con storage o no pudo escribir");
+        exit(EXIT_FAILURE);
+    }
+    
+    liberarMensajito(respuesta_storage);
+}
 
+char* leerBloque(EntradaDeTabla* entrada_pagina){ // memoria me desplazo hasta la base del bloque
+    TablaPaginas* tabla_padre = entrada_pagina->tabla;
 
-
-*/
+    int desplazamiento_hasta_base = entrada_pagina->nro_frame * tam_pag;
+    char* base = memoria + desplazamiento_hasta_base;
+    char* leido;
+    memcpy(leido,base,tam_pag);
+    log_debug(logger_worker,"(leerBloque) - File:Tag %s:%s, Contenido leido:",tabla_padre->file,tabla_padre->tag);
+    log_debug(logger_worker,leido);
+    return leido;
+}

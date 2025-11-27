@@ -4,7 +4,7 @@
 t_log* logger_worker = NULL;
 ConfigWorker* config_worker = NULL;
 Query* query;
-
+Puntero ptr_gb;
 bool interrumpir_query;
 bool requiere_realmente_desalojo;
 
