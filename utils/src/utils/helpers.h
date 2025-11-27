@@ -12,12 +12,10 @@
 #define CANT_ERRORES 9
 #define CANT_MODULOS 4
 
-
-
-typedef enum{
-    MENSAJE,
+typedef enum {
+	MENSAJE,
 	PAQUETE
-}op_code;
+}op_code_code;
 
 typedef enum {
     QUERY,
@@ -45,7 +43,7 @@ typedef struct {
 } t_buffer;
 
 typedef struct {
-	op_code codigo_operacion;
+	op_code_code codigo_operacion;
 	t_buffer* buffer;
 } t_paquete;
 

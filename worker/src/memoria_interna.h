@@ -1,30 +1,18 @@
 #ifndef MEMORIA_INTERNA_H_
-#define MEMORIA__INTERNA_H_
+#define MEMORIA_INTERNA_H_
 #define _POSIX_C_SOURCE 200809L
 
 #include "helpers-worker.h"
 #include <time.h>
 
-typedef struct {
+typedef struct TablaPaginas{
     char* file;
     char* tag;
     t_list* entradas;   
     int cant_paginas;
 } TablaPaginas; //tabla_paginas_t
 
-//typedef struct frame {
-//    int nro_frame;
-//    EntradaDeTabla* entrada; // <- puntero a la única entrada real
-//}Frame;*/
-
-typedef struct{
-    int tabla_index;
-    int entrada_index;
-    EntradaDeTabla* entrada;
-}RespuestaAlgoritmoReemplazo;
-
-
-typedef struct entrada_pagina {
+typedef struct EntradaDeTabla {
     int nro_pag;                    // id bloque logico
     int nro_frame; // nro Frame                  // -1 si no residente
     uint8_t bit_presencia;           // P
@@ -34,6 +22,14 @@ typedef struct entrada_pagina {
     uint64_t last_used_ms;          // última vez que se usó (READ/WRITE o page-in)
 }EntradaDeTabla;
 
+
+typedef struct{
+    int tabla_index;
+    int entrada_index;
+    EntradaDeTabla* entrada;
+}RespuestaAlgoritmoReemplazo;
+
+
 extern int* bitMap;
 extern int cant_frames;
 // extern t_list* lista_frames; // Array de frames
@@ -42,16 +38,50 @@ extern int puntero;
 extern void *memoria;
 extern pthread_mutex_t frame_modificado;
 
+
 void iniciarMemoria();
-TablaPaginas* buscarOCrearTabla(char* file, char* tag);
+
 TablaPaginas* buscarTablaPags(char* file, char* tag);
-EntradaDeTabla* buscarEntradaPorNroPag(t_list* entradas,int nro_pag); //busca por list_find
-EntradaDeTabla *buscarEntradaPagina(TablaPaginas *tabla, int pag_actual); // busca por list_size
-Frame* buscarFrameLibre();
+TablaPaginas* buscarOCrearTabla(char* file, char* tag);
+EntradaDeTabla *buscarOCrearEntradaPag(TablaPaginas *tabla_a_consultar, int pag_actual, char *file, char *tag);
+EntradaDeTabla* buscarEntradaPagina(TablaPaginas* tabla, int pag_actual);
 int buscarFrameLibreEnBitmap();
-void vaciarFrame(Frame* f);
-Frame* elegirVictimaLRU();
+EntradaDeTabla* buscarEntradaPorNroPag(t_list* entradas,int nro_pag);
+
+
+bool estaPagEnMemoria(char* file, char* tag, int nro_pag);
+void escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,char* contenido);
+char* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int tamanio);
+
+int aplicarPoliticaReemplazo();
+
+RespuestaAlgoritmoReemplazo* cargarRespuestaAlgoritmoRemplazo(int id_tabla, int id_entrada, EntradaDeTabla* entrada);
+RespuestaAlgoritmoReemplazo* cicloClockM(int resetear_bit_uso, int bit_uso, int bit_modificado);
+RespuestaAlgoritmoReemplazo* elegirVictimaLRU();
+
+uint64_t now_ms(void);
+
+int gestionarPAGE_FAULT(char* file, char* tag, int nro_pagina);
+
 EntradaDeTabla* crearEntradaPagina(int pag_a_asignar, TablaPaginas* tabla);
+
+int devolverFrameLibre();
+
+int obtenerCantEntradasDeTabla(TablaPaginas* tabla_a_consultar);
+
+void liberarTablaPaginas(TablaPaginas* tabla_a_liberar);
+
+int gestionarBitModificado(RespuestaAlgoritmoReemplazo* resp);
+
+void escribirEnStorage(EntradaDeTabla* entrada_a_persistir);
+
+char* leerBloque(EntradaDeTabla* entrada_pagina);
+
+void hacerRetardo();
+
+bool estaPagEnMemoria(char* file, char* tag, int nro_pag);
+
+t_list* obtenerEntradasAFlushear(TablaPaginas* tabla_a_flush);
 
 #endif /* MEMORIA_INTERNA_H_ */
 

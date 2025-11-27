@@ -35,9 +35,9 @@ int main(int argc, char* argv[]) {
     
     iniciarMemoria();  //chequear despues si esta bien asignado
     
-    while (1) {
+    while (1) { //Exit -> libre -> checkeo_interrupt
 
-        ("Esperando datos de master \n");
+        ("Esperando datos de master \n"); 
         esperandoQuery(socket_master);
     
         while (!interrumpir_query) {

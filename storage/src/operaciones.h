@@ -14,15 +14,10 @@ typedef enum{
     TRUNCATE,
     TAG,
     COMMIT,
-    FLUSH,
     DELETE,
     LEER_BLOQUE,
-    ACTUALIZAR_FRAME_MODIFICADO,
-    ERROR
+    ESCRIBIR_BLOQUE
 }CodOperacionStorage;
-
-
-
 
 
 void* recursosHumanos(void*);//atenderClientes
@@ -30,23 +25,26 @@ void* recursosHumanos(void*);//atenderClientes
 void* atenderLaburanteDisconforme(void*);//atenderCliente
 void pedidoDeLaburante(int mail_laburante);
 
+
 void actualizarTamanioMetadata(char *nombre_file, Tag *tag, int tamanio_a_truncar);
 
 void unlinkearBloquesLogicos(int cant_a_unlinkear, t_list *bloques_logicos);
 
 void agrandarEnTruncate(Tag *tag, int tamanio_acutal, int nuevo_tamanio);
 
-ErrorStorageEnum realizarELIMINAR_UN_TAG(char* query_id,char* nombre_completo);
-ErrorStorageEnum realizarCREATE(char *query_id, char *nombre_file, char *nombre_tag);
-ErrorStorageEnum realizarTAG(char* query_id, char *nombre_origen_completo, char *nombre_destino_completo);
-ErrorStorageEnum realizarCOMMIT(char* query_id,char *nombre_completo);
+ErrorStorageEnum realizarCREATE(int query_id, char *nombre_file, char *nombre_tag);
+ErrorStorageEnum realizarTRUNCATE(int query_id,char* nombre_file, char* nombre_tag, int tamanio_a_truncar);
+ErrorStorageEnum realizarTAG(int query_id, char *nombre_file_origen,
+    char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino);
+ErrorStorageEnum realizarELIMINAR_UN_TAG(char* query_id,char *nombre_file,char *nombre_tag);
+ErrorStorageEnum realizarCOMMIT(int query_id,char *nombre_file,char *nombre_tag);
 
 
 
 
 
 
-
+Mensaje* mensajitoResultadoStorage(ErrorStorageEnum);
 
 t_config* crearMetadata(char* path_tag);
 File* crearFile(char* nombre_file);
@@ -56,8 +54,9 @@ void crearDirectorio(char* path_directorio);
 void asignarFileTagAChars(char* nombre_file,char* tag,char* file_a_cortar);
 File* buscarFilePorNombre(char* nombre);
 Tag* buscarTagPorNombre(t_list* tags,char* nombre_tag);
-
-BloqueLogico *crearBloqueLogico(int nro_bloque_logico, BloqueFisico *bloque_fisico_a_asignar, char *path_tag);
+BloqueLogico* buscarBloqueLogicoPorId(int id_logico);
+BloqueFisico* buscarBloqueFisicoPorNombre(char *nombre);
+BloqueLogico* crearBloqueLogico(int nro_bloque_logico, BloqueFisico *bloque_fisico_a_asignar, char *path_tag);
 
 bool crearHLink(char *ruta_hl_del_bloque_logico, char *bloque_fisico_a_hardlinkear);
 

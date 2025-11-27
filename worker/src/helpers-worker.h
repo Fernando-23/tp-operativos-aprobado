@@ -1,5 +1,5 @@
 #ifndef HELPERS_WORKER_H_
-#define HELPERS__WORKER_H_
+#define HELPERS_WORKER_H_
 #include <commons/log.h>
 #include <commons/config.h>
 #include <pthread.h>
@@ -8,7 +8,7 @@
 #include "../../utils/src/utils/helpers.h"
 
 // home/utnso/
-typedef struct{
+typedef struct config_worker{
     char *ip_master;
     char* puerto_master;
     char *ip_storage;
@@ -20,14 +20,14 @@ typedef struct{
     int log_level;
 }ConfigWorker;
 
-typedef struct {
+typedef struct query{
     int id_query;
     int pc_query;
     char* nombre;
     t_list* instrucciones;
 }Query;
 
-typedef struct {
+typedef struct pntero{
     int nro_tabla;
     int nro_entrada;
 }Puntero;

@@ -16,8 +16,10 @@ void cargarConfigMaster(char* nombre_config_sin_formato){
 
     t_config* config = config_create(path_completo);
     config_master = malloc(sizeof(ConfigMaster));
+
     if(config_master == NULL){
-        abort();
+        log_error(logger_master,"(cargarConfigMaster) - Fallo malloc de la config");
+        exit(EXIT_FAILURE);
     }
     
     config_master->puerto_escucha = string_duplicate(config_get_string_value(config, "PUERTO_ESCUCHA"));
@@ -39,13 +41,10 @@ void* atenderClientes(void *args){
         int* p_fd = malloc(sizeof(int));
         *p_fd = fd_nuevo;
         
-
         pthread_t thread;
         pthread_create(&thread, NULL, gestionarClienteIndividual, p_fd);
-        pthread_detach(thread); //creo que no hace falta, pero pensar a futuro
-        
+        pthread_detach(thread); //creo que no hace falta, pero pensar a futuro        
     }
-    
 }
 
 void* gestionarClienteIndividual(void* args){
@@ -75,11 +74,16 @@ void* gestionarClienteIndividual(void* args){
     case WORKER: //2
 
         int id_worker = atoi(mensajito_cortado[1]);
-    
         string_array_destroy(mensajito_cortado);
 
         gestionarWorkerIndividual(id_worker,*fd_conexion);
         break;
+
+        
+    case FIN_INTERRUPCION: // 3 FIN_INTERRUPCION OK QUERY_ID QUERY_PC
+                           // FIN_INTERRUPCION END
+        
+    
     default:
         log_error(logger_master,"Error - (gestionarClienteIndividual) - Codigo de operacion erroneo"); //capaz un abort, quien sabe
         string_array_destroy(mensajito_cortado);
@@ -91,6 +95,72 @@ void* gestionarClienteIndividual(void* args){
     return NULL; // tira warn sino
 }
 
+void hiloAging(){
+    while(1){
+        sleep(config_master->tiempo_aging);
+
+        pthread_mutex_lock(&mutex_lista_ready);
+
+        log_debug(logger_master, "(hiloAging) - Incrementado prioridad de querys en READY");
+
+        for(int i = 0; i < list_size(lista_ready); i++){
+            Query* query = list_get(lista_ready, i);
+            query->prioridad--; // autoincremento prioridad
+
+            log_info(logger_master, "##%d Cambio de prioridad: %d - %d",query->quid, query->prioridad-1, query->prioridad);
+        }
+
+        list_sort(lista_ready, ordenarPorPrioridad);
+
+        phtread_mutex_unlock(&mutex_lista_ready);
+
+        intentarDesalojarSiCorresponde();
+    }
+}
+
+void intentarDesalojarSiCorresponde(){
+    //pthread_mutex_lock(&);
+    //pthread_mutex_lock(&);
+
+    if(list_is_empty(lista_ready)){
+         //libero mutex
+         return;  
+    }
+    Worker* worker_a_desalojar = NULL;
+    do{
+        
+        Query* query_en_ready_mas_alta = list_get(lista_ready, 0);
+        worker_a_desalojar = buscarWorkerPorPrioridad(primer_elemento->prioridad);
+
+        if(worker_a_desalojar == NULL) break;
+
+        query_en_ready_mas_alta = list_remove(lista_ready, 0);
+        char* mensaje = string_from_format("INTERRUPT %s",worker_a_desalojar->query->quid); // interrupt query_id_esperada
+        Mensaje* msg_desalojo = crearMensajito(mensaje);
+        free(mensaje);
+        enviarMensajito(mensaje, logger_master);
+        Mensaje* msg_respuesta = recibirMensajito(worker_a_desalojar->fd,logger_master);
+
+        if(msg_respuesta == NULL){
+            log_warning(logger_master,"(intentarDesalojarSiCorresponde) - EL worker con id %d se desconecto inesperadamente", worker_a_desalojar->id);
+            worker_a_desalojar = list_remove(lista_workers, worker_a_desalojar->id);
+            //liberarWorker
+               
+        }
+         
+        char** respuesta = string_split(msg_respuesta->mensaje," "); // OK ID_QUERY_DESALOJADA PC_QUERY_DESALOJADA
+        char* como_salio = respuesta[0];
+        if(string_equals_ignore_case(como_salio, "OK")){
+
+        } else{ // estaEsperandoDesalojo
+            query.estaEsperandoDesalojo = false;
+        }
+        
+
+    }while(worker_a_desalojar != NULL); 
+   
+    // recorrer workers
+}
 
 void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
     Query* query_devuelta_por_funcion_que_crea_query_y_la_devuelve = crearQuery(nombre_query,prioridad,fd);
@@ -109,18 +179,21 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
         return;
     }
 
-
     //PRIORIDADES
+
+    // 3000 intentar enviar proceso a execute 
+    // 1 0 7  
+    
     if (string_equals_ignore_case(config_master->algoritmo_plani, "PRIORIDADES")){
         
         list_sort(lista_ready,ordenarPorPrioridad);
         Query* primer_elemento = list_get(lista_ready,0);
         
         if (id_query == primer_elemento->quid){ 
-            Worker *worker = buscarWorkerPorPrioridad(primer_elemento->prioridad);
+            Worker* worker = buscarWorkerPorPrioridad(primer_elemento->prioridad);
             if (worker == NULL){
                 log_debug(logger_master,
-                    "Debug - (gestionarQueryIndividual) - No se encontró worker con menor prioridad que la Query candidata");    
+                    "Debug - (gestionarQueryIndividual) - No se encontró worker con query ejecutando con menor prioridad que la Query candidata");    
                 pthread_mutex_unlock(&mutex_lista_ready);
                 pthread_mutex_unlock(&mutex_workers);
                 return;

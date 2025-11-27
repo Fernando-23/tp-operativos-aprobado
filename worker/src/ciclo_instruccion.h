@@ -1,13 +1,9 @@
 #ifndef CICLO_INSTRUCCION_H_
-#define CICLO__INSTRUCCION_H_
- 
-#include "helpers-worker.h"
+#define CICLO_INSTRUCCION_H_
 #include "memoria_interna.h"
+#include "helpers-worker.h"
 
-typedef struct{
-    op_code cod_op;
-    char *operacion
-}t_instruccion;
+
 
 typedef enum{
     CREATE,
@@ -26,23 +22,19 @@ typedef enum{
     CLOCK_M
 }algoritmo_reemplazo;
 
-extern t_instruccion* instruccion;
-extern pthread_mutex_t sem_instruccion;
-
-t_list* crear_lista();
-
-extern int socket_master;
-extern int socket_storage;
-
-extern int CANT_OPERACIONES_WORKER;
-extern char* NOMBRE_OPERACIONES[9];
+typedef struct{
+    op_code cod_op;
+    char *operacion;
+}t_instruccion;
 
 char* Fetch();
 void Decode(char* instruccionCom);
 bool Execute();
+
 void destruir(void* elemento);
-int escribir_en_memoria_paginada(char* file, char* tag, int pagina, int desplazamiento, char* contenido);
-char* leer_en_memoria_paginada(char* file, char* tag, int pagina, int desplazamiento,int tamanio);
+
+t_list *crearListaDeInstrucciones();
+
 void ejecutarCreate(char* file, char* tag);
 void ejecutarTruncate(char* file, char* tag, int tamanio);
 void ejecutarWrite(char* file, char* tag, int dir_base, char* contenido);
@@ -52,10 +44,17 @@ void ejecutarCommit(char* file, char* tag);
 void ejecutarFlush(char* file, char* tag);
 void ejecutarDelete(char* file, char* tag);
 void ejecutarEnd(); 
-void frameAStorage(char* file, char* tag, int nro_pag);
-EntradaDeTabla* buscar_o_crear_entrada_pagina(TablaPaginas* tabla, int pag_actual);
-EntradaDeTabla* buscar_entrada_pagina(TablaPaginas* tabla, int pag_actual);
-Frame* buscar_frame_libre();
+
 int obtenerOperacionCodOp(char *string_operacion);
+
+extern t_instruccion* instruccion;
+extern pthread_mutex_t sem_instruccion;
+
+extern int socket_master;
+extern int socket_storage;
+
+extern int CANT_OPERACIONES_WORKER;
+extern char* NOMBRE_OPERACIONES[9];
+
 
 #endif /* CICLO_INSTRUCCION_H_ */

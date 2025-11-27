@@ -1,10 +1,11 @@
 #include "helpers-worker.h"
+#include "ciclo_instruccion.h"
 #include <stdlib.h>
 
 t_log* logger_worker = NULL;
 ConfigWorker* config_worker = NULL;
 Query* query;
-Puntero ptr_gb;
+//Puntero ptr_gb;
 bool interrumpir_query;
 bool requiere_realmente_desalojo;
 
@@ -42,7 +43,7 @@ void cargarConfigWorker(char* path_config){
 
 int conexionStorage(){
 
-    int socket_storage = crear_conexion(config_worker->ip_storage,config_worker->puerto_storage);
+    int socket_storage = crearConexion(config_worker->ip_storage,config_worker->puerto_storage, logger_worker);
     if(socket_storage == -1){
         log_error(logger_worker,"(conexionStorage) - No se pudo conectar con Storage");
         return -1;
@@ -60,7 +61,7 @@ int conexionStorage(){
 
 int conexionMaster(){
 
-    int socket_master = crear_conexion(config_worker->ip_master,config_worker->puerto_master);
+    int socket_master = crearConexion(config_worker->ip_master,config_worker->puerto_master, logger_worker);
     if(socket_master == -1){
         log_error(logger_worker,"(conexionMaster) - No se pudo conectar con Master");
         return -1;

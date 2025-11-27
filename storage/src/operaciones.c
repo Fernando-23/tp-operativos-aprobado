@@ -27,11 +27,11 @@ void *atenderLaburanteDisconforme(void *args_sin_formato)
     } while (1);
 }
 
-void pedidoDeLaburante(int mail_laburante)
-{
+void pedidoDeLaburante(int mail_laburante){
+    char *nombre_file;
+    char *nombre_tag;
 
-    Mensaje *mensajito;
-    mensajito = recibirMensajito(mail_laburante, logger_storage);
+    Mensaje *mensajito = recibirMensajito(mail_laburante, logger_storage);
 
     log_debug(logger_storage,
               "Debug - (pedidoDeLaburante) - Recibi el mensaje %s", mensajito->mensaje);
@@ -39,111 +39,112 @@ void pedidoDeLaburante(int mail_laburante)
     // COD_OP QUERY_ID ...
     char **mensajito_cortado = string_split(mensajito->mensaje, " ");
     CodOperacionStorage tipo_operacion = obtenerTareaCodOperacion(mensajito_cortado[0]);
-    char *query_id = mensajito_cortado[1];
+    int query_id = atoi(mensajito_cortado[1]);
     hacerRetardoOperacion();
 
     switch (tipo_operacion)
     {
 
     case CREATE:
-        // CREATE QUERY_ID NOMBRE_FILE TAG
-        char *nombre_file = mensajito_cortado[2]; // TODO MANY A LA OBRA
-        char *tag = mensajito_cortado[3];
+        // CREATE QUERY_ID FILE TAG
+        nombre_file = mensajito_cortado[2];
+        nombre_tag = mensajito_cortado[3];
 
-        int resultado_CREATE = realizarCREATE(query_id, nombre_file, tag);
+        ErrorStorageEnum resultado_CREATE = realizarCREATE(query_id, nombre_file, nombre_tag);
+        
         if (resultado_CREATE != OK)
-        {
-            enviarMensajito(mensajitoError(FILE_PREEXISTENTE), mail_laburante, logger_storage);
-            log_error(logger_storage, "NO SE PUDO REALIZAR CREATE POR MOTIVO FILE_PREEXISTENTE"); // JOE PINO
-        }
+            log_warning(logger_storage, "NO SE PUDO REALIZAR CREATE POR MOTIVO FILE_PREEXISTENTE"); // JOE PINO
+    
+        enviarMensajito(mensajitoResultadoStorage(resultado_CREATE), mail_laburante, logger_storage); //
+        
         string_array_destroy(mensajito_cortado);
         break;
 
     case TRUNCATE:
-        // TRUNCATE QUERY_ID FILE:TAG TAMANIO
-        //----FILE:TAG
-        char *nombre_full_file_truncate = mensajito_cortado[2];
-        int tamanio_a_truncar = atoi(mensajito_cortado[3]);
+        // TRUNCATE QUERY_ID FILE TAG TAMANIO
+        nombre_file = mensajito_cortado[2];
+        nombre_tag = mensajito_cortado[3];
+        int tamanio_a_truncar = atoi(mensajito_cortado[4]);
 
-        int resultado = realizarTRUNCATE(atoi(query_id), nombre_full_file_truncate, tamanio_a_truncar);
-        if (resultado != OK)
-        {
-            enviarMensajito(mensajitoError(resultado), mail_laburante, logger_storage);
-            log_error(logger_storage, "NO SE PUDO REALIZAR TRUNCATE POR MOTIVO %s", NOMBRE_ERRORES[resultado]); // JOE PINO
-        }
+        ErrorStorageEnum resultado_TRUNCATE = realizarTRUNCATE(query_id, nombre_file,nombre_tag, tamanio_a_truncar);
+        if (resultado_TRUNCATE != OK)     
+            log_warning(logger_storage, "NO SE PUDO REALIZAR TRUNCATE POR MOTIVO %s", NOMBRE_ERRORES[resultado_TRUNCATE]); // JOE PINO
+
+        enviarMensajito(mensajitoResultadoStorage(resultado_TRUNCATE), mail_laburante, logger_storage);
 
         string_array_destroy(mensajito_cortado);
         break;
 
     case TAG:
-        // TAG QUERY_D FILE_O:TAG_O FILE_D:TAG_D
-        char *nombre_completo_origen = mensajito_cortado[2];
-        char *nombre_completo_destino = mensajito_cortado[3];
-        enviarMensajito(mensajitoOk(), mail_laburante, logger_storage);
+        // TAG QUERY_ID FILE_O TAG_O FILE_D TAG_D
+        char* nombre_file_origen = mensajito_cortado[2];
+        char* nombre_tag_origen = mensajito_cortado[3];
+        char* nombre_file_destino = mensajito_cortado[4];
+        char* nombre_tag_destino = mensajito_cortado[5];
 
-        int resultado_tag = realizarTAG(query_id, nombre_completo_origen, nombre_completo_destino);
-        if (resultado_tag != OK)
-        {
-            enviarMensajito(mensajitoError(resultado_tag), mail_laburante, logger_storage);
-            log_error(logger_storage, "NO SE PUDO REALIZAR TAG POR MOTIVO %s", NOMBRE_ERRORES[resultado_tag]);
-        }
+        ErrorStorageEnum resultado_TAG = realizarTAG(query_id, nombre_file_origen,nombre_tag_origen,
+             nombre_file_destino, nombre_tag_destino);
+            
+        if (resultado_TAG != OK)
+            log_warning(logger_storage, "NO SE PUDO REALIZAR TAG POR MOTIVO %s", NOMBRE_ERRORES[resultado_TAG]);
+    
+        enviarMensajito(mensajitoResultadoStorage(resultado_TAG), mail_laburante, logger_storage);
 
         string_array_destroy(mensajito_cortado);
-
         break;
 
     case COMMIT:
-        // COMMIT QUERY_ID FILE:TAG
-        char *nombre_completo_commit = mensajito_cortado[2];
+        nombre_file = mensajito_cortado[2];
+        nombre_tag = mensajito_cortado[3];
+        
 
-        int resultado_commit = realizarCOMMIT(query_id,nombre_completo_commit);
-        if (resultado_commit != OK)
-        {
-            enviarMensajito(mensajitoError(resultado_commit), mail_laburante, logger_storage);
-            log_error(logger_storage, "NO SE PUDO REALIZAR COMMIT POR MOTIVO %s", NOMBRE_ERRORES[resultado_commit]);
-        }
-        log_info(logger_storage, "## %s - Commit de File:Tag %s", query_id, nombre_completo_commit);
+        ErrorStorageEnum resultado_COMMIT = realizarCOMMIT(query_id,nombre_file,nombre_tag);
+        if (resultado_COMMIT != OK)
+            log_warning(logger_storage, "NO SE PUDO REALIZAR COMMIT POR MOTIVO %s", NOMBRE_ERRORES[resultado_COMMIT]);
+        
+        enviarMensajito(mensajitoResultadoStorage(resultado_COMMIT), mail_laburante, logger_storage);
+    
+        log_info(logger_storage, "## %s - Commit de File:Tag %s:%s", query_id, nombre_file, nombre_tag);
         string_array_destroy(mensajito_cortado);
 
-        break;
-
-    case FLUSH:
-        enviarMensajito(mensajitoOk(), mail_laburante, logger_storage);
-
-        string_array_destroy(mensajito_cortado);
         break;
 
     case DELETE:
     // DELETE QUERY_ID FILE:TAG
-        char *nombre_completo_delete = mensajito_cortado[2];
-        int resultado_delete = realizarELIMINAR_UN_TAG(query_id,nombre_completo_delete);
-        if (resultado_delete != OK){
-            enviarMensajito(mensajitoError(resultado_delete), mail_laburante, logger_storage);
-            log_error(logger_storage, "No se pudo realizar DELETE por motivo %s", NOMBRE_ERRORES[resultado_commit]);
-        }
+        nombre_file = mensajito_cortado[2];
+        nombre_tag = mensajito_cortado[3];
+        ErrorStorageEnum resultado_DELETE = realizarELIMINAR_UN_TAG(query_id,nombre_file,nombre_tag);
+        
+        if (resultado_DELETE != OK)
+            log_warning(logger_storage, "No se pudo realizar DELETE por motivo %s", NOMBRE_ERRORES[resultado_DELETE]);
+        
+        enviarMensajito(mensajitoResultadoStorage(resultado_DELETE), mail_laburante, logger_storage);
+        
 
-        log_info(logger_storage,"## %s - Tag Eliminado %s",query_id,nombre_completo_delete);
+        log_info(logger_storage,"## %s - Tag Eliminado %s:%s",query_id,nombre_file,nombre_tag);
         string_array_destroy(mensajito_cortado);
         break;
 
     case LEER_BLOQUE:
-        enviarMensajito(mensajitoOk(), mail_laburante, logger_storage);
+        nombre_file = mensajito_cortado[2];
+        nombre_tag = mensajito_cortado[3];
 
         string_array_destroy(mensajito_cortado);
         break;
 
     case ESCRIBIR_BLOQUE:
-        enviarMensajito(mensajitoOk(), mail_laburante, logger_storage);
-
+    //ESCRIBIR_BLOQUE QUERY_ID FILE TAG NRO_PAG CONTENIDO
+        nombre_file = mensajito_cortado[2];
+        nombre_tag = mensajito_cortado[3];
+        int id_bloque_logico = atoi(mensajito_cortado[4]);
+        char* contenido_a_escribir = mensajito_cortado[5];
+        
+        
+        ErrorStorageEnum respuesta_ESCRITURA = realizarWRITE(query_id, nombre_file, nombre_tag, id_bloque_logico, contenido_a_escribir);
+        
         string_array_destroy(mensajito_cortado);
         break;
 
-    case ERROR:
-
-        enviarMensajito(mensajitoOk(), mail_laburante, logger_storage);
-
-        string_array_destroy(mensajito_cortado);
-        break;
 
     default:
         log_error(logger_storage, "Error - (pedidoDeLaburante) - Codigo de operacion erroneo"); // capaz un abort, quien sabe
@@ -161,7 +162,7 @@ Para ello recibirá el nombre del File y un Tag inicial para crearlo.
 Deberá crear el archivo de metadata en estado WORK_IN_PROGRESS y no asignarle ningún bloque.
 */
 
-ErrorStorageEnum realizarCREATE(char *query_id, char *nombre_file, char *nombre_tag)
+ErrorStorageEnum realizarCREATE(int query_id, char *nombre_file, char *nombre_tag)
 {
 
     if (filePreexistente(nombre_file))
@@ -174,26 +175,20 @@ ErrorStorageEnum realizarCREATE(char *query_id, char *nombre_file, char *nombre_
     list_add(nuevo_file->tags, nuevo_tag);
 
     log_info(
-        logger_storage, "## %s - File Creado %s:%s",
+        logger_storage, "## %d - File Creado %s:%s",
         query_id, nombre_file, nombre_tag);
 
     return OK;
 }
 
-ErrorStorageEnum realizarTRUNCATE(int query_id, char *file_completo, int tamanio_a_truncar)
+ErrorStorageEnum realizarTRUNCATE(int query_id,char* nombre_file, char* nombre_tag, int tamanio_a_truncar)
 {
-    char *nombre_file;
-    char *nombre_tag;
-
-    // probar funcionamiento
-    asignarFileTagAChars(nombre_file, nombre_tag, file_completo);
 
     // chequeo errores
     pthread_mutex_lock(&mutex_files);
     if (fileInexistente(nombre_file))
     {
-        free(nombre_file);
-        free(nombre_tag);
+       
         pthread_mutex_unlock(&mutex_files);
         return FILE_INEXISTENTE;
     }
@@ -201,8 +196,7 @@ ErrorStorageEnum realizarTRUNCATE(int query_id, char *file_completo, int tamanio
     File *file = buscarFilePorNombre(nombre_file);
     if (tagInexistente(file->tags, nombre_tag, nombre_file))
     {
-        free(nombre_file);
-        free(nombre_tag);
+        
         pthread_mutex_unlock(&mutex_files);
         return TAG_INEXISTENTE;
     }
@@ -213,8 +207,6 @@ ErrorStorageEnum realizarTRUNCATE(int query_id, char *file_completo, int tamanio
     actualizarTamanioMetadata(nombre_file, tag_concreto, tamanio_a_truncar);
 
     pthread_mutex_unlock(&mutex_files);
-    free(nombre_file);
-    free(nombre_tag);
 
     return OK;
 }
@@ -518,39 +510,28 @@ char *stringArrayConfigAString(char **array_a_pasar_a_string)
     return string_a_retornar;
 }
 
-ErrorStorageEnum realizarTAG(char* query_id, char *nombre_origen_completo, char *nombre_destino_completo)
-{
-
-    char *nombre_file_origen;
-    char *tag_origen;
-
-    char *nombre_file_destino;
-    char *tag_destino;
-
-    // probar funcionamiento
-    asignarFileTagAChars(nombre_file_origen, tag_origen, nombre_origen_completo); // TODO
+ErrorStorageEnum realizarTAG(int query_id, char *nombre_file_origen,
+char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino){
 
     // ======================== chequeo errores
     pthread_mutex_lock(&mutex_files);
     // NO EXISTE FILE ORIGEN
     if (fileInexistente(nombre_file_origen))
     {
-        free(nombre_file_origen);
-        free(tag_origen);
+        
         pthread_mutex_unlock(&mutex_files);
         return FILE_INEXISTENTE;
     }
 
     File *file_origen = buscarFilePorNombre(nombre_file_origen);
     // NO EXISTE TAG ORIGEN
-    if (tagInexistente(file_origen->tags, tag_origen, nombre_file_origen))
+    if (tagInexistente(file_origen->tags, nombre_tag_origen, nombre_file_origen))
     {
-        free(nombre_file_origen);
-        free(tag_origen);
+        
         pthread_mutex_unlock(&mutex_files);
         return TAG_INEXISTENTE;
     }
-    asignarFileTagAChars(nombre_file_destino, tag_destino, nombre_destino_completo);
+    
 
     // CASOS
     // file creado
@@ -564,14 +545,11 @@ ErrorStorageEnum realizarTAG(char* query_id, char *nombre_origen_completo, char 
     if (!filePreexistente(nombre_file_destino))
     {
         file_destino_estructura = crearFile(nombre_file_destino);
-        tag_destino_estructura = crearTag(tag_destino, nombre_file_destino);
+        tag_destino_estructura = crearTag(nombre_tag_destino, nombre_file_destino);
         asignarBloquesFisicosATagCopiado(tag_destino_estructura);
 
         pthread_mutex_unlock(&mutex_files);
-        free(nombre_file_origen);
-        free(tag_origen);
-        free(nombre_file_destino);
-        free(tag_destino);
+        
         return OK;
     }
 
@@ -583,11 +561,8 @@ ErrorStorageEnum realizarTAG(char* query_id, char *nombre_origen_completo, char 
         asignarBloquesFisicosATagCopiado(tag_destino_estructura);
 
         pthread_mutex_unlock(&mutex_files);
-        free(nombre_file_origen);
-        free(tag_origen);
-        free(nombre_file_destino);
-        free(tag_destino);
-        log_info(logger_storage, "## %s - Tag creado %s", query_id, nombre_destino_completo);
+        
+        log_info(logger_storage, "## %d - Tag creado %s:%s", query_id, nombre_file_origen,nombre_tag_destino);
         return OK;
     }
 
@@ -641,24 +616,18 @@ BloqueFisico *obtenerBloqueFisico(int nro_bloque_a_buscar)
     return (BloqueFisico *)list_get(bloques_fisicos_gb, nro_bloque_a_buscar);
 }
 
-ErrorStorageEnum realizarCOMMIT(char* query_id,char *nombre_completo){
-    char *nombre_file;
-    char *nombre_tag;
+ErrorStorageEnum realizarCOMMIT(int query_id,char *nombre_file,char *nombre_tag){
 
-    asignarFileTagAChars(nombre_file, nombre_tag, nombre_completo);
+   
 
-    if (fileInexistente(nombre_file))
-    {
-        free(nombre_file);
-        free(nombre_tag);
+    if (fileInexistente(nombre_file)){
+        
         return FILE_INEXISTENTE;
     }
     File *file_a_commitear = buscarFilePorNombre(nombre_file);
 
-    if (tagInexistente(file_a_commitear->tags, nombre_tag, nombre_file))
-    {
-        free(nombre_file);
-        free(nombre_tag);
+    if (tagInexistente(file_a_commitear->tags, nombre_tag, nombre_file)){
+        
         return TAG_INEXISTENTE;
     }
 
@@ -666,16 +635,14 @@ ErrorStorageEnum realizarCOMMIT(char* query_id,char *nombre_completo){
 
     if (tieneEstadoCOMMITED(tag_a_commitear))
     {
-        log_debug(logger_storage, "(realizarCOMMIT) - El estado del tag %s ya estaba en COMMITED", tag_a_commitear->nombre_tag);
-        free(nombre_file);
-        free(nombre_tag);
+        log_debug(logger_storage, "(realizarCOMMIT) - El estado del tag %d ya estaba en COMMITED", tag_a_commitear->nombre_tag);
+        
         return OK;
     }
 
     escribirEnHashIndex(tag_a_commitear);
     
-    free(nombre_file);
-    free(nombre_tag);
+    
     return OK;
 }
 /*
@@ -726,12 +693,23 @@ void escribirEnHashIndex(Tag *tag)
 
 BloqueFisico *buscarBloqueFisicoPorNombre(char *nombre){
     bool tieneMismoNombre(void *ptr)
+    
     {
         BloqueFisico *bloque = (BloqueFisico *)ptr;
-        return (strcmp(nombre, bloque->ruta_absoluta));
+        return (strcmp(nombre, bloque->nombre));
     }
     return list_find(bloques_fisicos_gb, tieneMismoNombre);
 }
+
+BloqueLogico* buscarBloqueLogicoPorId(int id_logico){
+    bool tieneMismoId(void *ptr)
+    {
+        BloqueLogico *bloque = (BloqueLogico *)ptr;
+        return (id_logico == bloque->id_logico);
+    }
+    return list_find(bloques_fisicos_gb, tieneMismoId);
+}
+
 
 DatosParaHash *obtenerDatosParaHash(BloqueLogico *bloque_logico){
     FILE *arch_a_leer = fopen(bloque_logico->ptr_bloque_fisico->ruta_absoluta, "rw");
@@ -764,6 +742,32 @@ void liberarDatosParaHash(DatosParaHash *dato_a_liberar){
     free(dato_a_liberar->contenido);
     free(dato_a_liberar);
 }
+
+ErrorStorageEnum realizarWRITE(char* nombre_file,char* nombre_tag,int id_bloque_logico,char* contenido){ 
+    // ESCRIBIR_BLOQUE query_id file tag nro_pag contenido
+    
+    if (fileInexistente(nombre_file)){
+        return FILE_INEXISTENTE;
+    }
+
+    File *file_a_commitear = buscarFilePorNombre(nombre_file);
+
+    if (tagInexistente(file_a_commitear->tags, nombre_tag, nombre_file)){
+        return TAG_INEXISTENTE;
+    }
+
+    Tag *tag_a_commitear = buscarTagPorNombre(file_a_commitear->tags, nombre_tag);
+
+    if (tieneEstadoCOMMITED(tag_a_commitear)){
+        log_debug(logger_storage, "(realizarWRITE) - El estado del tag %d ya estaba en COMMITED", tag_a_commitear->nombre_tag);    
+        return ESCRITURA_NO_PERMITIDA;
+    }
+
+    BloqueLogico* bloque_a_escribrir = buscarBloqueLogicoPorId();
+
+
+}
+
 
 void *obtenerContenidoBloqueFisico(BloqueLogico *bloque_logico, int tamanio){
 
@@ -803,23 +807,17 @@ void reapuntarBloque(BloqueFisico* bloque_fisico_a_reapuntar,BloqueLogico* bloqu
     log_debug(logger_storage,"(reapuntarBLoque) - Hardlink reecho");
 }
 
-ErrorStorageEnum realizarELIMINAR_UN_TAG(char* query_id,char* nombre_completo){ 
-    char *nombre_file;
-    char *nombre_tag;
-
-    asignarFileTagAChars(nombre_file, nombre_tag, nombre_completo);
+ErrorStorageEnum realizarELIMINAR_UN_TAG(char* query_id,char *nombre_file,char *nombre_tag){ 
 
     if (fileInexistente(nombre_file)){
-        free(nombre_file);
-        free(nombre_tag);
+        
         return FILE_INEXISTENTE;
     }
 
     File *file_a_commitear = buscarFilePorNombre(nombre_file);
 
     if (tagInexistente(file_a_commitear->tags, nombre_tag, nombre_file)){
-        free(nombre_file);
-        free(nombre_tag);
+        
         return TAG_INEXISTENTE;
     }
 
@@ -832,8 +830,6 @@ ErrorStorageEnum realizarELIMINAR_UN_TAG(char* query_id,char* nombre_completo){
     remove(ruta_metadata_config);
     rmdir(tag_a_commitear->directorio);
     
-    free(nombre_file);
-    free(nombre_tag);
     return OK;
 }
 
@@ -876,3 +872,4 @@ void unlinkearBloquesLogicosParaELIMINAR_UN_TAG(int cant_a_unlinkear,Tag* tag){
 bool estaCommiteado(t_config* metadata){
     return string_contains(config_get_string_value(metadata, "ESTADO"), "COMMITED");
 }
+

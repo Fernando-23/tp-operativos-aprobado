@@ -164,10 +164,10 @@ void inicializarSemaforos(){
     pthread_mutex_init(&mutex_files,NULL);
 }
 
-Mensaje* mensajitoError(ErrorStorageEnum cod_error){
+Mensaje* mensajitoResultadoStorage(ErrorStorageEnum cod_error){
     Mensaje* mensajito = malloc(sizeof(Mensaje));
 	
-    mensajito->mensaje = string_from_format("ERROR %s", NOMBRE_ERRORES[cod_error]);
+    mensajito->mensaje = string_from_format("%s", NOMBRE_ERRORES[cod_error]); // string_equals desde worker
     mensajito->size = string_length(mensajito->mensaje);
 	
     return mensajito;
