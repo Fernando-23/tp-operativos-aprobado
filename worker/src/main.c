@@ -12,20 +12,18 @@ static void manejador_senial(int signo){
     debo_morir = 1;
 }
 
-volatile sig_atomic_t debo_morir = 0;
-
 int main(int argc, char* argv[]) {
     //signal(SIGINT, menejador_senial);
-    
+    signal(SIGINT, manejador_senial);
+    signal(SIGTERM, manejador_senial);
+
+    siginterrupt(SIGINT, 1);
+    siginterrupt(SIGTERM, 1);
 
     char* path_config = argv[1];
     char* id_worker = argv[2];
 
     if (id_worker) g_id_worker = strdup(id_worker);
-
-    /* instalar handler de SIGINT/SIGTERM: solo marca debo_morir y desbloquea recv */
-    signal(SIGINT, manejador_senal);
-    signal(SIGTERM, manejador_senal);
 
     cargarConfigWorker(path_config);
 
@@ -35,9 +33,8 @@ int main(int argc, char* argv[]) {
 
     query = malloc(sizeof(Query));
     instruccion = malloc(sizeof(t_instruccion));
-    tabla_general = list_create();
        
-    log_info(logger_worker,"Se cargó todo correctamente");
+    log_info(logger_worker, "Worker %s iniciado correctamente", id_worker);
 
     //conexion a storage que devuelve el tamanio de pagina
 
@@ -70,10 +67,14 @@ int main(int argc, char* argv[]) {
             log_debug(logger_worker,"Instrucción a ejecutar: %s", instruccion);
 
             requiere_realmente_desalojo = Execute();
-            if(requiere_realmente_desalojo){
-                log_debug(logger_worker,"Execute terminó, requiere_desalojo=%d", query->id_query);
-            }
             query->pc_query++; // avanzar PC como ejemplo
+            pthread_mutex_lock(&mx_conexion_master);
+            Mensaje* pedido_desalojo = recibirMensajito(socket_master, logger_worker);
+            if(pedido_desalojo->mensaje == "DESALOJAR" ){
+                log_info(logger_worker, "Query %d: Desalojada por pedido del Master", query->id_query);
+                break;
+            }
+            pthread_mutex_unlock(&mx_conexion_master);
         }
         list_destroy_and_destroy_elements(query->instrucciones,destruir);
         printf("[DEBUG] Se va a cambiar el contexto\n");
@@ -85,8 +86,7 @@ int main(int argc, char* argv[]) {
     }
 
     log_info(logger_worker, "Worker recibio sigint o sigterm");
-    log_debug(logger_worker, "avisando a master y storage");//CARTA_DOCUMENTO queryid WORKER_ID
-    char* mensaje_de_finalizacion = string_from_format("CARTA_DOCUMENTO %d %d",query->id_query, id_worker);
+    char* mensaje_de_finalizacion = string_from_format("CARTA_DOCUMENTO %d %s",query->id_query, id_worker);
     Mensaje* mensaje_storage = crearMensajito(mensaje_de_finalizacion);
     enviarMensajito(mensaje_storage, socket_storage, logger_worker);
 
@@ -94,6 +94,9 @@ int main(int argc, char* argv[]) {
     enviarMensajito(mensaje_master, socket_master, logger_worker);
 
     free(mensaje_de_finalizacion);
+
+
+    log_info(logger_worker, "Worker %s finalizado correctamente", id_worker);
 
     return 0;
 }

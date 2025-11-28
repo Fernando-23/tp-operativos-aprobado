@@ -12,28 +12,29 @@ int CANT_OPERACIONES_WORKER = 9;
 
 
 t_list *crearListaDeInstrucciones(){
+    if (!query || !query->nombre) {
+        log_error(logger_worker, "Query o nombre nulo al cargar instrucciones");
+        return NULL;
+    }
+
     char *path_completo = string_from_format("%s/%s",config_worker->path_queries, query->nombre);
-    //------------------------------ /home/utnso/queries/query1
-    //revisar si más de un worker abre el mismo archivo
-    
     FILE *file_query = fopen(path_completo, "r");
+    
+
     if (!file_query){
-        log_error(logger_worker, "Error al abrir el archivo en la ruta %s",path_completo);
+        log_error(logger_worker, "(crearListaDeInstrucciones) - Error al abrir el archivo en la ruta %s",path_completo);
+        free(path_completo);
         return NULL;
     }
 
     fscanf(file_query, "%*s");
 
     t_list *lista_instucciones = list_create();
-    if (!lista_instucciones)
-    {
-        fclose(file_query);
-        return NULL;
-    }
-
     char *buffer = NULL;
     size_t tam = 0;
     ssize_t leidos;
+
+    
 
     while ((leidos = getline(&buffer, &tam, file_query)) != -1)
     {
@@ -43,17 +44,23 @@ t_list *crearListaDeInstrucciones(){
 
         // strdup para copiar, porque getline reutiliza el buffer
         char *linea = strdup(buffer);
-        if (!linea)
-            break;
-
+        if (!linea){
+            log_error(logger_worker, "(crearListaDeInstrucciones) Fallo strdup → memoria agotada");
+            free(buffer);
+            fclose(file_query);
+            free(path_completo);
+            list_destroy_and_destroy_elements(lista_instucciones, free);
+            return NULL;
+        }
         list_add(lista_instucciones, linea);
     }
 
     free(buffer);
-    free(path_completo);
     fclose(file_query);
+    free(path_completo);
+    
 
-    log_info(logger_worker, "Cantidad de lineas en el archivo: %d", list_size(lista_instucciones));
+    log_info(logger_worker, "Query %d: Cargadas %d instrucciones", query->id_query, list_size(lista_instucciones));
 
     return lista_instucciones;
 }
@@ -194,12 +201,13 @@ bool Execute(){
     case END:
         ejecutarEnd();
         nombre_instruccion = "END";
-        break;
+        return;
 
     default:
         log_error(logger_worker,"Error - (Execute) - ingrese una instruccion valida");
-        break;
+        return;
     }
+
 
     log_info(logger_worker,"## Query %d: - Instrucción realizada: %s", query->id_query, nombre_instruccion);
     

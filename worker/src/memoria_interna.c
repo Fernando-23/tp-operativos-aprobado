@@ -1,24 +1,30 @@
 #include "memoria_interna.h"
 
-void* memoria; // 
-int* bitMap;
-int cant_frames;
+void* memoria = NULL; // 
+int* bitMap = NULL;
+int cant_frames = 0;
 
-t_list* tabla_general;
+t_list* tabla_general = NULL;
 
 
 void iniciarMemoria(){
     memoria = malloc(config_worker->tam_memoria);
-    int cant_frames = config_worker->tam_memoria / tam_pag;
-
-    //inicializo bitmap
-    bitMap = malloc(cant_frames * sizeof(int));
-    for (int i = 0; i < cant_frames; i++) {
-        bitMap[i] = 0; //esta libre
+    if (!memoria) {
+        log_error(logger_worker, "(iniciarMemoria) - Fallo malloc de memoria principal");
+        exit(EXIT_FAILURE);
     }
 
+    cant_frames = config_worker->tam_memoria / tam_pag;
+
+    //inicializo bitmap
+    bitMap = calloc(cant_frames, sizeof(int)); // Inicializa en 0 (todos libres)
+
+    tabla_general = list_create();
     ptr_gb.nro_entrada = 0;
     ptr_gb.nro_tabla = 0;
+
+    log_debug(logger_worker, "Memoria inicializada, %d frames de %d bytes", 
+             cant_frames, tam_pag);
 }
 
 
@@ -114,7 +120,7 @@ void escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,cha
                 entrada_pag = crearEntradaPagina(pag_actual,tabla_paginas);
                 list_add(tabla_paginas->entradas,entrada_pag);    
             }
-
+            log_info(logger_worker,"Query %d: - Memoria Miss - File: %s - Tag: %s - Pagina: %d",query->id_query,file,tag,pag_actual);
             frame_seleccionado = gestionarPAGE_FAULT(file,tag,pagina);
             entrada_pag->nro_frame = frame_seleccionado;
         }
@@ -154,9 +160,10 @@ void escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,cha
 
 }
 
-void escribirPagina(int nro_frame, char* contenido){
+void escribirPagina(char*file, char* tag, int nro_pagina,int nro_frame, char* contenido){
     char* base_frame = memoria + (nro_frame*tam_pag);
     memcpy(base_frame, contenido, 1);
+    log_info(logger_worker,"Query %d: - Memoria Add - File: %s - Tag: %s - Pagina: %d - Marco: %d",query->id_query,file,tag,nro_pagina,nro_frame);                                                          
 }
 
 uint64_t dirFisica(int nro_frame, int desp_actual){
@@ -232,21 +239,21 @@ char* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int t
 
 
 
-int aplicarPoliticaReemplazo(){
+int aplicarPoliticaReemplazo(char* file, char* tag, int nro_pag){
 
     RespuestaAlgoritmoReemplazo* resp = NULL;
     if (string_equals_ignore_case(config_worker->algoritmo_reemplazo, "CLOCK-M")) {
         
-        resp = cicloClockM(0, 0, 0); if (resp != NULL) return gestionarBitModificado(resp);
-        resp = cicloClockM(1, 0, 1); if (resp != NULL) return gestionarBitModificado(resp);
-        resp = cicloClockM(0, 0, 0); if (resp != NULL) return gestionarBitModificado(resp);
-        resp = cicloClockM(0, 0, 1); if (resp != NULL) return gestionarBitModificado(resp);
+        resp = cicloClockM(0, 0, 0); if (resp != NULL) return gestionarBitModificado(resp,file,tag,nro_pag);
+        resp = cicloClockM(1, 0, 1); if (resp != NULL) return gestionarBitModificado(resp,file,tag,nro_pag);
+        resp = cicloClockM(0, 0, 0); if (resp != NULL) return gestionarBitModificado(resp,file,tag,nro_pag);
+        resp = cicloClockM(0, 0, 1); if (resp != NULL) return gestionarBitModificado(resp,file,tag,nro_pag);
 
         log_error(logger_worker, "(aplicarPoliticaReemplazo) - CLOCK-M no encontró víctima");
         return -1;
     }
     else if (string_equals_ignore_case(config_worker->algoritmo_reemplazo, "LRU") == 0) {
-        resp = elegirVictimaLRU();return gestionarBitModificado(resp); 
+        resp = elegirVictimaLRU();return gestionarBitModificado(resp,file,tag,nro_pag); 
     }
     else {
         log_error(logger_worker, "No se ingreso un algoritmo valido");
@@ -318,7 +325,6 @@ RespuestaAlgoritmoReemplazo* cicloClockM(int resetear_bit_uso, int bit_uso, int 
             
             if (entrada->bit_presencia == 1 && entrada->bit_uso == bit_uso && entrada->bit_modificado == bit_modificado) {
                 id_entrada++;
-                
                 if(id_entrada == list_size(tabla_selec->entradas)) { 
                     id_entrada = 0;
                     id_tabla++;
@@ -385,14 +391,16 @@ int gestionarPAGE_FAULT(char* file, char* tag, int nro_pagina){
          
     Mensaje* mensaje_recibido = recibirMensajito(socket_storage, logger_worker); // ENUMSERRORSTORAGE CONTENIDO 
     char** datos_recibidos = string_split(mensaje_recibido->mensaje," "); //LIBERAR
+    liberarMensajito(mensaje_recibido);
     ErrorStorageEnum cod_op_storage_recv = atoi(datos_recibidos[0]);
     
     switch (cod_op_storage_recv){
         case OK:
             char* contenido_pagina = datos_recibidos[1]; // no escribimos en memoria
             
-            int frame_a_asignar =  devolverFrameLibre();
-            escribirPagina(frame_a_asignar, contenido_pagina);
+            int frame_a_asignar =  devolverFrameLibre(file,tag,nro_pagina);
+            escribirPagina(file,tag,nro_pagina,frame_a_asignar, contenido_pagina);
+            log_info(logger_worker,"Query %d: Se asigna el Marco: %d a la Página: %d perteneciente al - File: %s - Tag: %s",query->id_query,frame_a_asignar,nro_pagina,file,tag);
             return frame_a_asignar;
 
         case ESCRITURA_FUERA_DE_LIMITE:
@@ -424,7 +432,7 @@ EntradaDeTabla* crearEntradaPagina(int pag_a_asignar, TablaPaginas* tabla){ // t
 }
 
 //HICISTE TODAS LAS CHANCHADAS
-int devolverFrameLibre(){
+int devolverFrameLibre(char* file, char* tag, int nro_pag){
 
     // entrada la creamos siempre
     // tenemos que asignarle un marco a la entrada creada para escribir el contenido
@@ -441,7 +449,7 @@ int devolverFrameLibre(){
     }
     
     log_debug(logger_worker,"(gestionarAsignaccionFrame) - No hubo frame libre, aplicando LA MATANZA");
-    frame = aplicarPoliticaReemplazo();
+    frame = aplicarPoliticaReemplazo(file,tag,nro_pag);
     
     log_debug(logger_worker,"(gestionarAsignaccionFrame) - Frame seleccionado %d",frame);
     return frame;   
@@ -457,14 +465,14 @@ void liberarTablaPaginas(TablaPaginas* tabla_a_liberar){
     free(tabla_a_liberar);
 }
 
-int gestionarBitModificado(RespuestaAlgoritmoReemplazo* resp){
+int gestionarBitModificado(RespuestaAlgoritmoReemplazo* resp, char* file, char* tag, int nro_pag){
 
     if(resp->entrada->bit_modificado == 1){
         escribirEnStorage(resp->entrada); 
     } 
         
     TablaPaginas* tabla_padre = resp->entrada->tabla;
-
+    
     EntradaDeTabla* entrada = list_remove(tabla_padre->entradas,resp->entrada_index);
     log_debug(logger_worker,"(aplicarPoliticaReemplazo) - Entrada borrada");
     int frame_a_retornar = entrada->nro_frame;    
@@ -475,7 +483,8 @@ int gestionarBitModificado(RespuestaAlgoritmoReemplazo* resp){
         TablaPaginas* tabla_a_borrar = list_remove(tabla_general,resp->tabla_index);
         liberarTablaPaginas(tabla_a_borrar);
     }
-
+    log_info(logger_worker, "Query %d: Se libera el Marco: %d perteneciente al - File: %s - Tag: %s",query->id_query,frame_a_retornar,tabla_padre->file,tabla_padre->tag);
+    log_info(logger_worker,"Query %d: Se reemplaza la página %s:%s/%d por la %s:%s/%d",query->id_query,tabla_padre->file,tabla_padre->tag,resp->entrada->nro_pag,file,tag,nro_pag);
     free(resp);
     return frame_a_retornar;
 }
