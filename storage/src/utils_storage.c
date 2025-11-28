@@ -13,19 +13,18 @@ int obtenerTareaCodOperacion(char *string_modulo){
 }
 
 
-
-
-
-
-
-
-
 void handshake(int fd){
-    Mensaje* mensajito_hanshake = malloc(sizeof(Mensaje));
-    mensajito_hanshake->mensaje = string_itoa(datos_superblock_gb->tamanio_bloque);
-    mensajito_hanshake->size = string_length(mensajito_hanshake->mensaje);
-    
+    char* mensajito_hanshake = string_from_format("%d",datos_superblock_gb->tamanio_bloque);
+    Mensaje* mensajito_a_enviar = crearMensajito(mensajito_a_enviar);
+    free(mensajito_hanshake);
     enviarMensajito(mensajito_hanshake,fd,logger_storage);
+    Mensaje* resp_handshake = recibirMensajito(fd,logger);
+    pthread_mutex_lock(&mutex_cant_workers);
+    cant_workers_conectados++;
+    log_info(logger_storage,"“##Se conecta el Worker %s - Cantidad de Workers: %d",resp_handshake->mensaje,cant_workers_conectados);
+    pthread_mutex_unlock(&mutex_cant_workers);
+
+    liberarMensajito(resp_handshake);
 }
 
 

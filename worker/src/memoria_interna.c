@@ -225,7 +225,6 @@ char* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int t
 
 
 
-
 int aplicarPoliticaReemplazo(){
     const char *algoritmo = config_worker->algoritmo_reemplazo;
     int frame_a_retornar = -1;

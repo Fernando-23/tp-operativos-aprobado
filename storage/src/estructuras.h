@@ -68,7 +68,8 @@ extern int cant_bloques_en_bytes_gb;
 extern pthread_mutex_t mutex_bitmap;
 extern pthread_mutex_t mutex_files;
 extern pthread_mutex_t mutex_bloques_fisicos;
-
+extern pthread_mutex_t mutex_cant_workers;
+extern int cant_workers_conectados;
 
 extern const char* PATH_PHYSICAL_BLOCKS;
 extern const char* RUTA_BASE_STORAGE;

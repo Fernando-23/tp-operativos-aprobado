@@ -8,6 +8,7 @@ t_list* lista_files_gb = NULL;
 ConfigSuperblock* datos_superblock_gb = NULL;
 char* bitmap_mmap_gb = NULL;
 int cant_bloques_en_bytes_gb;
+int cant_workers_conectados;
 t_bitarray* bitmap_gb = NULL;
 
 
