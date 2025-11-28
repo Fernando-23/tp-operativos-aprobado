@@ -6,8 +6,6 @@ int cant_frames;
 
 t_list* tabla_general;
 
-int socket_master;
-int socket_storage;
 
 void iniciarMemoria(){
     memoria = malloc(config_worker->tam_memoria);
@@ -52,7 +50,7 @@ TablaPaginas* buscarOCrearTabla(char* file, char* tag) {
 }
 
 EntradaDeTabla *buscarOCrearEntradaPag(TablaPaginas *tabla_a_consultar, int pag_actual, char *file, char *tag){
-    EntradaDeTabla* entrada = buscarEntradaPorNroPag(tabla_a_consultar->entradas,nro_pag);
+    EntradaDeTabla* entrada = buscarEntradaPorNroPag(tabla_a_consultar->entradas, pag_actual);
     
     if (entrada == NULL){
         entrada = crearEntradaPagina(pag_actual, tabla_a_consultar);        
@@ -99,10 +97,10 @@ EntradaDeTabla* buscarEntradaPorNroPag(t_list* entradas,int nro_pag){
 
 
 void escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,char* contenido){
-    size_t bytes_contenido = strlen(contenido_a_escribir);
+    size_t bytes_contenido = strlen(contenido);
     size_t total_a_escribir = bytes_contenido + 1; 
     size_t escritos = 0;
-    int pag_actual = nro_pagina;
+    int pag_actual = pagina;
     int desp_actual = desplazamiento;
     int frame_seleccionado;
     TablaPaginas* tabla_paginas = buscarOCrearTabla(file, tag);
@@ -114,10 +112,10 @@ void escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,cha
             
             if(entrada_pag == NULL){ 
                 entrada_pag = crearEntradaPagina(pag_actual,tabla_paginas);
-                list_add(tabla_paginas,entrada_pag);    
+                list_add(tabla_paginas->entradas,entrada_pag);    
             }
 
-            frame_seleccionado = gestionarPAGE_FAULT(file,tag,nro_pagina);
+            frame_seleccionado = gestionarPAGE_FAULT(file,tag,pagina);
             entrada_pag->nro_frame = frame_seleccionado;
         }
 
@@ -127,20 +125,20 @@ void escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,cha
         if (por_copiar > espacioLibre) por_copiar = espacioLibre; 
 
         // Copia del tramo que cae en ESTA página
-        memcpy(base_frame + desp_actual, contenido_a_escribir + escritos, por_copiar);
+        memcpy(base_frame + desp_actual, contenido + escritos, por_copiar);
 
         entrada_pag->bit_uso = 1;
         entrada_pag->bit_modificado = 1;
         entrada_pag->last_used_ms = now_ms();
 
        
-        uint64_t dfis = dir_fisica(entrada_pag->nro_frame, desp_actual);
+        uint64_t dfis = dirFisica(entrada_pag->nro_frame, desp_actual);
         
         log_info(logger_worker,
-                 "Query %d: Acción: ESCRIBIR - Dirección Física: %llu - Valor: %.*s",
+                 "Query %d: Acción: ESCRIBIR - Dirección Física: %llu - Valor Escrito: %s",
                  query->id_query,
                  (unsigned long long)dfis,
-                 (const char*)(contenido_a_escribir + escritos));
+                 contenido);
 
         escritos += por_copiar;
 
@@ -155,6 +153,16 @@ void escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,cha
 
 
 }
+
+void escribirPagina(int nro_frame, char* contenido){
+    char* base_frame = memoria + (nro_frame*tam_pag);
+    memcpy(base_frame, contenido, 1);
+}
+
+uint64_t dirFisica(int nro_frame, int desp_actual){
+    return (uint64_t)(nro_frame*tam_pag) + desp_actual;
+}
+
 char* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int tamanio)
 {
     if (tamanio <= 0 || pagina < 0 || desplazamiento < 0 || desplazamiento >= tam_pag) {
@@ -198,12 +206,11 @@ char* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int t
         ent->bit_uso       = 1;
         ent->last_used_ms = now_ms();
 
-        uint64_t dfis = dir_fisica(ent->nro_frame, desp_actual);
+        uint64_t dfis = dirFisica(ent->nro_frame, desp_actual);
         log_info(logger_worker,
-                 "Query %d: Acción: LEER - Dirección Física: %llu - Valor: %.*s",
+                 "Query %d: Acción: LEER - Dirección Física: %llu - Valor Leido: %s",
                  query->id_query,
-                 (unsigned long) dfis,
-                 (int)por_copiar,
+                 (unsigned long long) dfis,
                  (const char*)(base_frame + desp_actual));
 
         bytesLeidos += por_copiar;
@@ -226,10 +233,9 @@ char* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int t
 
 
 int aplicarPoliticaReemplazo(){
-    const char *algoritmo = config_worker->algoritmo_reemplazo;
-    int frame_a_retornar = -1;
+
     RespuestaAlgoritmoReemplazo* resp = NULL;
-    if (string_equals_ignore_case(algoritmo, "CLOCK-M")) {
+    if (string_equals_ignore_case(config_worker->algoritmo_reemplazo, "CLOCK-M")) {
         
         resp = cicloClockM(0, 0, 0); if (resp != NULL) return gestionarBitModificado(resp);
         resp = cicloClockM(1, 0, 1); if (resp != NULL) return gestionarBitModificado(resp);
@@ -237,14 +243,14 @@ int aplicarPoliticaReemplazo(){
         resp = cicloClockM(0, 0, 1); if (resp != NULL) return gestionarBitModificado(resp);
 
         log_error(logger_worker, "(aplicarPoliticaReemplazo) - CLOCK-M no encontró víctima");
-        return NULL;
+        return -1;
     }
-    else if (string_equals_ignore_case(algoritmo, "LRU") == 0) {
+    else if (string_equals_ignore_case(config_worker->algoritmo_reemplazo, "LRU") == 0) {
         resp = elegirVictimaLRU();return gestionarBitModificado(resp); 
     }
     else {
         log_error(logger_worker, "No se ingreso un algoritmo valido");
-        return NULL;
+        return -1 ;
     }
 }
 
@@ -333,6 +339,7 @@ RespuestaAlgoritmoReemplazo* cicloClockM(int resetear_bit_uso, int bit_uso, int 
         }
         id_entrada = 0;
     }
+    return NULL;
 }
 
 RespuestaAlgoritmoReemplazo* elegirVictimaLRU(){
@@ -382,8 +389,11 @@ int gestionarPAGE_FAULT(char* file, char* tag, int nro_pagina){
     
     switch (cod_op_storage_recv){
         case OK:
-            char* contenido_pagina = datos_recibidos[1];
-            return devolverFrameLibre();
+            char* contenido_pagina = datos_recibidos[1]; // no escribimos en memoria
+            
+            int frame_a_asignar =  devolverFrameLibre();
+            escribirPagina(frame_a_asignar, contenido_pagina);
+            return frame_a_asignar;
 
         case ESCRITURA_FUERA_DE_LIMITE:
         case ESCRITURA_NO_PERMITIDA:
@@ -392,8 +402,9 @@ int gestionarPAGE_FAULT(char* file, char* tag, int nro_pagina){
             break;
         }
             
-        default: log_error(logger_worker, "Storage mando cualquier cosa, Cosa que mando: %s", cod_op_storage_recv);
+        default: log_error(logger_worker, "Storage mando cualquier cosa, Cosa que mando: %d", cod_op_storage_recv);
         }
+    return -1;
  }
 
 
@@ -472,12 +483,12 @@ int gestionarBitModificado(RespuestaAlgoritmoReemplazo* resp){
 void escribirEnStorage(EntradaDeTabla* entrada_a_persistir){
     TablaPaginas* tabla_padre = entrada_a_persistir->tabla;
     char* contenido_a_persistir = 
-        string_from_format("ESCRIBIR_BLOQUE %s %s %s %d %s",query->id_query,tabla_padre->file,tabla_padre->tag,entrada_a_persistir->nro_pag,leerBloque(entrada_a_persistir));
+        string_from_format("ESCRIBIR_BLOQUE %d %s %s %d %s",query->id_query,tabla_padre->file,tabla_padre->tag,entrada_a_persistir->nro_pag,leerBloque(entrada_a_persistir));
     Mensaje* mensajito_a_enviar = crearMensajito(contenido_a_persistir); // ESCRIBIR_BLOQUE query_id file tag nro_pag contenido
     free(contenido_a_persistir); 
     enviarMensajito(mensajito_a_enviar,socket_storage,logger_worker);
     Mensaje* respuesta_storage = recibirMensajito(socket_storage,logger_worker); // OK siempre... ponele
-    if(respuesta_storage == NULL || respuesta_storage->mensaje != "OK"){
+    if(respuesta_storage == NULL || string_equals_ignore_case(respuesta_storage->mensaje ,"OK")){
         liberarMensajito(respuesta_storage);
         log_error(logger_worker, "(escribirEnStorage) Conexion cerrada con storage o no pudo escribir");
         exit(EXIT_FAILURE);
@@ -491,12 +502,20 @@ char* leerBloque(EntradaDeTabla* entrada_pagina){ // memoria me desplazo hasta l
 
     int desplazamiento_hasta_base = entrada_pagina->nro_frame * tam_pag;
     char* base = memoria + desplazamiento_hasta_base;
-    char* leido;
+    char* leido = malloc(tam_pag + 1);
+    if (!leido) {
+        log_error(logger_worker,"(leerBloque) - Fallo al reservar memoria para leer bloque");
+        return NULL;
+    }
     memcpy(leido,base,tam_pag);
+
+    leido[tam_pag] = '\0';
     log_debug(logger_worker,"(leerBloque) - File:Tag %s:%s, Contenido leido:",tabla_padre->file,tabla_padre->tag);
-    log_debug(logger_worker,leido);
+    log_debug(logger_worker,"%s",leido);
     return leido;
 }
+
+
 
 void hacerRetardo(){
     int retardo_memoria = config_worker->retardo_memoria;

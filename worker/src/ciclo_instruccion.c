@@ -28,7 +28,7 @@ t_list *crearListaDeInstrucciones(){
     if (!lista_instucciones)
     {
         fclose(file_query);
-        return 1;
+        return NULL;
     }
 
     char *buffer = NULL;
@@ -46,7 +46,7 @@ t_list *crearListaDeInstrucciones(){
         if (!linea)
             break;
 
-        list_add(lineas, linea);
+        list_add(lista_instucciones, linea);
     }
 
     free(buffer);
@@ -208,7 +208,7 @@ bool Execute(){
 
 void ejecutarCreate(char *file, char *tag){
     // faltaria crear alguna funcion para confirmar que se haya creado el tag para ese file (maybe)
-    char *mensaje_creacion = string_from_format("CREATE %d %s %s 0");
+    char *mensaje_creacion = string_from_format("CREATE %d %s %s 0",query->id_query,file,tag);
     
     pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito(mensaje_creacion);
@@ -237,7 +237,7 @@ void ejecutarTruncate(char *file, char *tag, int tamanio){
     free(mensaje_truncado); 
     enviarMensajito(mensajito,socket_storage,logger_worker);
     Mensaje* resp_truncate = recibirMensajito(socket_storage,logger_worker);
-    if (!string_equals_ignore_case(resp_create->mensaje,"OK")){
+    if (!string_equals_ignore_case(resp_truncate->mensaje,"OK")){
         //ejecutarEnd; o algo asi
         liberarMensajito(resp_truncate);
         return;
@@ -276,11 +276,11 @@ void ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
 
 void ejecutarTag(char *file_origen, char *tag_origen, char *file_destino, char *tag_destino){
 
-    char *fileATaggear;
-    sprintf(fileATaggear, "TAG %d %s %s %s %s",query->id_query, file_origen, tag_origen, file_destino, tag_destino);
+    char *file_a_taggear = string_from_format("TAG %d %s %s %s %s",query->id_query, file_origen, tag_origen, file_destino, tag_destino);
 
     pthread_mutex_lock(&sem_instruccion);
-    Mensaje* mensajito = crearMensajito(fileATaggear);
+    Mensaje* mensajito = crearMensajito(file_a_taggear);
+    free(file_a_taggear);
     enviarMensajito(mensajito,socket_storage,logger_worker);
     pthread_mutex_unlock(&sem_instruccion);
     log_debug(logger_worker, "%s:%s y %s:%s destino enviados", file_origen, tag_origen, file_destino, tag_destino);
@@ -289,11 +289,11 @@ void ejecutarTag(char *file_origen, char *tag_origen, char *file_destino, char *
 void ejecutarCommit(char *file, char *tag){
     ejecutarFlush(file, tag);
 
-    char *fileACommit;
-    sprintf(fileACommit, "COMMIT %d %s %s",query->id_query, file, tag);
+    char *fileACommit = string_from_format("COMMIT %d %s %s",query->id_query, file, tag);
 
     pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito(fileACommit);
+    free(fileACommit);
     enviarMensajito(mensajito,socket_storage,logger_worker);
     pthread_mutex_unlock(&sem_instruccion);
     log_debug(logger_worker, "%s:%s realizar commit enviado a storage", file, tag);

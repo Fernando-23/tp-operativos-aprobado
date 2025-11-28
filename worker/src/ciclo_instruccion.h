@@ -48,7 +48,7 @@ void ejecutarEnd();
 int obtenerOperacionCodOp(char *string_operacion);
 
 extern t_instruccion* instruccion;
-extern pthread_mutex_t sem_instruccion;
+
 
 extern int socket_master;
 extern int socket_storage;

@@ -25,6 +25,7 @@
         "errores.h": "c",
         "crypto.h": "c",
         "stat.h": "c",
-        "numbers": "c"
+        "numbers": "c",
+        "ciclo_instruccion.h": "c"
     }
 }

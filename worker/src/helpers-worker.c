@@ -4,12 +4,28 @@
 
 t_log* logger_worker = NULL;
 ConfigWorker* config_worker = NULL;
+
+pthread_mutex_t mx_conexion_storage;
+pthread_mutex_t mx_conexion_master;
+pthread_mutex_t mx_recibir_query;
+pthread_mutex_t mx_bitmap;
+pthread_mutex_t sem_instruccion;
+
 Query* query;
-//Puntero ptr_gb;
+Puntero ptr_gb;
 bool interrumpir_query;
 bool requiere_realmente_desalojo;
 
 int tam_pag;
+
+
+void inicializarMutexWorker(){
+    pthread_mutex_init(&mx_conexion_storage, NULL);
+    pthread_mutex_init(&mx_conexion_master, NULL);
+    pthread_mutex_init(&mx_recibir_query, NULL);
+    pthread_mutex_init(&mx_bitmap, NULL);
+    pthread_mutex_init(&sem_instruccion, NULL);
+}
 
 
 
@@ -43,7 +59,7 @@ void cargarConfigWorker(char* path_config){
 
 int conexionStorage(){
 
-    int socket_storage = crearConexion(config_worker->ip_storage,config_worker->puerto_storage, logger_worker);
+     socket_storage = crearConexion(config_worker->ip_storage,config_worker->puerto_storage, logger_worker);
     if(socket_storage == -1){
         log_error(logger_worker,"(conexionStorage) - No se pudo conectar con Storage");
         return -1;
@@ -61,7 +77,7 @@ int conexionStorage(){
 
 int conexionMaster(){
 
-    int socket_master = crearConexion(config_worker->ip_master,config_worker->puerto_master, logger_worker);
+    socket_master = crearConexion(config_worker->ip_master,config_worker->puerto_master, logger_worker);
     if(socket_master == -1){
         log_error(logger_worker,"(conexionMaster) - No se pudo conectar con Master");
         return -1;

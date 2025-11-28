@@ -75,6 +75,8 @@ int gestionarBitModificado(RespuestaAlgoritmoReemplazo* resp);
 
 void escribirEnStorage(EntradaDeTabla* entrada_a_persistir);
 
+void escribirPagina(int nro_frame, char* contenido);
+
 char* leerBloque(EntradaDeTabla* entrada_pagina);
 
 void hacerRetardo();
@@ -82,6 +84,8 @@ void hacerRetardo();
 bool estaPagEnMemoria(char* file, char* tag, int nro_pag);
 
 t_list* obtenerEntradasAFlushear(TablaPaginas* tabla_a_flush);
+
+uint64_t dirFisica(int nro_frame, int desp_actual);
 
 #endif /* MEMORIA_INTERNA_H_ */
 

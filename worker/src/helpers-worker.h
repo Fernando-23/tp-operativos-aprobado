@@ -6,6 +6,7 @@
 
 #include "../../utils/src/utils/conexiones.h"
 #include "../../utils/src/utils/helpers.h"
+#include "ciclo_instruccion.h"
 
 // home/utnso/
 typedef struct config_worker{
@@ -45,10 +46,13 @@ extern pthread_mutex_t mx_conexion_storage;
 extern pthread_mutex_t mx_conexion_master;
 extern pthread_mutex_t mx_recibir_query;
 extern pthread_mutex_t mx_bitmap;
+extern pthread_mutex_t sem_instruccion;
 
 void cargarConfigWorker(char* path_config);
 int conexionStorage();
 int conexionMaster();
 void esperandoQuery(int socket);
+
+void inicializarMutexWorker();
 
 #endif /* HELPERS_WORKER_H_ */
