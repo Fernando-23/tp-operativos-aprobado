@@ -6,7 +6,6 @@
 #include <sys/socket.h>
 
 static volatile sig_atomic_t debo_morir = 0;
-static char *g_id_worker = NULL;
 
 static void manejador_senial(int signo){
     debo_morir = 1;
@@ -21,9 +20,7 @@ int main(int argc, char* argv[]) {
     siginterrupt(SIGTERM, 1);
 
     char* path_config = argv[1];
-    char* id_worker = argv[2];
-
-    if (id_worker) g_id_worker = strdup(id_worker);
+    id_worker = atoi(argv[2]);
 
     cargarConfigWorker(path_config);
 
@@ -34,7 +31,7 @@ int main(int argc, char* argv[]) {
     query = malloc(sizeof(Query));
     instruccion = malloc(sizeof(t_instruccion));
        
-    log_info(logger_worker, "Worker %s iniciado correctamente", id_worker);
+    log_info(logger_worker, "Worker %d iniciado correctamente", id_worker);
 
     //conexion a storage que devuelve el tamanio de pagina
 
@@ -110,7 +107,7 @@ int main(int argc, char* argv[]) {
     }
 
     log_info(logger_worker, "Worker recibio sigint o sigterm");
-    char* mensaje_de_finalizacion = string_from_format("CARTA_DOCUMENTO %d %s",query->id_query, id_worker);
+    char* mensaje_de_finalizacion = string_from_format("CARTA_DOCUMENTO %d %d",query->id_query, id_worker);
     Mensaje* mensaje_storage = crearMensajito(mensaje_de_finalizacion);
     enviarMensajito(mensaje_storage, socket_storage, logger_worker);
 
@@ -120,8 +117,7 @@ int main(int argc, char* argv[]) {
     free(mensaje_de_finalizacion);
 
 
-    log_info(logger_worker, "Worker %s finalizado correctamente", id_worker);
-
+    log_info(logger_worker, "Worker %d finalizado correctamente", id_worker);
     return 0;
 }
 

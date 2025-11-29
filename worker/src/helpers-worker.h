@@ -41,6 +41,7 @@ extern Query* query;
 extern int tam_pag;
 extern bool interrumpir_query;
 extern bool es_end;
+extern int id_worker;
 
 extern pthread_mutex_t mx_conexion_storage;
 extern pthread_mutex_t mx_conexion_master;

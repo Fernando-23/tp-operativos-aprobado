@@ -28,10 +28,11 @@ void handshake(int fd){
 
 
 void iniciarStorage(){
-    
+    crearDirectorio(PATH_PHYSICAL_BLOCKS);    
+
     cargarConfigSuperblock();
     
-    if (string_equals_ignore_case(config_storage->fresh_start,"FRESH_START")){
+    if (string_equals_ignore_case(config_storage->fresh_start,"TRUE")){
         //ACA IRIA LA_SANGUINARIA();
         
         limpiarHashIndexConfig();
@@ -48,10 +49,11 @@ void iniciarStorage(){
 }
 
 void limpiarHashIndexConfig(){
-    t_config* aux_para_vaciar_hash_index = config_create(RUTA_AUX_FSTART_HASH_INDEX);
-    
+    t_config* aux_para_vaciar_hash_index = config_create(RUTA_AUX_FSTART_HASH_INDEX);  
+    log_debug(logger_storage, "intenta limpiar hash");
     config_save_in_file(aux_para_vaciar_hash_index,RUTA_HASH_INDEX);
     config_destroy(aux_para_vaciar_hash_index);
+    log_debug(logger_storage, "hash limpio");
 }
 
 void cargarConfigStorage(char* arch_config){
@@ -89,7 +91,7 @@ void cargarConfigSuperblock(){
 
     datos_superblock_gb->tamanio_fsystem = config_get_int_value(superblock,"FS_SIZE");
     datos_superblock_gb->tamanio_bloque = config_get_int_value(superblock,"BLOCK_SIZE");
-    datos_superblock_gb->cant_bloques = calcularCantBloques();// 
+    datos_superblock_gb->cant_bloques = calcularCantBloques();
 
     log_debug(logger_storage, "se cargaron config super block ");
     
@@ -102,7 +104,7 @@ int calcularCantBloques(){
     int cant_bloques = datos_superblock_gb->tamanio_fsystem / datos_superblock_gb->tamanio_bloque;
 
     if (datos_superblock_gb->tamanio_fsystem % datos_superblock_gb->tamanio_bloque != 0){
-        return cant_bloques++;
+        cant_bloques++;
     }
 
     return cant_bloques;
@@ -112,16 +114,13 @@ void crearBloquesFisicos(){
 
     for (int i = 0; i < datos_superblock_gb->cant_bloques; i++){
         char* nombre_bloque = string_from_format("block%04d",i);
-        sprintf(nombre_bloque, "block%04d",i);
-
+            
         char* ruta_absoluta = string_from_format("%s/%s.dat",PATH_PHYSICAL_BLOCKS,nombre_bloque);
         FILE* arch = fopen(ruta_absoluta, "a+");
         fclose(arch);
         
         
-        crearYAgregarBloqueFisicoIndividual(i,nombre_bloque,ruta_absoluta);       
-        free(nombre_bloque);
-        free(ruta_absoluta);
+        crearYAgregarBloqueFisicoIndividual(i,nombre_bloque,ruta_absoluta);
     }
     log_debug(logger_storage,"Debug - (crearBloquesFisicos) - Bloques fisicos creados");
 }

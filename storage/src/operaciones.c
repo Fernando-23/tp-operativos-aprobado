@@ -7,7 +7,9 @@ void* recursosHumanos(void *args_sin_formato)
     while (1)
     {
         int fd_cliente;
+        log_debug(logger_storage, "esperando cliente");
         fd_cliente = esperarCliente(socket_cliente, logger_storage);
+         log_debug(logger_storage, "se conecto un cliente");
         pthread_t thread_labubu;
         pthread_create(&thread_labubu, NULL, atenderLaburanteDisconforme, (void *)&fd_cliente);
         pthread_detach(thread_labubu);
@@ -20,6 +22,9 @@ void *atenderLaburanteDisconforme(void *args_sin_formato)
 
     handshake(fd_cliente);
 
+    //while(1){
+     //   Mensaje * mensajito = re
+    //}
     do
     {
         pedidoDeLaburante(fd_cliente);
@@ -150,7 +155,7 @@ void pedidoDeLaburante(int mail_laburante){
         int id_bloque_logico = atoi(mensajito_cortado[4]);
         char* contenido_a_leer = NULL;
 
-        ErrorStorageEnum respuesta_LECTURA_BLOQUE = realizarREAD(nombre_file,nombre_tag,id_bloque_logico,contenido_a_leer); 
+        ErrorStorageEnum respuesta_LECTURA_BLOQUE = realizarREAD(nombre_file,nombre_tag,id_bloque_logico,&contenido_a_leer); 
         
         char* enviar_formateado = string_from_format("%s %s",NOMBRE_ERRORES[respuesta_LECTURA_BLOQUE], contenido_a_leer);
         Mensaje* mensajito_leido = crearMensajito(enviar_formateado);
@@ -869,7 +874,8 @@ ErrorStorageEnum realizarWRITE(int query_id,char* nombre_file,char* nombre_tag,i
     return OK;
 }
 
-ErrorStorageEnum realizarREAD(char* nombre_file,char* nombre_tag,int id_bloque_logico,char* contenido_a_cargar){
+ErrorStorageEnum realizarREAD(char* nombre_file,char* nombre_tag,int id_bloque_logico,char** contenido){
+    char* contenido_a_cargar = *contenido;
     if (fileInexistente(nombre_file)){
         contenido_a_cargar = string_duplicate("");
         return FILE_INEXISTENTE;

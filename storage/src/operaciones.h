@@ -40,8 +40,6 @@ ErrorStorageEnum realizarCREATE(char *nombre_file, char *nombre_tag);
 
 ErrorStorageEnum realizarTRUNCATE(int query_id,char* nombre_file, char* nombre_tag, int tamanio_a_truncar);
 
-void crearDirectorio(char *path_directorio);
-
 
 
 ErrorStorageEnum realizarTAG(char *nombre_file_origen,
@@ -113,7 +111,7 @@ void escribirEnBloque(char* ruta_abs_bloque_logico,char* contenido);
 char* leerBloqueLogico(BloqueLogico* bloque_logico);
 bool estaCommiteado(t_config* metadata);
 ErrorStorageEnum realizarWRITE(int query_id,char* nombre_file,char* nombre_tag,int id_bloque_logico,char* contenido);
-ErrorStorageEnum realizarREAD(char* nombre_file,char* nombre_tag,int id_bloque_logico,char* contenido_a_cargar);
+ErrorStorageEnum realizarREAD(char* nombre_file,char* nombre_tag,int id_bloque_logico,char** contenido);
 void liberarDatosParaHash(DatosParaHash *dato_a_liberar);
 
 //--------RETARDOS----------

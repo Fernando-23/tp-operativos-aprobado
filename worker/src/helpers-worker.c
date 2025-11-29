@@ -19,6 +19,7 @@ bool interrumpir_query=false;
 bool requiere_realmente_desalojo;
 
 int tam_pag;
+int id_worker;
 
 
 void inicializarMutexWorker(){
@@ -82,11 +83,15 @@ int conexionMaster(){
         log_error(logger_worker,"(conexionMaster) - No se pudo conectar con Master");
         return -1;
     }
-    Mensaje* mensajito = crearMensajito("hola mi estimado master, soy tu worker");
+
+    char* formato = string_from_format("WORKER %d", id_worker);
+    
+
+    Mensaje* mensajito = crearMensajito(formato);
     enviarMensajito(mensajito,socket_master,logger_worker);
     
     log_info(logger_worker,"Conectado a Master");
-
+    free(formato);
     return socket_master;
 }
 
