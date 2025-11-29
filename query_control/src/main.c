@@ -16,10 +16,18 @@ int main(int argc, char* argv[]) {
     int socket_query = crearConexion(config_query->ip_master,config_query->puerto_master, logger_query);
 
     if (socket_query == -1 ) return 1;
+    //////////////////////////////////////////// LOG OBLIGATIORIO ////////////////////////////////////////////////////////////////
+    log_info(logger_query, "Conexión al Master exitosa. IP: %s, Puerto: %s",config_query->ip_master,config_query->puerto_master);
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    
+    //////////////////////////////////////////// LOG OBLIGATIORIO ////////////////////////////////////////////////////////////////
+    log_info(logger_query, "Solicitud de ejecución de Query: %s, prioridad: %s",path_arch_query, prioridad);
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
     Mensaje* envio_query = crearMensajeRegistroQuery(path_arch_query, atoi(prioridad));
     enviarMensajito(envio_query,socket_query, logger_query);
 
+    
     int tengo_que_seguir = 1;
 
 	while(tengo_que_seguir){
@@ -36,6 +44,8 @@ int main(int argc, char* argv[]) {
 		liberarMensajito(orden_de_mi_maestro);
 	}
 
+    log_debug(logger_query, "Testamento query control, sin bienes tangibles");
+    
     
     log_destroy(logger_query);
     close(socket_query);

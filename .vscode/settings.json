@@ -26,6 +26,10 @@
         "crypto.h": "c",
         "stat.h": "c",
         "numbers": "c",
-        "ciclo_instruccion.h": "c"
+        "ciclo_instruccion.h": "c",
+        "pthread.h": "c",
+        "charconv": "c",
+        "functional": "c",
+        "__functional_03": "c"
     }
 }

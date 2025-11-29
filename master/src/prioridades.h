@@ -2,7 +2,9 @@
 #define PRIORIDADES_H_
 #include "helpers-master.h"
 
-Worker* buscarWorkerPorPrioridad(int prioridad_a_comparar);
-void enviarDesalojo(int fd_worker);
+Worker* buscarVictimaDesalojable(int prioridad_nueva);
+Worker* buscarWorkerConMenorPrioridad();
+Worker* buscarWorkerLibre();
+
 
 #endif /*PRIORIDADES_H_*/

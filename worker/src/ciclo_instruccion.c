@@ -201,11 +201,11 @@ bool Execute(){
     case END:
         finaliza = ejecutarEnd();
         nombre_instruccion = "END";
-        return;
+        return finaliza;
 
     default:
         log_error(logger_worker,"Error - (Execute) - ingrese una instruccion valida");
-        return;
+        return true;
     }
 
 
@@ -229,7 +229,7 @@ bool ejecutarCreate(char *file, char *tag){
 
         log_debug(logger_worker, "Query %d finalizada", query->id_query);
         
-        char* formato_error_master = strng_from_format("ERROR %s", resp_create->mensaje);
+        char* formato_error_master = string_from_format("ERROR %s", resp_create->mensaje);
         Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
         enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
         
@@ -249,7 +249,7 @@ bool ejecutarTruncate(char *file, char *tag, int tamanio){
     if (tamanio % tam_pag != 0 || tam_pag % tamanio != 0)
     {
         log_error(logger_worker, "El tamanio a truncar debe ser multiplo del tamanio de pagina");
-        return;
+        return true;
     }
     char *mensaje_truncado = string_from_format("TRUNCATE %d %s %s %d", query->id_query,file, tag, tamanio);
 
@@ -259,7 +259,7 @@ bool ejecutarTruncate(char *file, char *tag, int tamanio){
     Mensaje* resp_truncate = recibirMensajito(socket_storage,logger_worker);
     if (!string_equals_ignore_case(resp_truncate->mensaje,"OK")){
 
-        char* formato_error_master = strng_from_format("ERROR %s", resp_truncate->mensaje);
+        char* formato_error_master = string_from_format("ERROR %s", resp_truncate->mensaje);
         Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
         enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
         
@@ -275,7 +275,8 @@ bool ejecutarWrite(char *file, char *tag, int dir_base, char *contenido_a_escrib
     int nro_pagina = dir_base / tam_pag; // nro de bloque logico
     int desplazamiento = dir_base % tam_pag;
     if(!escribirEnMemoria(file, tag, nro_pagina, desplazamiento,contenido_a_escribir)){
-        char* formato_error_master = strng_from_format("ERROR %s", error_en_operacion);
+        char* formato_error_master = string_from_format("ERROR %s", error_en_operacion);
+        error_en_operacion = "OK";
         Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
         enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
         return true;
@@ -289,7 +290,7 @@ bool ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
     if (tamanio % tam_pag == 0 || tam_pag % tamanio == 0)
     {
         log_error(logger_worker, "El tamanio a leer debe ser multiplo del tamanio de pagina");
-        return;
+        return true;
     }
     
     int pagina = dir_base / tam_pag; // capaz no toma el tam_pag global dentro de helper-worker.h
@@ -297,7 +298,8 @@ bool ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
 
     char *datoLeido = leerEnMemoria(file, tag, pagina, desplazamiento, tamanio);
     if(datoLeido == NULL){
-         char* formato_error_master = strng_from_format("ERROR %s", error_en_operacion);
+         char* formato_error_master = string_from_format("ERROR %s", error_en_operacion);
+        error_en_operacion = "OK";
         Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
         free(formato_error_master);
         enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
@@ -326,7 +328,7 @@ bool ejecutarTag(char *file_origen, char *tag_origen, char *file_destino, char *
      Mensaje* resp_tag = recibirMensajito(socket_storage,logger_worker);
     if (!string_equals_ignore_case(resp_tag->mensaje,"OK")){
 
-        char* formato_error_master = strng_from_format("ERROR %s", resp_tag->mensaje);
+        char* formato_error_master = string_from_format("ERROR %s", resp_tag->mensaje);
         Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
         enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
         free(formato_error_master);
@@ -354,7 +356,7 @@ bool ejecutarCommit(char *file, char *tag){
      Mensaje* resp_commit = recibirMensajito(socket_storage,logger_worker);
     if (!string_equals_ignore_case(resp_commit->mensaje,"OK")){
 
-        char* formato_error_master = strng_from_format("ERROR %s", resp_commit->mensaje);
+        char* formato_error_master = string_from_format("ERROR %s", resp_commit->mensaje);
         Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
         enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
         free(formato_error_master);
@@ -379,7 +381,8 @@ bool ejecutarFlush(char *file, char *tag){
     for (int i = 0; i < list_size(entradas_obtenidas); i++){
         EntradaDeTabla* entrada_a_persistir = list_remove(entradas_obtenidas,0);
         if(!escribirEnStorage(entrada_a_persistir)){
-            char* formato_error_master = strng_from_format("ERROR %s", error_en_operacion);
+            char* formato_error_master = string_from_format("ERROR %s", error_en_operacion);
+            error_en_operacion = "OK";
             Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
             free(formato_error_master);
             enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
@@ -402,7 +405,7 @@ bool ejecutarDelete(char *file, char *tag){ // las páginas se van a ir limpiand
     Mensaje* respuesta_delete = recibirMensajito(socket_storage,logger_worker); // ENumERrrorCapaz OK 
     if (!string_equals_ignore_case(respuesta_delete->mensaje,"OK")){
 
-         char* formato_error_master = strng_from_format("ERROR %s", respuesta_delete->mensaje);
+         char* formato_error_master = string_from_format("ERROR %s", respuesta_delete->mensaje);
         Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
         free(formato_error_master);
         enviarMensajito(mensaje_error_master, socket_master ,logger_worker);

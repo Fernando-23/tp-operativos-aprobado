@@ -53,7 +53,7 @@ int conexionStorage();
 int conexionMaster();
 void esperandoQuery(int socket);
 
-void hiloDesalojo(void* args);
+void* hiloDesalojo(void* args);
 
 void inicializarMutexWorker();
 

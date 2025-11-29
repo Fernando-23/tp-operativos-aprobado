@@ -29,9 +29,9 @@ typedef struct{
     EntradaDeTabla* entrada;
 }RespuestaAlgoritmoReemplazo;
 
+
+
 extern char* error_en_operacion;
-
-
 extern int* bitMap;
 extern int cant_frames;
 // extern t_list* lista_frames; // Array de frames
@@ -53,9 +53,10 @@ EntradaDeTabla* buscarEntradaPorNroPag(t_list* entradas,int nro_pag);
 
 bool estaPagEnMemoria(char* file, char* tag, int nro_pag);
 bool escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,char* contenido);
-bool* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int tamanio);
 
-int aplicarPoliticaReemplazo();
+char* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int tamanio);
+
+int aplicarPoliticaReemplazo(char* file, char* tag, int nro_pag);
 
 RespuestaAlgoritmoReemplazo* cargarRespuestaAlgoritmoRemplazo(int id_tabla, int id_entrada, EntradaDeTabla* entrada);
 RespuestaAlgoritmoReemplazo* cicloClockM(int resetear_bit_uso, int bit_uso, int bit_modificado);

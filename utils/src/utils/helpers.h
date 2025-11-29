@@ -12,16 +12,18 @@
 #define CANT_ERRORES 9
 #define CANT_MODULOS 4
 
+extern char* path_base_query;
+
 typedef enum {
 	MENSAJE,
-	PAQUETE
+	PAQUETE,
 }op_code_code;
 
 typedef enum {
     QUERY,
 	MASTER,
 	WORKER,
-    STORAGE
+    STORAGE,
 }Modulo;
 
 typedef enum {
@@ -33,8 +35,21 @@ typedef enum {
 	ESPACIO_INSUFICIENTE,
 	ESCRITURA_NO_PERMITIDA,
 	LECTURA_FUERA_DE_LIMITE,
-	ESCRITURA_FUERA_DE_LIMITE
+	ESCRITURA_FUERA_DE_LIMITE,
 }ErrorStorageEnum;
+
+/*typedef enum {
+	END,
+	READ,
+}RespuestaMasterEnum;*/
+
+typedef enum{
+	LEER,
+	DESALOJAR,
+	FINALIZAR,
+	ERROR,
+}RespuestaEnum;
+
 
 typedef struct {
 	u_int32_t size;  
@@ -62,6 +77,7 @@ typedef struct{
 
 extern char* NOMBRE_MODULOS[CANT_MODULOS];
 extern char* NOMBRE_ERRORES[CANT_ERRORES];
+extern char* NOMBRE_RESPUESTA_WORKER[4];
 
 t_log* iniciarLogger(char* nombre_modulo, int nivel_log);
 t_config* iniciarConfig(char* nombre_config); 
@@ -76,7 +92,8 @@ void *serializar_paquete(t_paquete *paquete, uint32_t bytes);
 void *recibir_buffer(uint32_t *size, int socket_cliente);
 t_list *recibir_paquete(int socket_cliente);
 
-int obtenerModuloCodOp(char *string_modulo);
+int obtenerModuloCodOp(char* string_modulo);
+int obtenerRespuestaWorkerEnum(char* string_cod_op);
 
 Mensaje* crearMensajito(char* mensaje);
 void enviarMensajito(Mensaje* mensaje_a_enviar,int fd,t_log* logger);

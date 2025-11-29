@@ -38,9 +38,9 @@ bool tagInexistente(t_list* tags,char* nombre_tag,char* nombre_file){
     
 }
 
-bool espacioInsuficiente(){
+/*bool espacioInsuficiente(){
 
-}
+}*/
 
 bool tieneEstadoCOMMITED(Tag* tag_a_consultar){
     char* estado_commit = config_get_string_value(tag_a_consultar->metadata_config_tag,"ESTADO"); 
@@ -51,6 +51,6 @@ bool tieneEstadoCOMMITED(Tag* tag_a_consultar){
     return false;
 }
 
-bool lecturaOEscrituraFueraDeLimite(){
+/*bool lecturaOEscrituraFueraDeLimite(){
 
-}
+}*/

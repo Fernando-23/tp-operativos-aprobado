@@ -5,6 +5,8 @@
 t_log* logger_worker = NULL;
 ConfigWorker* config_worker = NULL;
 
+bool es_end = false;
+
 pthread_mutex_t mx_conexion_storage;
 pthread_mutex_t mx_conexion_master;
 pthread_mutex_t mx_recibir_query;
@@ -131,7 +133,7 @@ void esperandoQuery(int socket){
 
 
 
-void hiloDesalojo(void* args){
+void* hiloDesalojo(void* args){
 
     while(1){
         Mensaje* msg = recibirMensajito(socket_master, logger_worker);

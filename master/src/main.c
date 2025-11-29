@@ -17,6 +17,14 @@ int main(int argc, char* argv[]) {
 
     if(socket_sv == -1) return 1;
 
+    if (string_equals_ignore_case(config_master->algoritmo_plani, "PRIORIDADES") && 
+        config_master->tiempo_aging > 0) {
+        pthread_t th_aging;
+        pthread_create(&th_aging, NULL, hiloAging, NULL);
+        pthread_detach(th_aging);
+        log_info(logger_master, "Hilo AGING iniciado cada %d ms", config_master->tiempo_aging);
+    }
+
     pthread_create(&thread_adm,NULL,atenderClientes,(void *)&socket_sv); 
       
     pthread_join(thread_adm,NULL);

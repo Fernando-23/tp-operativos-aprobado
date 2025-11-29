@@ -3,26 +3,54 @@
 
 
 Worker* buscarWorkerLibre(){
-    
-    bool libre(void *ptr){
-		Worker* worker = (Worker *)ptr;
-		return worker->esta_libre;
-	}
+    pthread_mutex_lock(&mutex_workers);
 
-	return list_find(lista_workers, libre);
-}
-
-Worker* buscarWorkerPorPrioridad(int prioridad_a_comparar){
-    
-    bool tieneMayorPrioridad(void* ptr){
-        Worker* worker = (Worker *)ptr;
-        return (worker->query->prioridad > prioridad_a_comparar);
+    Worker* libre = NULL;
+    for (int i = 0; i < list_size(lista_workers); i++) {
+        Worker* w = list_get(lista_workers, i);
+        if (w->esta_libre && w->query_pendiente == NULL) {
+            libre = w;
+            break;
+        }
     }
-    return list_find(lista_workers,tieneMayorPrioridad);
+
+    pthread_mutex_unlock(&mutex_workers);
+    return libre;
 }
 
-void enviarDesalojo(int fd_worker){
-    Mensaje* mensaje_desalojo = crearMensajito("DESALOJO");
-    
-    enviarMensajito(mensaje_desalojo,fd_worker,logger_master);
+Worker* buscarVictimaDesalojable(int prioridad_nueva) {
+    pthread_mutex_lock(&mutex_workers);
+    Worker* victima = NULL;
+    int peor_prio = -1; 
+
+    for (int i = 0; i < list_size(lista_workers); i++) {
+        Worker* w = list_get(lista_workers, i);
+        if (!w->esta_libre && 
+            w->query_actual && 
+            w->query_pendiente == NULL &&  
+            w->query_actual->prioridad > prioridad_nueva && 
+            w->query_actual->prioridad > peor_prio) {       
+            victima = w;
+            peor_prio = w->query_actual->prioridad;
+        }
+    }
+    pthread_mutex_unlock(&mutex_workers);
+    return victima;
+}
+
+Worker* buscarWorkerConMenorPrioridad(){
+    Worker* victima = NULL;
+    int prioridad_menor = -1;
+
+    for (int i = 0; i < list_size(lista_workers); i++) {
+        Worker* w = list_get(lista_workers, i);
+            int prio_actual = w->query_actual->prioridad;
+            if (prioridad_menor == -1 || prio_actual > prioridad_menor) {
+                prioridad_menor = prio_actual;
+                victima = w;
+            }
+        
+    }
+
+    return victima;
 }

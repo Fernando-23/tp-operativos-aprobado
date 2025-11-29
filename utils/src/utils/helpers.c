@@ -6,8 +6,9 @@ char* NOMBRE_ERRORES[CANT_ERRORES] =
 	{"OK","FILE_INEXISTENTE", "TAG_INEXISTENTE","FILE_PREEXISTENTE","TAG_PREEXISTENTE",
 	 "ESPACIO_INSUFICIENTE","ESCRITURA_NO_PERMITIDA","LECTURA_FUERA_DE_LIMITE","ESCRITURA_FUERA_DE_LIMITE"};
 
+char* NOMBRE_RESPUESTA_WORKER[4] = {"LEER","DESALOJAR","FINALIZAR","ERROR"}; //LEER,
 
-
+char* path_base_query = "/home/utnso/tp-2025-2c-Nombre-que-llamar-un-ayudante-/queries";
 
 
 t_log* iniciarLogger(char* nombre_modulo,int nivel_log)
@@ -160,13 +161,22 @@ void liberarMensajito(Mensaje* mensajito_a_liberar){
 }
 
 int obtenerModuloCodOp(char *string_modulo){
-    for (int i = 0; i < CANT_MODULOS; i++)
-    {
+    for (int i = 0; i < CANT_MODULOS; i++){	
         if (strcmp(NOMBRE_MODULOS[i],string_modulo)==0)
-		 return i;
+			return i;
     }
     return -1;
 }
+
+int obtenerRespuestaWorkerEnum(char* string_cod_op){
+	for (int i = 0; i < 4; i++){
+    	if (string_equals_ignore_case(NOMBRE_RESPUESTA_WORKER[i],string_cod_op)==0)
+			return i;
+    }
+    return -1;
+}
+
+
 
 Mensaje* mensajitoOk(){
     Mensaje* mensajito = malloc(sizeof(Mensaje));
