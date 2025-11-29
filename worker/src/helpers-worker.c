@@ -67,7 +67,7 @@ int conexionStorage(){
     }
     Mensaje* mensajito = crearMensajito("Riding in my storage, right after a commit."); // polemico
     enviarMensajito(mensajito,socket_storage, logger_worker);
-    Mensaje* mensajeRecibido = menrecibirMensajito(socket_storage,logger_worker);
+    Mensaje* mensajeRecibido = recibirMensajito(socket_storage,logger_worker);
     tam_pag = atoi(mensajeRecibido->mensaje);
     log_info(logger_worker,"Tamanio pag recibido %d",tam_pag);
     
