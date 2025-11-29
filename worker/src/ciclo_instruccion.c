@@ -220,9 +220,11 @@ bool Execute(char** instruccion_separada){
 
     case READ:
         //<NOMBRE_FILE>:<TAG> <DIRECCIÓN BASE> <TAMAÑO>
-        log_debug(logger_worker, "(Execute) - Ejecutando READ %s:%s", file, tag);
         int dir_base_read = atoi(instruccion_separada[2]);
         int tamanio_read = atoi(instruccion_separada[3]);
+        log_debug(logger_worker, "(Execute) - Ejecutando READ %s:%s DIR_BASE: %d, TAMANIO: %d",
+         file, tag,dir_base_read,tamanio_read);
+        
 
         finaliza = ejecutarRead(file, tag, dir_base_read, tamanio_read);
         nombre_instruccion = "READ";
@@ -361,10 +363,10 @@ bool ejecutarWrite(char *file, char *tag, int dir_base, char *contenido_a_escrib
 
 bool ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
     log_debug(logger_worker, "(ejecutarRead) - Dir base: %d", dir_base);
-    if (tamanio % tam_pag == 0 || tam_pag % tamanio == 0)
+    log_debug(logger_worker, "tamanio de pagina: %d", tam_pag);
+    if (tamanio % tam_pag != 0)
     {
-        log_error(logger_worker, "El tamanio a leer debe ser multiplo del tamanio de pagina");
-        return true;
+        log_warning(logger_worker, "El tamanio a leer debe ser multiplo del tamanio de pagina");
     }
     
     int pagina = dir_base / tam_pag; // capaz no toma el tam_pag global dentro de helper-worker.h
@@ -383,7 +385,9 @@ bool ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
         return true;
     }
     
-    char* mensaje_a_master_formateado = string_from_format("READ %s %s %s",file, tag, datoLeido); // READ ID_QUERY FILE TAG CONTENIDO
+    char* mensaje_a_master_formateado = string_from_format("LEER_BLOQUE %d %s %s %s",
+    query->id_query,file, tag, datoLeido); // LEER_BLOQUE ID_QUERY FILE TAG CONTENIDO
+
     Mensaje* mensajito = crearMensajito(mensaje_a_master_formateado); 
    
     enviarMensajito(mensajito,socket_master,logger_worker); // ENVIO READ A MASTER

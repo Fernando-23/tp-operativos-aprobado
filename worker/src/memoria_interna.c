@@ -128,6 +128,7 @@ bool escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,cha
             log_info(logger_worker,"Query %d: - Memoria Miss - File: %s - Tag: %s - Pagina: %d",query->id_query,file,tag,pag_actual);
             frame_seleccionado = gestionarPAGE_FAULT(file,tag,pagina);
             if(frame_seleccionado == -1) return false; 
+            entrada_pag->bit_presencia = 1;
             entrada_pag->nro_frame = frame_seleccionado;
         }
         void* base_frame = memoria + (entrada_pag->nro_frame * tam_pag);
@@ -169,7 +170,7 @@ bool escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,cha
 
 void escribirPagina(char*file, char* tag, int nro_pagina,int nro_frame, char* contenido){
     char* base_frame = memoria + (nro_frame*tam_pag);
-    memcpy(base_frame, contenido, 1);
+    memcpy(base_frame, contenido, tam_pag);
     log_info(logger_worker,"Query %d: - Memoria Add - File: %s - Tag: %s - Pagina: %d - Marco: %d",query->id_query,file,tag,nro_pagina,nro_frame);                                                          
 }
 
@@ -179,7 +180,9 @@ uint64_t dirFisica(int nro_frame, int desp_actual){
 
 char* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int tamanio)
 {   
-    log_debug(logger_worker,"(leerEnMemoria) - Leyendo en memoria - File: %s - Tag: %s - Pagina: %d - Desplazamiento: %d - Tamaño: %d",file,tag,pagina,desplazamiento,tamanio);
+    log_debug(logger_worker,"(leerEnMemoria) - Leyendo en memoria - File: %s - Tag: %s - Pagina: %d - Desplazamiento: %d - Tamaño: %d",
+    file,tag,pagina,desplazamiento,tamanio);
+    
     if (tamanio <= 0 || pagina < 0 || desplazamiento < 0 || desplazamiento >= tam_pag) {
         log_error(logger_worker, "(leer_en_memoria_paginada) - Parametros invalidos (pagina=%d, desp=%d, tam=%d)", pagina, desplazamiento, tamanio);
         return NULL;
@@ -211,6 +214,7 @@ char* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int t
             log_debug(logger_worker,"(leerEnMemoria) - Page Fault en pagina %d",pag_actual);
             int frame_seleccionado = gestionarPAGE_FAULT(file,tag,pagina);
             if(frame_seleccionado == -1) return NULL;
+            ent->bit_presencia = 1;
             ent->nro_frame = frame_seleccionado;   
         }
 
@@ -226,10 +230,11 @@ char* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int t
 
         uint64_t dfis = dirFisica(ent->nro_frame, desp_actual);
         log_info(logger_worker,
-                 "Query %d: Acción: LEER - Dirección Física: %llu - Valor Leido: %s",
-                 query->id_query,
-                 (unsigned long long) dfis,
-                 (const char*)(base_frame + desp_actual));
+         "Query %d: Acción: LEER - Dirección Física: %llu - Valor Leido: %.*s",
+            query->id_query,
+            (unsigned long long) dfis,
+            (int)bytesLeidos,           // Muestra solo lo leído hasta ahora
+            mensaje);
 
         bytesLeidos += por_copiar;
 
@@ -264,7 +269,7 @@ int aplicarPoliticaReemplazo(char* file, char* tag, int nro_pag){
         log_error(logger_worker, "(aplicarPoliticaReemplazo) - CLOCK-M no encontró víctima");
         return -1;
     }
-    else if (string_equals_ignore_case(config_worker->algoritmo_reemplazo, "LRU") == 0) {
+    else if (string_equals_ignore_case(config_worker->algoritmo_reemplazo, "LRU")) {
         log_debug(logger_worker,"(aplicarPoliticaReemplazo) - Aplicando LRU");
         resp = elegirVictimaLRU();return gestionarBitModificado(resp,file,tag,nro_pag); 
     }
@@ -363,18 +368,21 @@ RespuestaAlgoritmoReemplazo* cicloClockM(int resetear_bit_uso, int bit_uso, int 
 }
 
 RespuestaAlgoritmoReemplazo* elegirVictimaLRU(){
+    log_debug(logger_worker, "entre a (elegirVictimaLRU)");
     uint64_t vistima_elegida = UINT64_MAX; //q se vacha
     int id_tabla;
     int id_entrada;
     EntradaDeTabla* entrada_vistima;
 
+    
     for(int i = 0; i < list_size(tabla_general);i++){ 
-        TablaPaginas* tabla_selec = (TablaPaginas *)list_get(tabla_general,i);
-
+            TablaPaginas* tabla_selec = (TablaPaginas *)list_get(tabla_general,i);
+         log_debug(logger_worker, "entre a  for de afuera de (elegirVictimaLRU)");
         hacerRetardo();
         
         for(int j = 0; j < list_size(tabla_selec->entradas); j++){
             EntradaDeTabla* entrada = (EntradaDeTabla *)list_get(tabla_selec->entradas, j);
+            log_debug(logger_worker, "entrada numero %d tiempo ms: %li",j,entrada->last_used_ms);
             if (entrada->bit_presencia == 1 && entrada->last_used_ms < vistima_elegida) {
                 log_debug(logger_worker,"AGUS TE QUEREMOS MUCHO, FORRO. GRACIAS MUCHACHOS! - Victima elegida %d",j);
                 vistima_elegida = entrada->last_used_ms;
@@ -384,6 +392,7 @@ RespuestaAlgoritmoReemplazo* elegirVictimaLRU(){
             }
         }
     }
+    log_debug(logger_worker,"(elegirVictimaLRU) - FIN_LRU");
     return cargarRespuestaAlgoritmoRemplazo(id_tabla,id_entrada,entrada_vistima);
 }
 
@@ -414,6 +423,8 @@ int gestionarPAGE_FAULT(char* file, char* tag, int nro_pagina){
             char* contenido_pagina = datos_recibidos[1]; // no escribimos en memoria
             
             int frame_a_asignar =  devolverFrameLibre(file,tag,nro_pagina);
+            if(frame_a_asignar == -1) return frame_a_asignar;
+            
             escribirPagina(file,tag,nro_pagina,frame_a_asignar, contenido_pagina);
             log_info(logger_worker,"Query %d: Se asigna el Marco: %d a la Página: %d perteneciente al - File: %s - Tag: %s",query->id_query,frame_a_asignar,nro_pagina,file,tag);
             return frame_a_asignar;
@@ -542,8 +553,10 @@ char* leerBloque(EntradaDeTabla* entrada_pagina){ // memoria me desplazo hasta l
 
 
 void hacerRetardo(){
+    log_debug(logger_worker, "(hacerRetardo) - retardo asesino");
     int retardo_memoria = config_worker->retardo_memoria;
     sleep(retardo_memoria / 1000); // Lo cambiamos despues 
+    log_debug(logger_worker, "(hacerRetardo) - retardo no  asesino");
 }
 
 bool estaPagEnMemoria(char* file, char* tag, int nro_pag){
