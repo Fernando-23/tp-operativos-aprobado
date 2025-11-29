@@ -10,6 +10,7 @@ t_list* tabla_general = NULL;
 
 
 void iniciarMemoria(){
+    log_debug(logger_worker, "Iniciando memoria interna paginada...");
     memoria = malloc(config_worker->tam_memoria);
     if (!memoria) {
         log_error(logger_worker, "(iniciarMemoria) - Fallo malloc de memoria principal");
@@ -42,7 +43,7 @@ TablaPaginas* buscarTablaPags(char* file, char* tag){
 }
 
 TablaPaginas* buscarOCrearTabla(char* file, char* tag) {
-
+    log_debug(logger_worker,"(buscarOCrearTabla) - Buscando tabla de paginas para File: %s - Tag: %s",file,tag);
     TablaPaginas* tabla = buscarTablaPags( file, tag);
 
     if(tabla == NULL){
@@ -68,7 +69,7 @@ EntradaDeTabla *buscarOCrearEntradaPag(TablaPaginas *tabla_a_consultar, int pag_
 }
 
 EntradaDeTabla* buscarEntradaPagina(TablaPaginas* tabla, int pag_actual){
-    
+    log_debug(logger_worker,"(buscarEntradaPagina) - Buscando entrada de pagina %d en tabla de paginas File: %s - Tag: %s",pag_actual,tabla->file,tabla->tag);  
     for (int i = 0; i < list_size(tabla->entradas); i++)
     {
         EntradaDeTabla *entrada = list_get(tabla->entradas, i);
@@ -82,6 +83,7 @@ EntradaDeTabla* buscarEntradaPagina(TablaPaginas* tabla, int pag_actual){
 
 
 int buscarFrameLibreEnBitmap(){
+    log_debug(logger_worker,"(buscarFrameLibreEnBitmap) - Buscando frame libre en bitmap");
     // pthread_mutex_lock(mx_bitmap);
     for (int i = 0; i < cant_frames; i++) {
         if (bitMap[i] == 0) {
@@ -95,7 +97,7 @@ int buscarFrameLibreEnBitmap(){
 }
 
 EntradaDeTabla* buscarEntradaPorNroPag(t_list* entradas,int nro_pag){
-
+    log_debug(logger_worker,"(buscarEntradaPorNroPag) - Buscando entrada de pagina %d",nro_pag);
     bool tieneMismoNroPag(void *ptr){
         EntradaDeTabla* entrada = (EntradaDeTabla *)ptr;
         return (entrada->nro_pag == nro_pag);
@@ -105,6 +107,7 @@ EntradaDeTabla* buscarEntradaPorNroPag(t_list* entradas,int nro_pag){
 
 
 bool escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,char* contenido){
+    log_debug(logger_worker,"(escribirEnMemoria) - Escribiendo en memoria - File: %s - Tag: %s - Pagina: %d - Desplazamiento: %d - Contenido: %s",file,tag,pagina,desplazamiento,contenido);    
     size_t bytes_contenido = strlen(contenido);
     size_t total_a_escribir = bytes_contenido + 1; 
     size_t escritos = 0;
@@ -113,21 +116,20 @@ bool escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,cha
     int frame_seleccionado;
     TablaPaginas* tabla_paginas = buscarOCrearTabla(file, tag);
 
-    while(escritos < total_a_escribir){
+    while(escritos < total_a_escribir){ 
         
         EntradaDeTabla* entrada_pag = buscarEntradaPagina(tabla_paginas, pag_actual);
         if (entrada_pag == NULL || entrada_pag->bit_presencia == 0){
-            
             if(entrada_pag == NULL){ 
                 entrada_pag = crearEntradaPagina(pag_actual,tabla_paginas);
-                list_add(tabla_paginas->entradas,entrada_pag);    
+                list_add(tabla_paginas->entradas,entrada_pag);   
+                log_debug(logger_worker,"(escribirEnMemoria) - Se crea la entrada de pagina %d en tabla de paginas",pag_actual);    
             }
             log_info(logger_worker,"Query %d: - Memoria Miss - File: %s - Tag: %s - Pagina: %d",query->id_query,file,tag,pag_actual);
             frame_seleccionado = gestionarPAGE_FAULT(file,tag,pagina);
             if(frame_seleccionado == -1) return false; 
             entrada_pag->nro_frame = frame_seleccionado;
         }
-
         void* base_frame = memoria + (entrada_pag->nro_frame * tam_pag);
         size_t espacioLibre = tam_pag - desp_actual;
         size_t por_copiar = total_a_escribir - escritos; 
@@ -176,7 +178,8 @@ uint64_t dirFisica(int nro_frame, int desp_actual){
 }
 
 char* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int tamanio)
-{
+{   
+    log_debug(logger_worker,"(leerEnMemoria) - Leyendo en memoria - File: %s - Tag: %s - Pagina: %d - Desplazamiento: %d - Tamaño: %d",file,tag,pagina,desplazamiento,tamanio);
     if (tamanio <= 0 || pagina < 0 || desplazamiento < 0 || desplazamiento >= tam_pag) {
         log_error(logger_worker, "(leer_en_memoria_paginada) - Parametros invalidos (pagina=%d, desp=%d, tam=%d)", pagina, desplazamiento, tamanio);
         return NULL;
@@ -196,6 +199,7 @@ char* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int t
     TablaPaginas* tabla = buscarOCrearTabla(file, tag);
 
     while (bytesLeidos < bytesObjetivo) {
+        log_debug(logger_worker,"(leerEnMemoria) - Leyendo pagina %d, desplazamiento %d",pag_actual,desp_actual);
         EntradaDeTabla* ent = buscarOCrearEntradaPag(tabla, pag_actual, file, tag);
         if (!ent) {
             log_error(logger_worker, "No se encontro/creo la entrada de pagina %d", pag_actual);
@@ -204,6 +208,7 @@ char* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int t
         }
         
         if (ent->bit_presencia == 0) {
+            log_debug(logger_worker,"(leerEnMemoria) - Page Fault en pagina %d",pag_actual);
             int frame_seleccionado = gestionarPAGE_FAULT(file,tag,pagina);
             if(frame_seleccionado == -1) return NULL;
             ent->nro_frame = frame_seleccionado;   
@@ -246,6 +251,7 @@ char* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int t
 
 
 int aplicarPoliticaReemplazo(char* file, char* tag, int nro_pag){
+    log_debug(logger_worker,"(aplicarPoliticaReemplazo) - Aplicando politica de reemplazo %s",config_worker->algoritmo_reemplazo);  
 
     RespuestaAlgoritmoReemplazo* resp = NULL;
     if (string_equals_ignore_case(config_worker->algoritmo_reemplazo, "CLOCK-M")) {
@@ -259,6 +265,7 @@ int aplicarPoliticaReemplazo(char* file, char* tag, int nro_pag){
         return -1;
     }
     else if (string_equals_ignore_case(config_worker->algoritmo_reemplazo, "LRU") == 0) {
+        log_debug(logger_worker,"(aplicarPoliticaReemplazo) - Aplicando LRU");
         resp = elegirVictimaLRU();return gestionarBitModificado(resp,file,tag,nro_pag); 
     }
     else {
@@ -268,6 +275,7 @@ int aplicarPoliticaReemplazo(char* file, char* tag, int nro_pag){
 }
 
 RespuestaAlgoritmoReemplazo* cargarRespuestaAlgoritmoRemplazo(int id_tabla, int id_entrada, EntradaDeTabla* entrada){
+    log_debug(logger_worker,"(cargarRespuestaAlgoritmoRemplazo) - Cargando respuesta algoritmo de reemplazo - Tabla: %d - Entrada: %d",id_tabla,id_entrada);
     RespuestaAlgoritmoReemplazo* resp = malloc(sizeof(RespuestaAlgoritmoReemplazo));
     resp->entrada = entrada;
     resp->tabla_index = id_tabla;
@@ -389,6 +397,7 @@ uint64_t now_ms(void){ // mmmmm
 
 
 int gestionarPAGE_FAULT(char* file, char* tag, int nro_pagina){
+    log_debug(logger_worker,"(gestionarPAGE_FAULT) - Gestionando PAGE FAULT - File: %s - Tag: %s - Pagina: %d",file,tag,nro_pagina);
     char* mensaje_formateado = string_from_format("LEER %s:%s %d" ,file, tag, nro_pagina); // storage lee toda la pagina y decime que tiene
     
     Mensaje* mensajito = crearMensajito(mensaje_formateado);
@@ -399,7 +408,7 @@ int gestionarPAGE_FAULT(char* file, char* tag, int nro_pagina){
     char** datos_recibidos = string_split(mensaje_recibido->mensaje," "); //LIBERAR
     liberarMensajito(mensaje_recibido);
     ErrorStorageEnum cod_op_storage_recv = atoi(datos_recibidos[0]);
-    
+    log_debug(logger_worker,"(gestionarPAGE_FAULT) - Codigo de operacion recibido de Storage: %d",cod_op_storage_recv);
     switch (cod_op_storage_recv){
         case OK:
             char* contenido_pagina = datos_recibidos[1]; // no escribimos en memoria
@@ -419,6 +428,7 @@ int gestionarPAGE_FAULT(char* file, char* tag, int nro_pagina){
 
 
 EntradaDeTabla* crearEntradaPagina(int pag_a_asignar, TablaPaginas* tabla){ // tercer parametro cuestionable
+    log_debug(logger_worker,"(crearEntradaPagina) - Creando entrada de pagina %d en tabla de paginas File: %s - Tag: %s",pag_a_asignar,tabla->file,tabla->tag);
     EntradaDeTabla* entrada_tabla = malloc(sizeof(EntradaDeTabla));
 
     uint64_t timestamp = now_ms();
@@ -443,7 +453,7 @@ int devolverFrameLibre(char* file, char* tag, int nro_pag){
     // caso llorona: elegimos una victima, y vemos si esta modificado
     // caso llorona feliz: no mandamos nada a storage y le asignamos el marco a nuestra entrada y escribimos
     // caso llorona llorona: mandamos write a storage de pag victima y dsp asignamos el marco a nuesta entrada y escribimos
-
+    log_debug(logger_worker,"(gestionarAsignaccionFrame) - Gestionando asignacion de frame para - File: %s - Tag: %s - Pagina: %d",file,tag,nro_pag);   
     int frame = buscarFrameLibreEnBitmap();
     if (frame != -1){
         log_debug(logger_worker,"(gestionarAsignaccionFrame) - Frame libre en bitmap: %d, caso lindo",frame);
@@ -496,8 +506,9 @@ bool escribirEnStorage(EntradaDeTabla* entrada_a_persistir){
     char* contenido_a_persistir = 
         string_from_format("ESCRIBIR_BLOQUE %d %s %s %d %s",query->id_query,tabla_padre->file,tabla_padre->tag,entrada_a_persistir->nro_pag,leerBloque(entrada_a_persistir));
     Mensaje* mensajito_a_enviar = crearMensajito(contenido_a_persistir); // ESCRIBIR_BLOQUE query_id file tag nro_pag contenido
-    free(contenido_a_persistir); 
+    
     enviarMensajito(mensajito_a_enviar,socket_storage,logger_worker);
+    free(contenido_a_persistir); 
     Mensaje* respuesta_storage = recibirMensajito(socket_storage,logger_worker); // OK siempre... ponele
     if(respuesta_storage == NULL || !string_equals_ignore_case(respuesta_storage->mensaje ,"OK")){
         liberarMensajito(respuesta_storage);

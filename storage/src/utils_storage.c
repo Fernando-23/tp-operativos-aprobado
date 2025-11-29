@@ -28,7 +28,8 @@ void handshake(int fd){
 
 
 void iniciarStorage(){
-    crearDirectorio(PATH_PHYSICAL_BLOCKS);    
+    crearDirectorio(PATH_PHYSICAL_BLOCKS);
+    crearDirectorio(RUTA_FILES);    
 
     cargarConfigSuperblock();
     

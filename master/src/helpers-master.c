@@ -209,17 +209,19 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
     pthread_mutex_lock(&mutex_lista_ready);
     pthread_mutex_lock(&mutex_workers);
 
-
+    
     bool estaba_vacia = list_is_empty(lista_ready);
     int id_query_nueva = nueva_query->quid;
     list_add(lista_ready, nueva_query);
     log_info(logger_master, "Query %d llegada - Prioridad: %d", nueva_query->quid, prioridad);
 
     //ESTO CUBRE FIFO
-    if(string_equals_ignore_case(config_master->algoritmo_plani, "FIFO")){
+    if(string_equals_ignore_case(config_master->algoritmo_plani,"FIFO")){
+        log_debug(logger_master, "(gestionarQueryIndividual) - Planificacion FIFO ");
         if(estaba_vacia){
             Worker* worker_libre = buscarWorkerLibre();
             if (worker_libre) {
+                log_debug(logger_master, "(gestionarQueryIndividual) - encontre worker libre id: %d",worker_libre->id);
                 Query* primera = list_remove(lista_ready, 0);
                 if(primera->quid != id_query_nueva){
                     log_error(logger_master,"(gestionarQueryIndividual) - Incongruencia");
@@ -232,11 +234,13 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
         }
     }
     else if (string_equals_ignore_case(config_master->algoritmo_plani, "PRIORIDADES")) {
+        log_debug(logger_master, "(gestionarQueryIndividual) - Caso PRIORIDADES");
         list_sort(lista_ready,ordenarPorPrioridad);
 
         Query* consulto_mas_prioritaria = list_get(lista_ready,0);
 
         if(consulto_mas_prioritaria->quid != id_query_nueva){ // No soy la query mas prioritaria en READY
+            log_debug(logger_master, "(gestionarQueryIndividual) - No soy la query mas prioritaria en READY");
             pthread_mutex_unlock(&mutex_workers);
             pthread_mutex_unlock(&mutex_lista_ready);
             return;
@@ -247,6 +251,7 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
 
         
         if (worker_libre){ 
+            log_debug(logger_master, "(gestionarQueryIndividual) - encontre worker libre id: %d",worker_libre->id); 
             Query* mas_prioritaria = list_remove(lista_ready, 0); // aca realmente la saco, antes la consulte nomas
             asignarQueryAWorker(worker_libre, mas_prioritaria);
         }
@@ -267,6 +272,8 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
 
         }
     }
+
+    log_debug(logger_master, "fin (gestionarQueryIndividual)");
     pthread_mutex_unlock(&mutex_workers);
     pthread_mutex_unlock(&mutex_lista_ready);
 }
@@ -277,17 +284,19 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
 void asignarQueryAWorker(Worker* worker, Query* query) { // los mutex deberian estar tomados
     if (!worker || !query) return;
 
+    log_debug(logger_master, "llegue a (asignarQueryAWorker)");
     // Marco worker como ocupado
     agarrarLaPala(worker, query);
 
 
     // Enviar la query al Worker
-    char* mensaje_query = string_from_format("QUERY %d %s", query->quid, query->query);
+    char* mensaje_query = string_from_format("%d %d %s", query->quid,query->pc, query->query);
     Mensaje* mensajito = crearMensajito(mensaje_query);
-    free(mensaje_query);
+    
 
     enviarMensajito(mensajito, worker->fd, logger_master);
 
+    free(mensaje_query);
     log_info(logger_master, "Se envía la Query %d (%d) al Worker %d", 
              query->quid, query->prioridad, worker->id);
 }
@@ -495,8 +504,10 @@ void atenderWorker(int fd_worker) {
             
             char* formato = string_from_format("0 %s", motivo);
             Mensaje* mensaje_error_query = crearMensajito(formato);
-            free (formato);
+            
             enviarMensajito(mensaje_error_query,worker->query_actual->fd,logger_master);
+
+            free (formato);
             
             Query * query_actual_d = worker->query_actual;
             worker->query_actual = NULL;

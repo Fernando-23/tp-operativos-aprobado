@@ -8,6 +8,12 @@ int main(int argc, char* argv[]) {
     cargarConfigMaster(nombre_config); 
     
     logger_master = iniciarLogger("master", config_master->log_level);
+
+    log_debug(logger_master, "(cargarConfigMaster) asignacion hecha");
+
+    log_debug(logger_master, "config creada. PUERTO: %s, ALGORITMO: %s, TIEMPO_AGING: %d, LOG_LEVEL: %d",
+    config_master->puerto_escucha,config_master->algoritmo_plani,config_master->tiempo_aging,config_master->log_level);
+    
     inicializarSemaforosMaster();
     inicializarListas();
 

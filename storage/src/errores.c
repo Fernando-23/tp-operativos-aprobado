@@ -9,13 +9,15 @@ bool filePreexistente(char* nombre_file){
         return true;
     }
 
+     log_debug(logger_storage, "(filePreexistente) - FILE %s INEXISTENTE",nombre_file);
+
     return false;
 }
 
 bool tagPreexistente(t_list* tags,char* nombre_tag,char* nombre_file){
 
     if(buscarTagPorNombre(tags,nombre_tag) != NULL){
-        log_debug(logger_storage, "(fileTagPreexistente) - TAG %s EN FILE %s PREEXISTENTE",nombre_tag,nombre_file);
+        log_debug(logger_storage, "(tagPreexistente) - TAG %s EN FILE %s PREEXISTENTE",nombre_tag,nombre_file);
         return true;
     }
 

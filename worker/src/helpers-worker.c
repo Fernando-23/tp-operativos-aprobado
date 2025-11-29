@@ -103,6 +103,7 @@ void esperandoQuery(int socket){
     pthread_mutex_lock(&mx_recibir_query);
     Mensaje* datos_query = recibirMensajito(socket, logger_worker);
     pthread_mutex_unlock(&mx_recibir_query);
+    log_debug(logger_worker, "(esperandoQuery) - por checkear args recibidas ");
     if(datos_query == NULL){
         log_error(logger_worker,"No me llegaron datos de Master");
     }
@@ -121,18 +122,25 @@ void esperandoQuery(int socket){
         return;
     }
 
+
+    log_debug(logger_worker, "(esperandoQuery) - por cargar datos de la query");
     query->id_query = atoi(lista_de_datos[0]);
     query->pc_query = atoi(lista_de_datos[1]);
     query->nombre = string_duplicate(lista_de_datos[2]);
+
+    log_debug(logger_worker, "(esperandoQuery) - cargue datos de la query");
+    
     query->instrucciones = crearListaDeInstrucciones();
     log_info(logger_worker, "## Query %d : Se recibe la Query. El path de operaciones es: %s", query->id_query, query->nombre);
 
-    for (int i = 0; lista_de_datos[i] != NULL; i++) {
-        free(lista_de_datos[i]);
-    }
-    free(lista_de_datos);
+    for(int i = 0; i < list_size(query->instrucciones); i++ )
+        log_debug(logger_worker, "%s",(char*)list_get(query->instrucciones, i));
+    
+    string_array_destroy(lista_de_datos);
 
     liberarMensajito(datos_query);
+
+    log_debug(logger_worker,"termino (esperandoQuery) correctamente");
 }
 
 
@@ -140,10 +148,11 @@ void esperandoQuery(int socket){
 void* hiloDesalojo(void* args){
 
     while(1){
+        log_debug(logger_worker, "(hilo desalojo) - entre a funcion");
         Mensaje* msg = recibirMensajito(socket_master, logger_worker);
 
         if(!msg){
-            log_error(logger_worker, "Master se desconecto. Terminando worker...");
+           log_error(logger_worker, "Master se desconecto. Terminando worker...");
             exit(EXIT_FAILURE);
         }
 

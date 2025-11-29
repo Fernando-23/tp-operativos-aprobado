@@ -44,8 +44,6 @@ void pedidoDeLaburante(int mail_laburante){
     char **mensajito_cortado = string_split(mensajito->mensaje, " ");
     int tipo_operacion = obtenerTareaCodOperacion(mensajito_cortado[0]);
     int query_id = atoi(mensajito_cortado[1]);
-    nombre_file = mensajito_cortado[2];
-    nombre_tag = mensajito_cortado[3];
 
     hacerRetardoOperacion();
 
@@ -53,6 +51,8 @@ void pedidoDeLaburante(int mail_laburante){
     {
 
     case CREATE:
+
+        log_debug(logger_storage, "(pedidoDeLaburante) - CREATE");
         // CREATE QUERY_ID FILE TAG
         nombre_file = mensajito_cortado[2];
         nombre_tag = mensajito_cortado[3];
@@ -72,6 +72,7 @@ void pedidoDeLaburante(int mail_laburante){
         break;
 
     case TRUNCATE:
+        log_debug(logger_storage, "(pedidoDeLaburante) - TRUNCATE");
         // TRUNCATE QUERY_ID FILE TAG TAMANIO
         nombre_file = mensajito_cortado[2];
         nombre_tag = mensajito_cortado[3];
@@ -91,6 +92,7 @@ void pedidoDeLaburante(int mail_laburante){
         break;
 
     case TAG:
+        log_debug(logger_storage, "(pedidoDeLaburante) - TAG");
         // TAG QUERY_ID FILE_O TAG_O FILE_D TAG_D
         char* nombre_file_origen = mensajito_cortado[2];
         char* nombre_tag_origen = mensajito_cortado[3];
@@ -105,13 +107,14 @@ void pedidoDeLaburante(int mail_laburante){
             log_warning(logger_storage, "NO SE PUDO REALIZAR TAG POR MOTIVO %s", NOMBRE_ERRORES[resultado_TAG]);
         else 
             //////////////////////////////////// LOG OBLIGATORIO ////////////////////////////////////////
-            log_info(logger_storage, "## %d - Tag creado %s:%s",query_id, nombre_file, nombre_tag);
+            log_info(logger_storage, "## %d - Tag creado %s:%s",query_id, nombre_file_destino, nombre_tag_destino);
             /////////////////////////////////////////////////////////////////////////////////////////////
 
         string_array_destroy(mensajito_cortado);
         break;
 
     case COMMIT:
+        log_debug(logger_storage, "(pedidoDeLaburante) - COMMIT");
         nombre_file = mensajito_cortado[2];
         nombre_tag = mensajito_cortado[3];
         
@@ -132,6 +135,7 @@ void pedidoDeLaburante(int mail_laburante){
         break;
 
     case DELETE:
+        log_debug(logger_storage, "(pedidoDeLaburante) - DELETE");
     // DELETE QUERY_ID FILE:TAG
         nombre_file = mensajito_cortado[2];
         nombre_tag = mensajito_cortado[3];
@@ -151,6 +155,7 @@ void pedidoDeLaburante(int mail_laburante){
         break;
 
     case LEER_BLOQUE: //  QUERY_ID FILE TAG NRO_PAG
+    log_debug(logger_storage, "(pedidoDeLaburante) - LEER_BLOQUE");
         nombre_file = mensajito_cortado[2];
         nombre_tag = mensajito_cortado[3];
         int id_bloque_logico = atoi(mensajito_cortado[4]);
@@ -174,6 +179,7 @@ void pedidoDeLaburante(int mail_laburante){
         break;
 
     case ESCRIBIR_BLOQUE:
+        log_debug(logger_storage, "(pedidoDeLaburante) - ESCRIBIR_BLOQUE");
     //ESCRIBIR_BLOQUE QUERY_ID FILE TAG NRO_PAG CONTENIDO
         nombre_file = mensajito_cortado[2];
         nombre_tag = mensajito_cortado[3];
@@ -197,6 +203,7 @@ void pedidoDeLaburante(int mail_laburante){
 
     
     case CARTA_DOCUMENTO: // CARTA_DOCUMENTO queryid WORKER_ID
+        log_debug(logger_storage, "(pedidoDeLaburante) - CARTA_DOCUMENTO");
         int worker_id = atoi(mensajito_cortado[2]);
         pthread_mutex_lock(&mutex_cant_workers);
         cant_workers_conectados--;
@@ -225,7 +232,7 @@ ErrorStorageEnum realizarCREATE(char *nombre_file, char *nombre_tag)
 
     if (filePreexistente(nombre_file))
         return FILE_PREEXISTENTE; // chequeo de error del enunciado
-
+    //
     File *nuevo_file = crearFile(nombre_file);
     list_add(lista_files_gb, nuevo_file);
     Tag *nuevo_tag = crearTag(nombre_tag, nombre_file);

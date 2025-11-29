@@ -3,7 +3,7 @@
 
 
 Worker* buscarWorkerLibre(){
-    pthread_mutex_lock(&mutex_workers);
+
 
     Worker* libre = NULL;
     for (int i = 0; i < list_size(lista_workers); i++) {
@@ -13,8 +13,6 @@ Worker* buscarWorkerLibre(){
             break;
         }
     }
-
-    pthread_mutex_unlock(&mutex_workers);
     return libre;
 }
 

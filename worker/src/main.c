@@ -53,12 +53,12 @@ int main(int argc, char* argv[]) {
     iniciarMemoria();  //chequear despues si esta bien asignado
 
 
-    pthread_t th_desalojo;
+   // pthread_t th_desalojo;
 
-    pthread_create(&th_desalojo, NULL, hiloDesalojo, NULL);
+    //pthread_create(&th_desalojo, NULL, hiloDesalojo, NULL);
     //pthread_detach(th_desalojo);
 
-    log_debug(logger_worker, "Hilo de desalojo iniciado");
+    //log_debug(logger_worker, "Hilo de desalojo iniciado");
 
     
     while (!debo_morir) { //Exit -> libre -> checkeo_interrupt
@@ -67,14 +67,19 @@ int main(int argc, char* argv[]) {
         esperandoQuery(socket_master);
     
         while (!interrumpir_query) {
+            log_debug(logger_worker, "llegue loop interno main worker");
             
             char* instruccion = Fetch();  // "WRITE 345 42"
+             log_debug(logger_worker, "hice Fetch");
 
             Decode(instruccion);
+            log_debug(logger_worker, "hice Decode");
             log_debug(logger_worker,"Instrucción a ejecutar: %s", instruccion);
 
             es_end = Execute();
+            log_debug(logger_worker, "hice Execute");
             if(es_end){
+                log_debug(logger_worker, "Query %d: Finalizo ES_END", query->id_query);
                 break;
             }
 
@@ -90,8 +95,9 @@ int main(int argc, char* argv[]) {
                 log_info(logger_worker, "Query %d: Desalojada por pedido del Master", query->id_query);
                 char* formato_msg_des = string_from_format("DESALOJO %d", query->pc_query);
                 Mensaje* mensaje_des_master = crearMensajito(formato_msg_des);
-                free(formato_msg_des);
                 enviarMensajito(mensaje_des_master, socket_master, logger_worker);
+                log_debug(logger_worker, "Envie mensaje de desalojo a master");
+                free(formato_msg_des);
 
                 break;
             }
@@ -100,7 +106,7 @@ int main(int argc, char* argv[]) {
 
 
         list_destroy_and_destroy_elements(query->instrucciones,destruir);
-        printf("[DEBUG] Se va a cambiar el contexto\n");
+        log_debug(logger_worker, "Se va a cambiar el contexto");
 
         interrumpir_query = true;
 
