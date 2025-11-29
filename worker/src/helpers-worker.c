@@ -31,11 +31,9 @@ void inicializarMutexWorker(){
 
 
 
-void cargarConfigWorker(char* path_config){
+void cargarConfigWorker(char* arch_config){
+    char* path_completo = string_from_format("../configs/%s.config",arch_config);
 
-    char* path_completo = string_new();
-    string_append(&path_completo, "../configs/");
-    string_append(&path_completo, path_config);
 
     t_config* config = iniciarConfig(path_completo);
     config_worker = malloc(sizeof(ConfigWorker));

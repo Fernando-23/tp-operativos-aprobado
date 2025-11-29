@@ -15,7 +15,7 @@ int obtenerTareaCodOperacion(char *string_codop);
 
 void iniciarStorage();
 void inicializarSemaforos();
-void cargarConfigStorage(char* path_config);
+void cargarConfigStorage(char* arch_config);
 void cargarConfigSuperblock();
 int calcularCantBloques();
 void crearBloquesFisicos();

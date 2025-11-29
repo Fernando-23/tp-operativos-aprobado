@@ -103,7 +103,7 @@ void* gestionarClienteIndividual(void* args){
     return NULL; // tira warn sino
 }
 
-void hiloAging(void* args){
+void* hiloAging(void* args){
     int intervalo_ms = config_master->tiempo_aging;
 
     struct timespec ts;
@@ -132,6 +132,7 @@ void hiloAging(void* args){
         
         pthread_mutex_unlock(&mutex_lista_ready);
     }
+    return NULL;
 }
 
 
@@ -506,7 +507,7 @@ void atenderWorker(int fd_worker) {
             break;
 
         
-        case CARTA_DOCUMENTO:
+        case FINALIZAR_WORKER:
 
                 
 

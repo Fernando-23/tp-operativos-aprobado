@@ -49,14 +49,13 @@ void iniciarStorage(){
 
 void limpiarHashIndexConfig(){
     t_config* aux_para_vaciar_hash_index = config_create(RUTA_AUX_FSTART_HASH_INDEX);
+    
     config_save_in_file(aux_para_vaciar_hash_index,RUTA_HASH_INDEX);
     config_destroy(aux_para_vaciar_hash_index);
 }
 
-void cargarConfigStorage(char* path_config){
-    char* path_completo = string_new();
-    string_append(&path_completo, "../configs/");
-    string_append(&path_completo, path_config); 
+void cargarConfigStorage(char* arch_config){
+    char* path_completo = string_from_format("../configs/%s.config",arch_config);
 
     t_config* config = config_create(path_completo);
     config_storage = malloc(sizeof(ConfigStorage));
@@ -82,15 +81,20 @@ void cargarConfigSuperblock(){
     datos_superblock_gb = malloc(sizeof(ConfigSuperblock));
 
     if(superblock == NULL){
-        printf("cargo mal");
-        abort();
+       log_debug(logger_storage, "ruta_superblock incorrecta");
+        exit(EXIT_FAILURE);
     }
+
+    log_debug(logger_storage, "cargando config super block");
 
     datos_superblock_gb->tamanio_fsystem = config_get_int_value(superblock,"FS_SIZE");
     datos_superblock_gb->tamanio_bloque = config_get_int_value(superblock,"BLOCK_SIZE");
     datos_superblock_gb->cant_bloques = calcularCantBloques();// 
+
+    log_debug(logger_storage, "se cargaron config super block ");
     
     config_destroy(superblock);
+    log_debug(logger_storage, "se cargaron config super block config destroy");
 }
 
 

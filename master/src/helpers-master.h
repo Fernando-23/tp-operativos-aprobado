@@ -61,7 +61,7 @@ void* atenderClientes(void*);
 
 void* gestionarClienteIndividual(void* args);
 
-void hiloAging(void* args);
+void* hiloAging(void* args);
 
 void realizarDesalojo(Worker* vistima, Query* nueva_query);
 
@@ -94,7 +94,6 @@ Worker *buscarWorkerPorFd(int fd_worker);
 Worker* crearWorker(int id_worker_a_crear_ahora, int contacto_empleado);
 
 
-void hiloAging(void* args);
 void inicializarSemaforos();
 
 

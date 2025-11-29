@@ -48,7 +48,7 @@ extern pthread_mutex_t mx_recibir_query;
 extern pthread_mutex_t mx_bitmap;
 extern pthread_mutex_t sem_instruccion;
 
-void cargarConfigWorker(char* path_config);
+void cargarConfigWorker(char* arch_config);
 int conexionStorage();
 int conexionMaster();
 void esperandoQuery(int socket);

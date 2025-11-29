@@ -12,6 +12,8 @@ int main(int argc, char* argv[]) {
     int socket_sv = iniciarServidor(config_storage->puerto_escucha,"Storage",logger_storage);
 
     if (socket_sv == -1) return 1;
+
+    log_debug(logger_storage, "llegue aca");
     // FRESH_STORAGE
     iniciarStorage();
     pthread_t thread_rrhh;
