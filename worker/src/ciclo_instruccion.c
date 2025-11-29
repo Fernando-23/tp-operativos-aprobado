@@ -495,7 +495,8 @@ bool ejecutarDelete(char *file, char *tag){ // las páginas se van a ir limpiand
 
     free(mensaje_delete);
     Mensaje* respuesta_delete = recibirMensajito(socket_storage,logger_worker); // ENumERrrorCapaz OK 
-    if (!string_equals_ignore_case(respuesta_delete->mensaje,"OK")){
+    
+    if (string_equals_ignore_case(respuesta_delete->mensaje,"OK")){
         log_debug(logger_worker, "(ejecutarDelete) Query %d finalizada", query->id_query);
          char* formato_error_master = string_from_format("ERROR %s", respuesta_delete->mensaje);
         Mensaje* mensaje_error_master = crearMensajito(formato_error_master);

@@ -487,9 +487,14 @@ BloqueLogico *crearBloqueLogico(int nro_bloque_logico, BloqueFisico *bloque_fisi
     BloqueLogico *bloque_logico = malloc(sizeof(BloqueLogico));
     bloque_logico->ptr_bloque_fisico = bloque_fisico_a_asignar;
     bloque_logico->id_logico = nro_bloque_logico;
-
-    bloque_logico->ruta_hl = string_from_format("%s/logical_blocks/%04d.dat", path_tag, nro_bloque_logico);
+    bloque_logico->ruta_hl = string_from_format("%s/logical_blocks/%04d.dat", path_tag, nro_bloque_logico);    bloque_logico->ruta_hl = string_from_format("%s/logical_blocks/%04d.dat", path_tag, nro_bloque_logico);
     
+    
+    // Crear el directorio logical_blocks si no existe
+    char *dir_logical_blocks = string_from_format("%s/logical_blocks", path_tag);
+    crearDirectorio(dir_logical_blocks);
+    free(dir_logical_blocks);
+
 
     if (!crearHLink(bloque_logico->ruta_hl, bloque_fisico_a_asignar->ruta_absoluta))
     {
@@ -985,13 +990,16 @@ ErrorStorageEnum realizarREAD(char* nombre_file,char* nombre_tag,int id_bloque_l
 
 BloqueFisico* obtenerBloqueFisicoLibre(){
     if(bitmap_gb == NULL){
-        log_debug(logger_storage, "gepeto");
+        log_error(logger_storage, "ERROR: bitmap_gb es NULL en obtenerBloqueFisicoLibre");
+        return NULL;
     }
     
+    int max_bits = (int)bitarray_get_max_bit(bitmap_gb);
+    log_debug(logger_storage,"Voy a intentar buscar un bloque fisico libre, bitarray: %d", max_bits);
 
-    log_debug(logger_storage,"Voy a intentar buscar un bloque fisico libre, bitarray: %d", (int)bitarray_get_max_bit(bitmap_gb));
+    for (int i = 0; i < max_bits; i++){
+        log_debug(logger_storage,"entro a for de (obtenerBloqueFisicoLibre)");
 
-    for (int i = 0; i < (int)bitarray_get_max_bit(bitmap_gb); i++){
         if (!bitarray_test_bit(bitmap_gb,i)){
             bitarray_set_bit(bitmap_gb,i); // lo pones en 1
             log_debug(logger_storage, "(obtenerBloqueFisicoLibre) - Encontre bloque fisico libre en bitmap, id:%d", i);
@@ -1130,7 +1138,8 @@ void unlinkearBloquesLogicosParaELIMINAR_UN_TAG(int query_id,int cant_a_unlinkea
     bool esta_commiteado = estaCommiteado(tag->metadata_config_tag);
     
     for (int i = 0; i < cant_a_unlinkear; i++){
-        BloqueLogico *bloque_popeado = (BloqueLogico *)list_remove(bloques_logicos, list_size(bloques_logicos));
+        // Remover el último bloque de la lista
+        BloqueLogico *bloque_popeado = (BloqueLogico *)list_remove(bloques_logicos, list_size(bloques_logicos) - 1); //agregamos el -1
         BloqueFisico *bloque_fisico_asociado = bloque_popeado->ptr_bloque_fisico;
 
         //---------------------------------- /files/tag/logical-blocks/0002.dat
@@ -1155,6 +1164,7 @@ void unlinkearBloquesLogicosParaELIMINAR_UN_TAG(int query_id,int cant_a_unlinkea
             log_debug(logger_storage, "(unlinkearBloquesLogicos)- El bloque fisico %s fue liberado", bloque_fisico_asociado->nombre);
         }
 
+        bloque_popeado->ptr_bloque_fisico = NULL; // JORGE EL CURIOSO - Capaz por enunciado deberia apuntar al block0;
         liberarBloqueLogico(bloque_popeado);
         log_debug(logger_storage, "(unlinkearBloquesLogicos) - FER lo hizo de nuevo");
     }

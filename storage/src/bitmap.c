@@ -1,13 +1,54 @@
 #include "bitmap.h"
+#include <errno.h>
+#include <unistd.h>
 
 void inicializarBitmapYMapeo(){
     FILE* arch_bitmap = fopen("bitmap.bin", "a+");
+    if (arch_bitmap == NULL) {
+        log_error(logger_storage, "ERROR: No se pudo abrir/crear bitmap.bin");
+        exit(EXIT_FAILURE);
+    }
+    
     int arch_bitmap_fd = fileno(arch_bitmap);
     cant_bloques_en_bytes_gb = datos_superblock_gb->cant_bloques / 8;
-    bitmap_mmap_gb = mmap(
-        NULL,cant_bloques_en_bytes_gb,PROT_WRITE | PROT_READ, MAP_SHARED, arch_bitmap_fd, 0);    
-    bitmap_gb = bitarray_create_with_mode(bitmap_mmap_gb,cant_bloques_en_bytes_gb,LSB_FIRST);
     
+    log_debug(logger_storage, "DEBUG inicializarBitmapYMapeo: cant_bloques=%d, cant_bloques_en_bytes=%d", 
+              datos_superblock_gb->cant_bloques, cant_bloques_en_bytes_gb);
+    
+    if (cant_bloques_en_bytes_gb <= 0) {
+        log_error(logger_storage, "ERROR: cant_bloques_en_bytes_gb es %d", cant_bloques_en_bytes_gb);
+        fclose(arch_bitmap);
+        exit(EXIT_FAILURE);
+    }
+    
+    // Asegurar que el archivo tiene el tamaño correcto
+    if (ftruncate(arch_bitmap_fd, cant_bloques_en_bytes_gb) == -1) {
+        log_error(logger_storage, "ERROR: ftruncate falló al redimensionar bitmap.bin");
+        fclose(arch_bitmap);
+        exit(EXIT_FAILURE);
+    }
+    
+    bitmap_mmap_gb = mmap(
+        NULL, cant_bloques_en_bytes_gb, PROT_WRITE | PROT_READ, MAP_SHARED, arch_bitmap_fd, 0);
+    
+    // Verificar si mmap fue exitoso
+    if (bitmap_mmap_gb == MAP_FAILED) {
+        log_error(logger_storage, "ERROR: mmap falló al crear bitmap. errno=%d", errno);
+        fclose(arch_bitmap);
+        exit(EXIT_FAILURE);
+    }
+    // Crear el bitarray a partir del mapeo
+    bitmap_gb = bitarray_create_with_mode(bitmap_mmap_gb, cant_bloques_en_bytes_gb, LSB_FIRST);
+    
+    if (bitmap_gb == NULL) {
+        log_error(logger_storage, "ERROR: bitarray_create_with_mode falló");
+        munmap(bitmap_mmap_gb, cant_bloques_en_bytes_gb);
+        fclose(arch_bitmap);
+        exit(EXIT_FAILURE);
+    }
+    
+    log_debug(logger_storage, "DEBUG: bitmap inicializado correctamente, max_bits=%d", (int)bitarray_get_max_bit(bitmap_gb));
+    fclose(arch_bitmap);
 }
 
 RespuestaConsultaBitmap* consultarBitmapPorBloquesLibres(int cant_bloques_que_quiero){

@@ -513,6 +513,7 @@ int gestionarBitModificado(RespuestaAlgoritmoReemplazo* resp, char* file, char* 
 }
 
 bool escribirEnStorage(EntradaDeTabla* entrada_a_persistir){
+    log_debug(logger_worker,"(escribirEnStorage) - Escribiendo en storage - File: %s - Tag: %s - Pagina: %d",entrada_a_persistir->tabla->file,entrada_a_persistir->tabla->tag,entrada_a_persistir->nro_pag);    
     TablaPaginas* tabla_padre = entrada_a_persistir->tabla;
     char* contenido_a_persistir = 
         string_from_format("ESCRIBIR_BLOQUE %d %s %s %d %s",query->id_query,tabla_padre->file,tabla_padre->tag,entrada_a_persistir->nro_pag,leerBloque(entrada_a_persistir));
