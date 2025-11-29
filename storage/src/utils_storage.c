@@ -3,10 +3,10 @@
 
 
 
-int obtenerTareaCodOperacion(char *string_modulo){
-    for (int i = 0; i < CANT_ERRORES; i++)
+int obtenerTareaCodOperacion(char *string_codop){
+    for (int i = 0; i < 8; i++)
     {
-        if (strcmp(NOMBRE_ERRORES[i],string_modulo)==0)
+        if (strcmp(NOMBRE_CODOP_STORAGE[i],string_codop)==0)
 		 return i;
     }
     return -1;
@@ -15,15 +15,14 @@ int obtenerTareaCodOperacion(char *string_modulo){
 
 void handshake(int fd){
     char* mensajito_hanshake = string_from_format("%d",datos_superblock_gb->tamanio_bloque);
-    Mensaje* mensajito_a_enviar = crearMensajito(mensajito_a_enviar);
+    Mensaje* mensajito_a_enviar = crearMensajito(mensajito_hanshake);
     free(mensajito_hanshake);
-    enviarMensajito(mensajito_hanshake,fd,logger_storage);
-    Mensaje* resp_handshake = recibirMensajito(fd,logger);
+    enviarMensajito(mensajito_a_enviar,fd,logger_storage);
+    Mensaje* resp_handshake = recibirMensajito(fd,logger_storage);
     pthread_mutex_lock(&mutex_cant_workers);
     cant_workers_conectados++;
     log_info(logger_storage,"“##Se conecta el Worker %s - Cantidad de Workers: %d",resp_handshake->mensaje,cant_workers_conectados);
     pthread_mutex_unlock(&mutex_cant_workers);
-
     liberarMensajito(resp_handshake);
 }
 
@@ -37,6 +36,8 @@ void iniciarStorage(){
         
         limpiarHashIndexConfig();
     }
+
+
 
     hash_index_config_gb = config_create(RUTA_HASH_INDEX);
 
@@ -106,16 +107,17 @@ int calcularCantBloques(){
 void crearBloquesFisicos(){
 
     for (int i = 0; i < datos_superblock_gb->cant_bloques; i++){
-        char* nombre_bloque;
+        char* nombre_bloque = string_from_format("block%04d",i);
         sprintf(nombre_bloque, "block%04d",i);
 
-        char* ruta_absoluta;
-        sprintf(ruta_absoluta,"%s/%s.dat",PATH_PHYSICAL_BLOCKS,nombre_bloque);
-
+        char* ruta_absoluta = string_from_format("%s/%s.dat",PATH_PHYSICAL_BLOCKS,nombre_bloque);
         FILE* arch = fopen(ruta_absoluta, "a+");
         fclose(arch);
         
-        crearYAgregarBloqueFisicoIndividual(i,nombre_bloque,ruta_absoluta);        
+        
+        crearYAgregarBloqueFisicoIndividual(i,nombre_bloque,ruta_absoluta);       
+        free(nombre_bloque);
+        free(ruta_absoluta);
     }
     log_debug(logger_storage,"Debug - (crearBloquesFisicos) - Bloques fisicos creados");
 }
@@ -129,23 +131,7 @@ int cantidadDeCaracteres(int numero){
     return cont;
 }
 
-void asignarNombreBloqueFisico(char* nombre_bloque,int i){
-    switch (cantidadDeCaracteres(i)) {
-            case 1: 
-                sprintf(nombre_bloque,"block00%s.dat",i); 
-                break;
 
-            case 2:
-                sprintf(nombre_bloque,"block0%s.dat",i);
-                break;
-            case 3:
-                sprintf(nombre_bloque,"block%s.dat",i);
-                break;
-            default:
-                log_error(logger_storage, "1000 o más bloques lcdtm");
-
-        }
-}
 
 //sirve para inicializar el fs
 void crearYAgregarBloqueFisicoIndividual(int id,char* nombre_bloque, char* ruta_absoluta){//JORGE EL CURIOSO
@@ -159,9 +145,12 @@ void crearYAgregarBloqueFisicoIndividual(int id,char* nombre_bloque, char* ruta_
 
 void inicializarSemaforos(){
     pthread_mutex_init(&mutex_bitmap,NULL);
+     pthread_mutex_init(&mutex_files,NULL);
     pthread_mutex_init(&mutex_bloques_fisicos,NULL);
-    pthread_mutex_init(&mutex_files,NULL);
+    pthread_mutex_init(&mutex_cant_workers,NULL);
+   
 }
+
 
 Mensaje* mensajitoResultadoStorage(ErrorStorageEnum cod_error){
     Mensaje* mensajito = malloc(sizeof(Mensaje));

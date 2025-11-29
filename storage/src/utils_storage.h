@@ -11,7 +11,7 @@
 
 
 
-int obtenerTareaCodOperacion(char *string_modulo);
+int obtenerTareaCodOperacion(char *string_codop);
 
 void iniciarStorage();
 void inicializarSemaforos();
@@ -19,7 +19,7 @@ void cargarConfigStorage(char* path_config);
 void cargarConfigSuperblock();
 int calcularCantBloques();
 void crearBloquesFisicos();
-void crearYAgregarBloqueFisicoIndividual(int id,char* nombre_bloque);
+void crearYAgregarBloqueFisicoIndividual(int id,char* nombre_bloque, char* ruta_absoluta);
 void handshake(int fd);
 void limpiarHashIndexConfig();
 

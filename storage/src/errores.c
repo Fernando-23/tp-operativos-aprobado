@@ -2,7 +2,7 @@
 
 
 bool filePreexistente(char* nombre_file){
-    File* file = buscarFilePorNombre(nombre_file) == NULL;
+    File* file = buscarFilePorNombre(nombre_file); //para mi lo hizo Fer
     
     if (file != NULL){
         log_debug(logger_storage, "(filePreexistente) - FILE %s PREEXISTENTE",nombre_file);

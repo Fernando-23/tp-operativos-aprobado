@@ -27,9 +27,8 @@ void *atenderLaburanteDisconforme(void *args_sin_formato)
 }
 
 void pedidoDeLaburante(int mail_laburante){
-    char *nombre_file;
-    char *nombre_tag;
-
+    char* nombre_file;
+    char* nombre_tag;
     Mensaje *mensajito = recibirMensajito(mail_laburante, logger_storage);
 
     log_debug(logger_storage,
@@ -37,8 +36,11 @@ void pedidoDeLaburante(int mail_laburante){
 
     // COD_OP QUERY_ID ...
     char **mensajito_cortado = string_split(mensajito->mensaje, " ");
-    CodOperacionStorage tipo_operacion = obtenerTareaCodOperacion(mensajito_cortado[0]);
+    int tipo_operacion = obtenerTareaCodOperacion(mensajito_cortado[0]);
     int query_id = atoi(mensajito_cortado[1]);
+    nombre_file = mensajito_cortado[2];
+    nombre_tag = mensajito_cortado[3];
+
     hacerRetardoOperacion();
 
     switch (tipo_operacion)
@@ -69,7 +71,7 @@ void pedidoDeLaburante(int mail_laburante){
         nombre_tag = mensajito_cortado[3];
         int tamanio_a_truncar = atoi(mensajito_cortado[4]);
 
-        ErrorStorageEnum resultado_TRUNCATE = realizarTRUNCATE(nombre_file,nombre_tag, tamanio_a_truncar);
+        ErrorStorageEnum resultado_TRUNCATE = realizarTRUNCATE(query_id,nombre_file,nombre_tag, tamanio_a_truncar);
 
         enviarMensajito(mensajitoResultadoStorage(resultado_TRUNCATE), mail_laburante, logger_storage);
 
@@ -90,7 +92,7 @@ void pedidoDeLaburante(int mail_laburante){
         char* nombre_tag_destino = mensajito_cortado[5];
 
         ErrorStorageEnum resultado_TAG = realizarTAG(nombre_file_origen,nombre_tag_origen,
-             nombre_file_destino, nombre_tag_destino);
+             nombre_file_destino, nombre_tag_destino, query_id);
         
         enviarMensajito(mensajitoResultadoStorage(resultado_TAG), mail_laburante, logger_storage);
         if (resultado_TAG != OK)
@@ -108,7 +110,7 @@ void pedidoDeLaburante(int mail_laburante){
         nombre_tag = mensajito_cortado[3];
         
 
-        ErrorStorageEnum resultado_COMMIT = realizarCOMMIT(nombre_file,nombre_tag);
+        ErrorStorageEnum resultado_COMMIT = realizarCOMMIT(query_id, nombre_file,nombre_tag);
 
         enviarMensajito(mensajitoResultadoStorage(resultado_COMMIT), mail_laburante, logger_storage);
 
@@ -116,7 +118,7 @@ void pedidoDeLaburante(int mail_laburante){
             log_warning(logger_storage, "NO SE PUDO REALIZAR COMMIT POR MOTIVO %s", NOMBRE_ERRORES[resultado_COMMIT]);
         else 
             //////////////////////////////////// LOG OBLIGATORIO ////////////////////////////////////////
-            log_info(logger_storage, "## %s - Commit de File:Tag %s:%s", query_id, nombre_file, nombre_tag);
+            log_info(logger_storage, "## %d - Commit de File:Tag %s:%s", query_id, nombre_file, nombre_tag);
             /////////////////////////////////////////////////////////////////////////////////////////////
         
         string_array_destroy(mensajito_cortado);
@@ -136,7 +138,7 @@ void pedidoDeLaburante(int mail_laburante){
         
         else 
             //////////////////////////////////// LOG OBLIGATORIO ////////////////////////////////////////
-            log_info(logger_storage,"## %s - Tag Eliminado %s:%s",query_id,nombre_file,nombre_tag);
+            log_info(logger_storage,"## %d - Tag Eliminado %s:%s",query_id,nombre_file,nombre_tag);
             /////////////////////////////////////////////////////////////////////////////////////////////
 
         string_array_destroy(mensajito_cortado);
@@ -146,7 +148,7 @@ void pedidoDeLaburante(int mail_laburante){
         nombre_file = mensajito_cortado[2];
         nombre_tag = mensajito_cortado[3];
         int id_bloque_logico = atoi(mensajito_cortado[4]);
-        char* contenido_a_leer;
+        char* contenido_a_leer = NULL;
 
         ErrorStorageEnum respuesta_LECTURA_BLOQUE = realizarREAD(nombre_file,nombre_tag,id_bloque_logico,contenido_a_leer); 
         
@@ -160,7 +162,7 @@ void pedidoDeLaburante(int mail_laburante){
         
         else
             //////////////////////////////////// LOG OBLIGATORIO //////////////////////////////////////////
-            log_info(logger_storage,"## %s - Bloque Lógico Leído %s:%s - Número de Bloque: ",query_id,nombre_file,nombre_tag, id_bloque_logico);
+            log_info(logger_storage,"## %d - Bloque Lógico Leído %s:%s - Número de Bloque: %d ",query_id, nombre_file , nombre_tag , id_bloque_logico);
             /////////////////////////////////////////////////////////////////////////////////////////////
         string_array_destroy(mensajito_cortado);
         break;
@@ -169,11 +171,11 @@ void pedidoDeLaburante(int mail_laburante){
     //ESCRIBIR_BLOQUE QUERY_ID FILE TAG NRO_PAG CONTENIDO
         nombre_file = mensajito_cortado[2];
         nombre_tag = mensajito_cortado[3];
-        int id_bloque_logico = atoi(mensajito_cortado[4]);
+        int id_bloque_logico_a = atoi(mensajito_cortado[4]);
         char* contenido_a_escribir = mensajito_cortado[5];
         
         
-        ErrorStorageEnum respuesta_ESCRITURA_BLOQUE = realizarWRITE(query_id, nombre_file, nombre_tag, id_bloque_logico, contenido_a_escribir);
+        ErrorStorageEnum respuesta_ESCRITURA_BLOQUE = realizarWRITE(query_id, nombre_file, nombre_tag, id_bloque_logico_a, contenido_a_escribir);
         
         enviarMensajito(mensajitoResultadoStorage(respuesta_ESCRITURA_BLOQUE), mail_laburante, logger_storage);
         
@@ -182,14 +184,14 @@ void pedidoDeLaburante(int mail_laburante){
         
         else
             //////////////////////////////////// LOG OBLIGATORIO ////////////////////////////////////////
-            log_info(logger_storage,"## %d - Bloque Lógico Escrito %s:%s - Número de Bloque: %d",query_id,nombre_file,nombre_tag, id_bloque_logico);
+            log_info(logger_storage,"## %d - Bloque Lógico Escrito %s:%s - Número de Bloque: %d",query_id,nombre_file,nombre_tag, id_bloque_logico_a);
             /////////////////////////////////////////////////////////////////////////////////////////////
         string_array_destroy(mensajito_cortado);
         break;
 
     
     case CARTA_DOCUMENTO: // CARTA_DOCUMENTO queryid WORKER_ID
-        int worker_id = mensajito_cortado[2];
+        int worker_id = atoi(mensajito_cortado[2]);
         pthread_mutex_lock(&mutex_cant_workers);
         cant_workers_conectados--;
         log_info(logger_storage, "## Se desconecta el Worker %d - Cantidad de Workers: %d", worker_id, cant_workers_conectados);
@@ -284,29 +286,29 @@ File *crearFile(char *nombre_file)
 {
     File *nuevo_file = malloc(sizeof(File));
     nuevo_file->nombre_file = string_duplicate(nombre_file); // LIBERAR
-    char *dir_a_crear;
-    sprintf(dir_a_crear, "%s/%s", RUTA_FILES, nuevo_file->nombre_file); // asignas la ruta abs del file
-
+    char *dir_a_crear = string_from_format("%s/%s", RUTA_FILES, nuevo_file->nombre_file);
     crearDirectorio(dir_a_crear); // mkdir como Agustin Coda
 
     nuevo_file->tags = list_create();
+
+    return nuevo_file;
 }
 
 Tag *crearTag(char *nombre_tag, char *nombre_file_asociado)
 {
     Tag *tag = malloc(sizeof(Tag));
 
-    tag->nombre_tag = string_duplicate(nombre_tag); // LIBERAR
+    tag->nombre_tag = string_duplicate(nombre_tag);
 
     // home/utnso/rerewr/reewrwe/ewr/wer/nombrefile/nombretag
-    sprintf(tag->directorio, "%s/%s/%s", RUTA_FILES, nombre_file_asociado, tag->nombre_tag);
+    tag->directorio = string_from_format("%s/%s/%s", RUTA_FILES, nombre_file_asociado, tag->nombre_tag);
     crearDirectorio(tag->directorio);
 
     // Creo carpeta logical blocks
-    char *ruta_aux_lblocks;
-    sprintf(ruta_aux_lblocks, "%s/logical_blocks", tag->directorio);
+    char *ruta_aux_lblocks = string_from_format("%s/logical_blocks", tag->directorio);
     crearDirectorio(ruta_aux_lblocks);
-
+    free(ruta_aux_lblocks);
+    
     tag->metadata_config_tag = crearMetadata(tag->directorio);
 
     tag->bloques_logicos = list_create();
@@ -318,8 +320,7 @@ Tag *crearTag(char *nombre_tag, char *nombre_file_asociado)
 
 t_config *crearMetadata(char *path_tag)
 {
-    char *path_metadata;
-    sprintf(path_metadata, "%s/metadata.config", path_tag);
+    char *path_metadata = string_from_format("%s/metadata.config", path_tag);
 
     FILE *arch_config = fopen(path_metadata, "w+");
     fclose(arch_config);
@@ -330,6 +331,7 @@ t_config *crearMetadata(char *path_tag)
     config_set_value(metadata, "ESTADO", "WORK_IN_PROGRESS");
 
     config_save_in_file(metadata, path_metadata);
+    free(path_metadata);
     return metadata;
 }
 
@@ -459,7 +461,8 @@ BloqueLogico *crearBloqueLogico(int nro_bloque_logico, BloqueFisico *bloque_fisi
     bloque_logico->ptr_bloque_fisico = bloque_fisico_a_asignar;
     bloque_logico->id_logico = nro_bloque_logico;
 
-    sprintf(bloque_logico->ruta_hl, "%s/logical_blocks/%04d.dat", path_tag, nro_bloque_logico);
+    bloque_logico->ruta_hl = string_from_format("%s/logical_blocks/%04d.dat", path_tag, nro_bloque_logico);
+
 
     if (!crearHLink(bloque_logico->ruta_hl, bloque_fisico_a_asignar->ruta_absoluta))
     {
@@ -479,7 +482,7 @@ bool crearHLink(char *ruta_hl_del_bloque_logico, char *bloque_fisico_a_hardlinke
     fclose(dat_a_crear);
     if (!link(bloque_fisico_a_hardlinkear, ruta_hl_del_bloque_logico))
         return false;
-    log_info(logger_storage,"## %d - :<TAG> Se agregó el hard link del bloque lógico <BLOQUE_LOGICO> al bloque físico <BLOQUE_FISICO>")
+    //log_info(logger_storage,"## %d - :<TAG> Se agregó el hard link del bloque lógico <BLOQUE_LOGICO> al bloque físico <BLOQUE_FISICO>",,);
     return true;
 }
 
@@ -510,13 +513,7 @@ void liberarBloqueDeBitmap(int nro_bloque, int query_id)
     log_info(logger_storage, "## %d - Bloque Físico Liberado - Número de Bloque: %d",query_id, nro_bloque);
 }
 
-char *obtenerNombreBloqueConCeros(int numero)
-{
-    char *nombre;
-    // NANO
-    sprintf(nombre, "%04d", numero);
-    return nombre;
-}
+
 
 void liberarBloqueLogico(BloqueLogico *bloque_a_liberar)
 {
@@ -573,7 +570,7 @@ char *stringArrayConfigAString(char **array_a_pasar_a_string)
 }
 
 ErrorStorageEnum realizarTAG(char *nombre_file_origen,
-char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino){
+char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino, int query_id){
 
     // ======================== chequeo errores
     pthread_mutex_lock(&mutex_files);
@@ -608,7 +605,7 @@ char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino){
     {
         file_destino_estructura = crearFile(nombre_file_destino);
         tag_destino_estructura = crearTag(nombre_tag_destino, nombre_file_destino);
-        asignarBloquesFisicosATagCopiado(tag_destino_estructura);
+        asignarBloquesFisicosATagCopiado(tag_destino_estructura,nombre_file_destino, query_id);
 
         pthread_mutex_unlock(&mutex_files);
         
@@ -620,7 +617,7 @@ char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino){
     if (!tagPreexistente(file_destino_estructura->tags, nombre_tag_destino, nombre_file_destino))
     {
         tag_destino_estructura = crearTag(nombre_tag_destino, nombre_file_destino);
-        asignarBloquesFisicosATagCopiado(tag_destino_estructura);
+        asignarBloquesFisicosATagCopiado(tag_destino_estructura,nombre_file_destino, query_id);
 
         pthread_mutex_unlock(&mutex_files);
         
@@ -630,12 +627,12 @@ char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino){
 
     // TODO CREADO, SOLO COPIA
     tag_destino_estructura = buscarTagPorNombre(file_origen->tags, nombre_tag_origen);
-    asignarBloquesFisicosATagCopiado(tag_destino_estructura);
+    asignarBloquesFisicosATagCopiado(tag_destino_estructura,nombre_file_destino, query_id);
 
     return OK;
 }
 
-int copiarTag(Tag *tag_origen, Tag *tag_destino)
+/*int copiarTag(Tag *tag_origen, Tag *tag_destino, char* nombre_file, int query_id)
 {
 
     char *aux_path_metadata_destino;
@@ -646,10 +643,12 @@ int copiarTag(Tag *tag_origen, Tag *tag_destino)
     config_set_value(tag_destino->metadata_config_tag, "ESTADO", "WORK_IN_PROGRESS");
 
     //------------------------------- tag_destino ---------------> [10,2,0,0,0,0]
-    asignarBloquesFisicosATagCopiado(tag_destino);
-}
+    asignarBloquesFisicosATagCopiado(tag_destino, nombre_file, query_id);
 
-void asignarBloquesFisicosATagCopiado(Tag *tag_destino)
+    
+}*/
+
+void asignarBloquesFisicosATagCopiado(Tag *tag_destino, char* nombre_file, int query_id) // falta query id
 {
     char **bloques_logicos_a_copiar = config_get_array_value(tag_destino->metadata_config_tag, "BLOCKS");
     t_list *logicos_a_copiar = tag_destino->bloques_logicos;
@@ -657,7 +656,7 @@ void asignarBloquesFisicosATagCopiado(Tag *tag_destino)
     if (!list_is_empty(logicos_a_copiar))
     { // caso donde el tag estaba creado y CAPAZ tenia blogicos asignados
         log_debug(logger_storage, "(asignarBloquesFisicosATagCopiado) - El tag %s destino tenia cosas, se liberaron",tag_destino->nombre_tag);
-        unlinkearBloquesLogicos(list_size(logicos_a_copiar), logicos_a_copiar);
+        unlinkearBloquesLogicos(query_id,list_size(logicos_a_copiar), logicos_a_copiar,nombre_file,tag_destino->nombre_tag);
     }
 
     for (int i = 0; i < string_array_size(bloques_logicos_a_copiar); i++)
@@ -695,7 +694,7 @@ ErrorStorageEnum realizarCOMMIT(int query_id, char *nombre_file,char *nombre_tag
 
     if (tieneEstadoCOMMITED(tag_a_commitear))
     {
-        log_debug(logger_storage, "(realizarCOMMIT) - El estado del tag %d ya estaba en COMMITED", tag_a_commitear->nombre_tag);
+        log_debug(logger_storage, "(realizarCOMMIT) - El estado del tag %s ya estaba en COMMITED", tag_a_commitear->nombre_tag);
         
         return OK;
     }
@@ -730,13 +729,13 @@ void escribirEnHashIndex(int query_id,char* nombre_file,Tag *tag)
             
             char* bloque_fisico_de_config = string_duplicate(config_get_string_value(hash_index_config_gb,hash_bloque_logico));
             
-            BloqueFisico* bloque_fisico_a_apuntar = buscarBloquePorNombre(bloque_fisico_de_config);
+            BloqueFisico* bloque_fisico_a_apuntar = buscarBloqueFisicoPorNombre(bloque_fisico_de_config);
 
             log_info(logger_storage, "%d - %s:%s Bloque Lógico %d se reasigna de %d a %d"
-            ,query_id, nombre_file, tag->nombre_tag,id_fisico_actual,bloque_fisico_a_apuntar->id_fisico);
+            ,query_id, nombre_file, tag->nombre_tag, bloque_logico_a_consultar->id_logico , id_fisico_actual, bloque_fisico_a_apuntar->id_fisico);
 
             
-            reapuntarBloque(bloque_fisico_a_apuntar,bloque_logico_a_consultar, tag->metadata_config_tag);
+            reapuntarBloque(bloque_fisico_a_apuntar,bloque_logico_a_consultar, tag->metadata_config_tag, query_id, nombre_file, tag->nombre_tag);
             
             
             
@@ -767,9 +766,9 @@ void escribirEnHashIndex(int query_id,char* nombre_file,Tag *tag)
     log_debug(logger_storage, "Yo sali del barrio me dicen MOMO");
 }
 
+
 BloqueFisico *buscarBloqueFisicoPorNombre(char *nombre){
     bool tieneMismoNombre(void *ptr)
-    
     {
         BloqueFisico *bloque = (BloqueFisico *)ptr;
         return (strcmp(nombre, bloque->nombre));
@@ -844,13 +843,13 @@ ErrorStorageEnum realizarWRITE(int query_id,char* nombre_file,char* nombre_tag,i
 
     Tag *tag_a_escribir = buscarTagPorNombre(file_a_escribir->tags, nombre_tag);
 
-    t_list* bloques_logicos_asociados = tag_a_leer->bloques_logicos;
+    t_list* bloques_logicos_asociados = tag_a_escribir->bloques_logicos;
     if (list_size(bloques_logicos_asociados) <= id_bloque_logico) {
         return ESCRITURA_FUERA_DE_LIMITE;
     }
 
     if (tieneEstadoCOMMITED(tag_a_escribir)){
-        log_debug(logger_storage, "(realizarWRITE) - El estado del tag %d ya estaba en COMMITED", tag_a_escribir->nombre_tag);    
+        log_debug(logger_storage, "(realizarWRITE) - El estado del tag %s ya estaba en COMMITED", tag_a_escribir->nombre_tag);    
         return ESCRITURA_NO_PERMITIDA;
     }
 
@@ -863,7 +862,7 @@ ErrorStorageEnum realizarWRITE(int query_id,char* nombre_file,char* nombre_tag,i
             log_warning(logger_storage,"(realizarWRITE) - No se encontro bloque fisico libre en el bitmap");
             return ESPACIO_INSUFICIENTE;
         }
-        reapuntarBloque(bloque_nuevo_a_asignar,bloque_a_escribir,tag_a_escribir->metadata_config_tag);
+        reapuntarBloque(bloque_nuevo_a_asignar,bloque_a_escribir,tag_a_escribir->metadata_config_tag,query_id,file_a_escribir->nombre_file,tag_a_escribir->nombre_tag);
         log_info(logger_storage, "“## %d - Bloque Físico Reservado - Número de Bloque: %d",query_id,bloque_nuevo_a_asignar->id_fisico);
     } // caso lindo/liam
     escribirEnBloque(bloque_a_escribir->ruta_hl,contenido);
@@ -878,12 +877,12 @@ ErrorStorageEnum realizarREAD(char* nombre_file,char* nombre_tag,int id_bloque_l
 
     File *file_a_leer = buscarFilePorNombre(nombre_file);
 
-    if (tagInexistente(file_a_escribir->tags, nombre_tag, nombre_file)){
+    if (tagInexistente(file_a_leer->tags, nombre_tag, nombre_file)){
         contenido_a_cargar = string_duplicate("");
         return TAG_INEXISTENTE;
     }
 
-    Tag *tag_a_leer = buscarTagPorNombre(file_a_escribir->tags, nombre_tag);
+    Tag *tag_a_leer = buscarTagPorNombre(file_a_leer->tags, nombre_tag);
     t_list* bloques_logicos_asociados = tag_a_leer->bloques_logicos;
     if (list_size(bloques_logicos_asociados) <= id_bloque_logico) {
         contenido_a_cargar = string_duplicate("");
@@ -891,7 +890,7 @@ ErrorStorageEnum realizarREAD(char* nombre_file,char* nombre_tag,int id_bloque_l
     }
     
     BloqueLogico* bloque_a_leer = buscarBloqueLogicoPorId(id_bloque_logico);
-    contenido_a_cargar = leerBloqueLogico();
+    contenido_a_cargar = leerBloqueLogico(bloque_a_leer);
     return OK;
 }
 
@@ -991,12 +990,12 @@ ErrorStorageEnum realizarELIMINAR_UN_TAG(int query_id,char *nombre_file,char *no
 
     Tag *tag_a_commitear = buscarTagPorNombre(file_a_commitear->tags, nombre_tag);
 
-    unlinkearBloquesLogicosParaELIMINAR_UN_TAG(query_id,list_size(tag_a_commitear->bloques_logicos), tag_a_commitear->bloques_logicos,nombre_file,nombre_tag);
-    char* ruta_metadata_config;
-    
-    sprintf(ruta_metadata_config, "%s/metadata.config",tag_a_commitear->directorio);
+    unlinkearBloquesLogicosParaELIMINAR_UN_TAG(query_id,list_size(tag_a_commitear->bloques_logicos), tag_a_commitear, nombre_file, nombre_tag);
+    char* ruta_metadata_config = string_from_format("%s/metadata.config",tag_a_commitear->directorio);
     remove(ruta_metadata_config);
     rmdir(tag_a_commitear->directorio);
+
+    free(ruta_metadata_config);
     
     return OK;
 }
