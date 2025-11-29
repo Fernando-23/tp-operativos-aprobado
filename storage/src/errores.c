@@ -15,8 +15,9 @@ bool filePreexistente(char* nombre_file){
 }
 
 bool tagPreexistente(t_list* tags,char* nombre_tag,char* nombre_file){
+    Tag* tag = buscarTagPorNombre(tags,nombre_tag);
 
-    if(buscarTagPorNombre(tags,nombre_tag) != NULL){
+    if(tag != NULL){
         log_debug(logger_storage, "(tagPreexistente) - TAG %s EN FILE %s PREEXISTENTE",nombre_tag,nombre_file);
         return true;
     }
@@ -28,7 +29,7 @@ bool fileInexistente(char* nombre_file){
     bool existe = filePreexistente(nombre_file);
     if (!existe) 
         log_debug(logger_storage, "(fileInexistente) - FILE %s INEXISTENTE",nombre_file);
-    return existe;
+    return !existe;
 }
 
 bool tagInexistente(t_list* tags,char* nombre_tag,char* nombre_file){
@@ -36,7 +37,7 @@ bool tagInexistente(t_list* tags,char* nombre_tag,char* nombre_file){
     if (!existe) 
         log_debug(logger_storage, "(tagInexistente) - TAG %s EN FILE %s INEXISTENTE",nombre_tag,nombre_file);
     
-    return existe;
+    return !existe;
     
 }
 

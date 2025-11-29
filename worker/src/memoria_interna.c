@@ -398,7 +398,7 @@ uint64_t now_ms(void){ // mmmmm
 
 int gestionarPAGE_FAULT(char* file, char* tag, int nro_pagina){
     log_debug(logger_worker,"(gestionarPAGE_FAULT) - Gestionando PAGE FAULT - File: %s - Tag: %s - Pagina: %d",file,tag,nro_pagina);
-    char* mensaje_formateado = string_from_format("LEER %s:%s %d" ,file, tag, nro_pagina); // storage lee toda la pagina y decime que tiene
+    char* mensaje_formateado = string_from_format("LEER_BLOQUE %d %s %s %d" ,query->id_query, file, tag, nro_pagina); // storage lee toda la pagina y decime que tiene
     
     Mensaje* mensajito = crearMensajito(mensaje_formateado);
     enviarMensajito(mensajito, socket_storage, logger_worker);

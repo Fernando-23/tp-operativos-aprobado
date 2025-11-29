@@ -250,14 +250,22 @@ ErrorStorageEnum realizarTRUNCATE(int query_id,char* nombre_file, char* nombre_t
 
     log_debug(logger_storage,"(realizarTRUNCATE) - Cant Files:%d" ,lista_files_gb->elements_count);
     File* fileo = list_get(lista_files_gb,0);
-    log_debug(logger_storage,"(realizarTRUNCATE) - Nombre File:%s",fileo->nombre_file);
+    log_debug(logger_storage,"(realizarTRUNCATE) - Nombre File Estructura:%s, Nombre File Parametro:%s",fileo->nombre_file, nombre_file);
     if (fileInexistente(nombre_file))
     {
         pthread_mutex_unlock(&mutex_files);
         return FILE_INEXISTENTE;
     }
 
+    //log_debug(logger_storage,"existe file");
+
     File *file = buscarFilePorNombre(nombre_file);
+
+    
+     log_debug(logger_storage,"(realizarTRUNCATE) - Cant Tags:%d" ,file->tags->elements_count);
+     Tag* tageo = list_get(file->tags,0);
+    log_debug(logger_storage,"(realizarTRUNCATE) - Nombre Tag Estructura:%s, Nombre Tag Parametro:%s",tageo->nombre_tag, nombre_tag);
+
     if (tagInexistente(file->tags, nombre_tag, nombre_file))
     {
         
@@ -379,7 +387,7 @@ Tag *buscarTagPorNombre(t_list *tags, char *nombre_tag)
     bool tieneMismoNombreTag(void *ptr)
     {
         Tag *tag = (Tag *)ptr;
-        return (strcmp(nombre_tag, tag->nombre_tag));
+        return (string_equals_ignore_case(nombre_tag, tag->nombre_tag));
     }
 
     return list_find(tags, tieneMismoNombreTag);
@@ -802,15 +810,18 @@ BloqueFisico* buscarBloqueFisicoPorId(int id_fisico){
     return list_find(bloques_fisicos_gb, tieneMismoId);
 }
 
-BloqueLogico* buscarBloqueLogicoPorId(int id_logico){
-    bool tieneMismoId(void *ptr)
-    {
-        BloqueLogico *bloque = (BloqueLogico *)ptr;
-        return (id_logico == bloque->id_logico);
+BloqueLogico* buscarBloqueLogicoPorId(Tag* tag, int id_logico) {
+    if (!tag || !tag->bloques_logicos) {
+        return NULL;
     }
-    return list_find(bloques_fisicos_gb, tieneMismoId);
-}
 
+    bool tieneMismoId(void* ptr) {
+        BloqueLogico* bloque = (BloqueLogico*)ptr;
+        return bloque->id_logico == id_logico;
+    }
+
+    return list_find(tag->bloques_logicos, tieneMismoId);
+}
 
 DatosParaHash *obtenerDatosParaHash(BloqueLogico *bloque_logico){
     FILE *arch_a_leer = fopen(bloque_logico->ptr_bloque_fisico->ruta_absoluta, "rw");
@@ -869,7 +880,7 @@ ErrorStorageEnum realizarWRITE(int query_id,char* nombre_file,char* nombre_tag,i
         return ESCRITURA_NO_PERMITIDA;
     }
 
-    BloqueLogico* bloque_a_escribir = buscarBloqueLogicoPorId(id_bloque_logico);
+    BloqueLogico* bloque_a_escribir = buscarBloqueLogicoPorId(tag_a_escribir,id_bloque_logico);
     
     // caso feo/fer 
     if (contadorHLinks(bloque_a_escribir->ruta_hl) > 2){
@@ -894,19 +905,30 @@ ErrorStorageEnum realizarREAD(char* nombre_file,char* nombre_tag,int id_bloque_l
 
     File *file_a_leer = buscarFilePorNombre(nombre_file);
 
+
     if (tagInexistente(file_a_leer->tags, nombre_tag, nombre_file)){
         contenido_a_cargar = string_duplicate("");
         return TAG_INEXISTENTE;
     }
 
+    // ESTAMOS ACA
+
+
     Tag *tag_a_leer = buscarTagPorNombre(file_a_leer->tags, nombre_tag);
+   
     t_list* bloques_logicos_asociados = tag_a_leer->bloques_logicos;
+
+    if (bloques_logicos_asociados == NULL){
+        log_debug(logger_storage, "(realizarREAD) - bloques_logicos_asociado a tag == NULL");
+    }
+    log_debug(logger_storage," (realizarREAD) - cant_bloques_logicos: %d", bloques_logicos_asociados->elements_count);
     if (list_size(bloques_logicos_asociados) <= id_bloque_logico) {
         contenido_a_cargar = string_duplicate("");
         return LECTURA_FUERA_DE_LIMITE;
     }
-    
-    BloqueLogico* bloque_a_leer = buscarBloqueLogicoPorId(id_bloque_logico);
+    log_debug(logger_storage," (realizarREAD) - Pase validaciones");
+    BloqueLogico* bloque_a_leer = buscarBloqueLogicoPorId(tag_a_leer, id_bloque_logico);
+    log_debug(logger_storage," (realizarREAD) - Tengo el bloques logico a leer");
     contenido_a_cargar = leerBloqueLogico(bloque_a_leer);
     return OK;
 }
@@ -941,17 +963,22 @@ void escribirEnBloque(char* ruta_abs_bloque_logico,char* contenido){
 
 
 char* leerBloqueLogico(BloqueLogico* bloque_logico){
+    log_debug(logger_storage, "estoy en (leerBloqueLogico)");
 
-    FILE* arch_a_leer = fopen(bloque_logico->ptr_bloque_fisico->ruta_absoluta, "rw");
+    FILE* arch_a_leer = fopen(bloque_logico->ptr_bloque_fisico->ruta_absoluta, "rb");
     if (!arch_a_leer){
         log_error(logger_storage, "(leerBloqueLogico) - No se pudo abrir archivo, ruta: %s",bloque_logico->ptr_bloque_fisico->ruta_absoluta);
-        abort();
+        return NULL;
     }
 
+    log_debug(logger_storage, "(leerBloqueLogico) pude abrir bloque a leer");
 
-    void *contenido = malloc(datos_superblock_gb->tamanio_bloque);
+
+    char *contenido = malloc(datos_superblock_gb->tamanio_bloque);
     fread(contenido,datos_superblock_gb->tamanio_bloque ,1 , arch_a_leer);
     fclose(arch_a_leer);
+
+    log_debug(logger_storage, "(leerBloqueLogico) pude leer bloque, contenido: %s", contenido);
 
     return (char *)contenido;
 }

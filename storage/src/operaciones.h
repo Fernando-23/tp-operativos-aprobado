@@ -59,7 +59,7 @@ void crearDirectorio(char* path_directorio);
 void asignarFileTagAChars(char* nombre_file,char* tag,char* file_a_cortar);
 File *buscarFilePorNombre(char *nombre);
 Tag *buscarTagPorNombre(t_list *tags, char *nombre_tag);
-BloqueLogico* buscarBloqueLogicoPorId(int id_logico);
+BloqueLogico* buscarBloqueLogicoPorId(Tag* tag, int id_logico);
 BloqueFisico* buscarBloqueFisicoPorNombre(char *nombre);
 BloqueFisico* buscarBloqueFisicoPorId(int id_fisico);
 BloqueLogico* crearBloqueLogico(int nro_bloque_logico, BloqueFisico *bloque_fisico_a_asignar, char *path_tag);
