@@ -139,7 +139,7 @@ bool Execute(){
 
     case CREATE:
         //<NOMBRE_FILE>:<TAG>
-        ejecutarCreate(file, tag);
+        finaliza = ejecutarCreate(file, tag);
         nombre_instruccion = "CREATE";
         // tipo_instruccion = "REQUIERO_DESALOJO";
         break;
@@ -147,7 +147,7 @@ bool Execute(){
     case TRUNCATE:
         //<NOMBRE_FILE>:<TAG> <TAMAÑO>
         int tamanio_truncate = atoi(strtok(instruccion->operacion, " "));
-        ejecutarTruncate(file, tag, tamanio_truncate);
+        finaliza = ejecutarTruncate(file, tag, tamanio_truncate);
         nombre_instruccion = "TRUNCATE";
         // tipo_instruccion = "REQUIERO_DESALOJO";
         break;
@@ -157,7 +157,7 @@ bool Execute(){
         int dir_base_write = atoi(strtok(NULL, " "));
         char *contenido = strtok(NULL, " ");
 
-        ejecutarWrite(file, tag, dir_base_write, contenido);
+        finaliza = ejecutarWrite(file, tag, dir_base_write, contenido);
         nombre_instruccion = "WRITE";
         break;
 
@@ -166,7 +166,7 @@ bool Execute(){
         int dir_base_read = atoi(strtok(NULL, " "));
         int tamanio_read = atoi(strtok(NULL, " "));
 
-        ejecutarRead(file, tag, dir_base_read, tamanio_read);
+        finaliza = ejecutarRead(file, tag, dir_base_read, tamanio_read);
         nombre_instruccion = "READ";
         break;
 
@@ -175,31 +175,31 @@ bool Execute(){
         char *file_destino = strtok(NULL, ":");
         char *tag_destino = strtok(NULL, " ");
 
-        ejecutarTag(file, tag, file_destino, tag_destino);
+        finaliza = ejecutarTag(file, tag, file_destino, tag_destino);
         nombre_instruccion = "TAG";
         break;
 
     case COMMIT:
         //<NOMBRE_FILE>:<TAG>
 
-        ejecutarCommit(file, tag);
+        finaliza = ejecutarCommit(file, tag);
         nombre_instruccion = "COMMIT";
         break;
 
     case FLUSH:
         //<NOMBRE_FILE>:<TAG>
-        ejecutarFlush(file, tag);
+        finaliza = ejecutarFlush(file, tag);
         nombre_instruccion = "FLUSH";
         break;
 
     case DELETE:
         //<NOMBRE_FILE>:<TAG>
-        ejecutarDelete(file, tag);
+        finaliza = ejecutarDelete(file, tag);
         nombre_instruccion = "DELETE";
         break;
 
     case END:
-        ejecutarEnd();
+        finaliza = ejecutarEnd();
         nombre_instruccion = "END";
         return;
 
@@ -214,7 +214,9 @@ bool Execute(){
     return finaliza;
 }
 
-void ejecutarCreate(char *file, char *tag){
+
+
+bool ejecutarCreate(char *file, char *tag){
     // faltaria crear alguna funcion para confirmar que se haya creado el tag para ese file (maybe)
     char *mensaje_creacion = string_from_format("CREATE %d %s %s 0",query->id_query,file,tag);
     
@@ -224,15 +226,25 @@ void ejecutarCreate(char *file, char *tag){
     enviarMensajito(mensajito,socket_storage,logger_worker);
     Mensaje* resp_create = recibirMensajito(socket_storage,logger_worker);
     if (!string_equals_ignore_case(resp_create->mensaje,"OK")){
-        //ejecutarEnd; o algo asi
+
+        log_debug(logger_worker, "Query %d finalizada", query->id_query);
+        
+        char* formato_error_master = strng_from_format("ERROR %s", resp_create->mensaje);
+        Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
+        enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
+        
+
         liberarMensajito(resp_create);
-        return;
+        free(formato_error_master);
+        return true;
     }
     pthread_mutex_unlock(&sem_instruccion);
     log_debug(logger_worker, "(ejecutarCreate) - File:Tag enviados");
+    return false;
 }
 
-void ejecutarTruncate(char *file, char *tag, int tamanio){
+
+bool ejecutarTruncate(char *file, char *tag, int tamanio){
 
     if (tamanio % tam_pag != 0 || tam_pag % tamanio != 0)
     {
@@ -246,22 +258,33 @@ void ejecutarTruncate(char *file, char *tag, int tamanio){
     enviarMensajito(mensajito,socket_storage,logger_worker);
     Mensaje* resp_truncate = recibirMensajito(socket_storage,logger_worker);
     if (!string_equals_ignore_case(resp_truncate->mensaje,"OK")){
-        //ejecutarEnd; o algo asi
+
+        char* formato_error_master = strng_from_format("ERROR %s", resp_truncate->mensaje);
+        Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
+        enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
+        
         liberarMensajito(resp_truncate);
-        return;
+        return true;
     }
     log_debug(logger_worker, "(ejecutarTruncate) - File:Tag y tamanios enviados");
+    return false;
 }
 
-void ejecutarWrite(char *file, char *tag, int dir_base, char *contenido_a_escribir){
+bool ejecutarWrite(char *file, char *tag, int dir_base, char *contenido_a_escribir){
     
     int nro_pagina = dir_base / tam_pag; // nro de bloque logico
     int desplazamiento = dir_base % tam_pag;
-    escribirEnMemoria(file, tag, nro_pagina, desplazamiento,contenido_a_escribir);
-    
+    if(!escribirEnMemoria(file, tag, nro_pagina, desplazamiento,contenido_a_escribir)){
+        char* formato_error_master = strng_from_format("ERROR %s", error_en_operacion);
+        Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
+        enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
+        return true;
+    }
+    return false;
+
 }
 
-void ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
+bool ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
     
     if (tamanio % tam_pag == 0 || tam_pag % tamanio == 0)
     {
@@ -273,16 +296,24 @@ void ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
     int desplazamiento = dir_base % tam_pag;
 
     char *datoLeido = leerEnMemoria(file, tag, pagina, desplazamiento, tamanio);
+    if(datoLeido == NULL){
+         char* formato_error_master = strng_from_format("ERROR %s", error_en_operacion);
+        Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
+        free(formato_error_master);
+        enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
+        return true;
+    }
+     
+    char* mensaje_a_master_formateado = string_from_format("READ %s %s %s",file, tag, datoLeido); // READ ID_QUERY FILE TAG CONTENIDO
+    Mensaje* mensajito = crearMensajito(mensaje_a_master_formateado); 
+    free(mensaje_a_master_formateado);
+    enviarMensajito(mensajito,socket_master,logger_worker); // ENVIO READ A MASTER
     
-    
-    Mensaje* mensajito = crearMensajito(datoLeido);
-    enviarMensajito(mensajito,socket_master,logger_worker);
-    
-
     log_debug(logger_worker, "File:Tag y tamanios enviados");
+    return false;
 }
 
-void ejecutarTag(char *file_origen, char *tag_origen, char *file_destino, char *tag_destino){
+bool ejecutarTag(char *file_origen, char *tag_origen, char *file_destino, char *tag_destino){
 
     char *file_a_taggear = string_from_format("TAG %d %s %s %s %s",query->id_query, file_origen, tag_origen, file_destino, tag_destino);
 
@@ -291,10 +322,25 @@ void ejecutarTag(char *file_origen, char *tag_origen, char *file_destino, char *
     free(file_a_taggear);
     enviarMensajito(mensajito,socket_storage,logger_worker);
     pthread_mutex_unlock(&sem_instruccion);
+
+     Mensaje* resp_tag = recibirMensajito(socket_storage,logger_worker);
+    if (!string_equals_ignore_case(resp_tag->mensaje,"OK")){
+
+        char* formato_error_master = strng_from_format("ERROR %s", resp_tag->mensaje);
+        Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
+        enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
+        free(formato_error_master);
+        liberarMensajito(resp_tag);
+        return true;
+    }
+
+
+
     log_debug(logger_worker, "%s:%s y %s:%s destino enviados", file_origen, tag_origen, file_destino, tag_destino);
+    return false;
 }
 
-void ejecutarCommit(char *file, char *tag){
+bool ejecutarCommit(char *file, char *tag){
     ejecutarFlush(file, tag);
 
     char *fileACommit = string_from_format("COMMIT %d %s %s",query->id_query, file, tag);
@@ -304,10 +350,22 @@ void ejecutarCommit(char *file, char *tag){
     free(fileACommit);
     enviarMensajito(mensajito,socket_storage,logger_worker);
     pthread_mutex_unlock(&sem_instruccion);
+
+     Mensaje* resp_commit = recibirMensajito(socket_storage,logger_worker);
+    if (!string_equals_ignore_case(resp_commit->mensaje,"OK")){
+
+        char* formato_error_master = strng_from_format("ERROR %s", resp_commit->mensaje);
+        Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
+        enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
+        free(formato_error_master);
+        liberarMensajito(resp_commit);
+        return true;
+    }
     log_debug(logger_worker, "%s:%s realizar commit enviado a storage", file, tag);
+    return false;
 }
 
-void ejecutarFlush(char *file, char *tag){
+bool ejecutarFlush(char *file, char *tag){
     /*escribir todas las pags con bit_m = 1*/
     TablaPaginas* tabla_a_flush = buscarTablaPags(file,tag);
 
@@ -315,20 +373,27 @@ void ejecutarFlush(char *file, char *tag){
     
     if(entradas_obtenidas == NULL){
         log_debug(logger_worker,"(ejecutarFlush) - No se encontraron entradas para flushear");
-        return;
+        return false; // no consulte con storage respondo ok y sigo proxima instruccion
     }
 
     for (int i = 0; i < list_size(entradas_obtenidas); i++){
         EntradaDeTabla* entrada_a_persistir = list_remove(entradas_obtenidas,0);
-        escribirEnStorage(entrada_a_persistir);
+        if(!escribirEnStorage(entrada_a_persistir)){
+            char* formato_error_master = strng_from_format("ERROR %s", error_en_operacion);
+            Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
+            free(formato_error_master);
+            enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
+            return true;
+        }
     }
 
     list_destroy(entradas_obtenidas);
 
     log_debug(logger_worker, "%s:%s hacer flush enviado a storage ", file, tag);
+    return false;
 }
 
-void ejecutarDelete(char *file, char *tag){ // las páginas se van a ir limpiando a medida que corran los reemplazos.
+bool ejecutarDelete(char *file, char *tag){ // las páginas se van a ir limpiando a medida que corran los reemplazos.
     
     char* mensaje_delete = string_from_format("DELETE %d %s %s",query->id_query, file ,tag);
     Mensaje* mensajito = crearMensajito(mensaje_delete);
@@ -336,23 +401,29 @@ void ejecutarDelete(char *file, char *tag){ // las páginas se van a ir limpiand
     enviarMensajito(mensajito,socket_storage,logger_worker);
     Mensaje* respuesta_delete = recibirMensajito(socket_storage,logger_worker); // ENumERrrorCapaz OK 
     if (!string_equals_ignore_case(respuesta_delete->mensaje,"OK")){
-        log_error(logger_worker,"(ejecutarDelete) - Worker no pudo eliminar ");
-        exit(EXIT_FAILURE);   
-        // ejecutarEnd(); capaz
+
+         char* formato_error_master = strng_from_format("ERROR %s", respuesta_delete->mensaje);
+        Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
+        free(formato_error_master);
+        enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
+        return true;
     }
     
     TablaPaginas* tabla_a_limpiar = buscarTablaPags(file,tag);
     list_destroy_and_destroy_elements(tabla_a_limpiar->entradas,free);
     liberarTablaPaginas(tabla_a_limpiar);         
+    return false;
 }
 
-void ejecutarEnd(){
-    interrumpir_query = false;
+bool ejecutarEnd(){
+    interrumpir_query = true;
 
     log_debug(logger_worker, "Query %d finalizada", query->id_query);
 
    
     Mensaje* mensajito = crearMensajito("END");
     enviarMensajito(mensajito,socket_master,logger_worker);
+
+    return true;
 
 }

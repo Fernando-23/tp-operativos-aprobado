@@ -44,6 +44,7 @@ int main(int argc, char* argv[]) {
     if(socket_storage == -1) return 1;
     pthread_mutex_unlock(&mx_conexion_storage);
     
+    // hilo interrumpir_query = true
 
     //conexion a master (pero el recv se hace a parte)
     pthread_mutex_lock(&mx_conexion_master);
@@ -53,6 +54,15 @@ int main(int argc, char* argv[]) {
      
     
     iniciarMemoria();  //chequear despues si esta bien asignado
+
+
+    pthread_t th_desalojo;
+
+    pthread_create(&th_desalojo, NULL, hiloDesalojo, NULL);
+    pthread_detach(th_desalojo);
+
+    log_debug(logger_worker, "Hilo de desalojo iniciado");
+
     
     while (!debo_morir) { //Exit -> libre -> checkeo_interrupt
 
@@ -66,23 +76,37 @@ int main(int argc, char* argv[]) {
             Decode(instruccion);
             log_debug(logger_worker,"Instrucción a ejecutar: %s", instruccion);
 
-            requiere_realmente_desalojo = Execute();
+            es_end = Execute();
+            if(es_end){
+                break;
+            }
+
             query->pc_query++; // avanzar PC como ejemplo
+            
             pthread_mutex_lock(&mx_conexion_master);
-            Mensaje* pedido_desalojo = recibirMensajito(socket_master, logger_worker);
-            if(pedido_desalojo->mensaje == "DESALOJAR" ){
+            if(interrumpir_query){ // Check Interrupt
+                for(int i = 0; i < list_size(tabla_general); i++){
+                    TablaPaginas* tabla = list_get(tabla_general, i);
+                    ejecutarFlush(tabla->file, tabla->tag);
+                }
+                
                 log_info(logger_worker, "Query %d: Desalojada por pedido del Master", query->id_query);
+                char* formato_msg_des = string_from_format("DESALOJO %d", query->pc_query);
+                Mensaje* mensaje_des_master = crearMensajito(formato_msg_des);
+                free(formato_msg_des);
+                enviarMensajito(mensaje_des_master, socket_master, logger_worker);
+
                 break;
             }
             pthread_mutex_unlock(&mx_conexion_master);
         }
+
+
         list_destroy_and_destroy_elements(query->instrucciones,destruir);
         printf("[DEBUG] Se va a cambiar el contexto\n");
 
-        interrumpir_query = false;
+        interrumpir_query = true;
 
-        //revisar con los pibes de master el tema de los desalojos
-        //ChequearSiTengoQueActualizarEnKernel(requiere_realmente_desalojo);
     }
 
     log_info(logger_worker, "Worker recibio sigint o sigterm");

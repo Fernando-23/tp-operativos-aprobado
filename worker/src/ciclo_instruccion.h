@@ -35,15 +35,15 @@ void destruir(void* elemento);
 
 t_list *crearListaDeInstrucciones();
 
-void ejecutarCreate(char* file, char* tag);
-void ejecutarTruncate(char* file, char* tag, int tamanio);
-void ejecutarWrite(char* file, char* tag, int dir_base, char* contenido);
-void ejecutarRead(char* file, char* tag, int dir_base, int tamanio);
-void ejecutarTag(char* file_origen, char* tag_origen, char* file_destino, char* tag_destino);
-void ejecutarCommit(char* file, char* tag);
-void ejecutarFlush(char* file, char* tag);
-void ejecutarDelete(char* file, char* tag);
-void ejecutarEnd(); 
+bool ejecutarCreate(char* file, char* tag);
+bool ejecutarTruncate(char* file, char* tag, int tamanio);
+bool ejecutarWrite(char* file, char* tag, int dir_base, char* contenido);
+bool ejecutarRead(char* file, char* tag, int dir_base, int tamanio);
+bool ejecutarTag(char* file_origen, char* tag_origen, char* file_destino, char* tag_destino);
+bool ejecutarCommit(char* file, char* tag);
+bool ejecutarFlush(char* file, char* tag);
+bool ejecutarDelete(char* file, char* tag);
+bool ejecutarEnd(); 
 
 int obtenerOperacionCodOp(char *string_operacion);
 

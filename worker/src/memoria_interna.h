@@ -29,6 +29,8 @@ typedef struct{
     EntradaDeTabla* entrada;
 }RespuestaAlgoritmoReemplazo;
 
+extern char* error_en_operacion;
+
 
 extern int* bitMap;
 extern int cant_frames;
@@ -50,8 +52,8 @@ EntradaDeTabla* buscarEntradaPorNroPag(t_list* entradas,int nro_pag);
 
 
 bool estaPagEnMemoria(char* file, char* tag, int nro_pag);
-void escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,char* contenido);
-char* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int tamanio);
+bool escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,char* contenido);
+bool* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int tamanio);
 
 int aplicarPoliticaReemplazo();
 
@@ -65,17 +67,17 @@ int gestionarPAGE_FAULT(char* file, char* tag, int nro_pagina);
 
 EntradaDeTabla* crearEntradaPagina(int pag_a_asignar, TablaPaginas* tabla);
 
-int devolverFrameLibre();
+int devolverFrameLibre(char* file, char* tag, int nro_pagina);
 
 int obtenerCantEntradasDeTabla(TablaPaginas* tabla_a_consultar);
 
 void liberarTablaPaginas(TablaPaginas* tabla_a_liberar);
 
-int gestionarBitModificado(RespuestaAlgoritmoReemplazo* resp);
+int gestionarBitModificado(RespuestaAlgoritmoReemplazo* resp,char* file, char* tag, int nro_pagina);
 
-void escribirEnStorage(EntradaDeTabla* entrada_a_persistir);
+bool escribirEnStorage(EntradaDeTabla* entrada_a_persistir);
 
-void escribirPagina(int nro_frame, char* contenido);
+void escribirPagina(char* file, char* tag, int nro_pagina,int nro_frame, char* contenido);
 
 char* leerBloque(EntradaDeTabla* entrada_pagina);
 

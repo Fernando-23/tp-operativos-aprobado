@@ -13,7 +13,7 @@ pthread_mutex_t sem_instruccion;
 
 Query* query;
 Puntero ptr_gb;
-bool interrumpir_query;
+bool interrumpir_query=false;
 bool requiere_realmente_desalojo;
 
 int tam_pag;
@@ -130,3 +130,27 @@ void esperandoQuery(int socket){
 }
 
 
+
+void hiloDesalojo(void* args){
+
+    while(1){
+        Mensaje* msg = recibirMensajito(socket_master, logger_worker);
+
+        if(!msg){
+            log_error(logger_worker, "Master se desconecto. Terminando worker...");
+            exit(EXIT_FAILURE);
+        }
+
+        if(string_equals_ignore_case(msg->mensaje, "DESALOJAR")){
+            log_debug(logger_worker, "Recibido Desalojo del Master. Interrumpiendo ejecucion actual...");
+            interrumpir_query = true;
+            liberarMensajito(msg);
+            break;
+        }
+
+        liberarMensajito(msg);
+
+    }
+
+    return NULL;
+}

@@ -40,7 +40,7 @@ extern ConfigWorker* config_worker;
 extern Query* query;
 extern int tam_pag;
 extern bool interrumpir_query;
-extern bool requiere_realmente_desalojo;
+extern bool es_end;
 
 extern pthread_mutex_t mx_conexion_storage;
 extern pthread_mutex_t mx_conexion_master;
@@ -52,6 +52,8 @@ void cargarConfigWorker(char* path_config);
 int conexionStorage();
 int conexionMaster();
 void esperandoQuery(int socket);
+
+void hiloDesalojo(void* args);
 
 void inicializarMutexWorker();
 

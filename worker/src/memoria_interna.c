@@ -4,6 +4,8 @@ void* memoria = NULL; //
 int* bitMap = NULL;
 int cant_frames = 0;
 
+char* error_en_operacion = "OK";
+
 t_list* tabla_general = NULL;
 
 
@@ -102,7 +104,7 @@ EntradaDeTabla* buscarEntradaPorNroPag(t_list* entradas,int nro_pag){
 }
 
 
-void escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,char* contenido){
+bool escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,char* contenido){
     size_t bytes_contenido = strlen(contenido);
     size_t total_a_escribir = bytes_contenido + 1; 
     size_t escritos = 0;
@@ -122,6 +124,7 @@ void escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,cha
             }
             log_info(logger_worker,"Query %d: - Memoria Miss - File: %s - Tag: %s - Pagina: %d",query->id_query,file,tag,pag_actual);
             frame_seleccionado = gestionarPAGE_FAULT(file,tag,pagina);
+            if(frame_seleccionado == -1) return false; 
             entrada_pag->nro_frame = frame_seleccionado;
         }
 
@@ -155,7 +158,9 @@ void escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,cha
         } else {
             desp_actual += (int)por_copiar;
         }
+        
     }
+    return true;
 
 
 }
@@ -200,6 +205,7 @@ char* leerEnMemoria(char* file, char* tag, int pagina, int desplazamiento, int t
         
         if (ent->bit_presencia == 0) {
             int frame_seleccionado = gestionarPAGE_FAULT(file,tag,pagina);
+            if(frame_seleccionado == -1) return NULL;
             ent->nro_frame = frame_seleccionado;   
         }
 
@@ -403,14 +409,10 @@ int gestionarPAGE_FAULT(char* file, char* tag, int nro_pagina){
             log_info(logger_worker,"Query %d: Se asigna el Marco: %d a la Página: %d perteneciente al - File: %s - Tag: %s",query->id_query,frame_a_asignar,nro_pagina,file,tag);
             return frame_a_asignar;
 
-        case ESCRITURA_FUERA_DE_LIMITE:
-        case ESCRITURA_NO_PERMITIDA:
-        {
-            log_debug(logger_worker,"(ejecutarWrite) - Error manejable recibido: %s", NOMBRE_ERRORES[cod_op_storage_recv]);
-            break;
-        }
-            
-        default: log_error(logger_worker, "Storage mando cualquier cosa, Cosa que mando: %d", cod_op_storage_recv);
+
+        default: 
+        error_en_operacion = datos_recibidos[0];
+        log_error(logger_worker, "Storage mando cualquier cosa, Cosa que mando: %d", cod_op_storage_recv);
         }
     return -1;
  }
@@ -489,7 +491,7 @@ int gestionarBitModificado(RespuestaAlgoritmoReemplazo* resp, char* file, char* 
     return frame_a_retornar;
 }
 
-void escribirEnStorage(EntradaDeTabla* entrada_a_persistir){
+bool escribirEnStorage(EntradaDeTabla* entrada_a_persistir){
     TablaPaginas* tabla_padre = entrada_a_persistir->tabla;
     char* contenido_a_persistir = 
         string_from_format("ESCRIBIR_BLOQUE %d %s %s %d %s",query->id_query,tabla_padre->file,tabla_padre->tag,entrada_a_persistir->nro_pag,leerBloque(entrada_a_persistir));
@@ -497,13 +499,15 @@ void escribirEnStorage(EntradaDeTabla* entrada_a_persistir){
     free(contenido_a_persistir); 
     enviarMensajito(mensajito_a_enviar,socket_storage,logger_worker);
     Mensaje* respuesta_storage = recibirMensajito(socket_storage,logger_worker); // OK siempre... ponele
-    if(respuesta_storage == NULL || string_equals_ignore_case(respuesta_storage->mensaje ,"OK")){
+    if(respuesta_storage == NULL || !string_equals_ignore_case(respuesta_storage->mensaje ,"OK")){
         liberarMensajito(respuesta_storage);
         log_error(logger_worker, "(escribirEnStorage) Conexion cerrada con storage o no pudo escribir");
-        exit(EXIT_FAILURE);
+        error_en_operacion = respuesta_storage->mensaje;
+        return false;
     }
     
     liberarMensajito(respuesta_storage);
+    return true;
 }
 
 char* leerBloque(EntradaDeTabla* entrada_pagina){ // memoria me desplazo hasta la base del bloque
