@@ -12,7 +12,7 @@ void* recursosHumanos(void *args_sin_formato)
          log_debug(logger_storage, "se conecto un cliente");
         pthread_t thread_labubu;
         pthread_create(&thread_labubu, NULL, atenderLaburanteDisconforme, (void *)&fd_cliente);
-        pthread_detach(thread_labubu);
+        //pthread_detach(thread_labubu);
     } // n veces porque hay n workers
 }
 
@@ -27,6 +27,7 @@ void *atenderLaburanteDisconforme(void *args_sin_formato)
     //}
     do
     {
+        log_debug(logger_storage,"peto");
         pedidoDeLaburante(fd_cliente);
     } while (1);
 }

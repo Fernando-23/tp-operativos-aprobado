@@ -44,11 +44,13 @@ void* atenderClientes(void *args){
         int* p_fd = malloc(sizeof(int));
         *p_fd = fd_nuevo;
         
-        
         pthread_create(&thread, NULL, gestionarClienteIndividual, p_fd);
-        pthread_detach(thread); //creo que no hace falta, pero pensar a futuro        
+       // pthread_detach(thread); //creo que no hace falta, pero pensar a futuro        
     }
 }
+
+
+
 
 void* gestionarClienteIndividual(void* args){
     int fd_conexion = *(int *)args; //clarisimo mi rey

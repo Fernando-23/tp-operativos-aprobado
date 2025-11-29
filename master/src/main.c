@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
         config_master->tiempo_aging > 0) {
         pthread_t th_aging;
         pthread_create(&th_aging, NULL, hiloAging, NULL);
-        pthread_detach(th_aging);
+        //pthread_detach(th_aging);
         log_info(logger_master, "Hilo AGING iniciado cada %d ms", config_master->tiempo_aging);
     }
 

@@ -113,14 +113,16 @@ int calcularCantBloques(){
 void crearBloquesFisicos(){
 
     for (int i = 0; i < datos_superblock_gb->cant_bloques; i++){
-        char* nombre_bloque = string_from_format("block%04d",i);
+        char nombre_fijo[32];
+        snprintf(nombre_fijo, sizeof(nombre_fijo),"block%04d",i );
             
-        char* ruta_absoluta = string_from_format("%s/%s.dat",PATH_PHYSICAL_BLOCKS,nombre_bloque);
+        char* ruta_absoluta = string_from_format("%s/%s.dat",PATH_PHYSICAL_BLOCKS,nombre_fijo);
         FILE* arch = fopen(ruta_absoluta, "a+");
+
         fclose(arch);
         
         
-        crearYAgregarBloqueFisicoIndividual(i,nombre_bloque,ruta_absoluta);
+        crearYAgregarBloqueFisicoIndividual(i,string_duplicate(nombre_fijo),ruta_absoluta);
     }
     log_debug(logger_storage,"Debug - (crearBloquesFisicos) - Bloques fisicos creados");
 }

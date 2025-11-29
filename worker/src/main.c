@@ -56,7 +56,7 @@ int main(int argc, char* argv[]) {
     pthread_t th_desalojo;
 
     pthread_create(&th_desalojo, NULL, hiloDesalojo, NULL);
-    pthread_detach(th_desalojo);
+    //pthread_detach(th_desalojo);
 
     log_debug(logger_worker, "Hilo de desalojo iniciado");
 
