@@ -28,8 +28,8 @@ typedef struct{
 }t_instruccion;
 
 char* Fetch();
-void Decode(char* instruccionCom);
-bool Execute();
+char** Decode(char* instruccionCom);
+bool Execute(char** instruccion_separada);
 
 void destruir(void* elemento);
 

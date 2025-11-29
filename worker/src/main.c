@@ -72,11 +72,11 @@ int main(int argc, char* argv[]) {
             char* instruccion = Fetch();  // "WRITE 345 42"
              log_debug(logger_worker, "hice Fetch");
 
-            Decode(instruccion);
+            char** instruccion_separada = Decode(instruccion);
             log_debug(logger_worker, "hice Decode");
             log_debug(logger_worker,"Instrucción a ejecutar: %s", instruccion);
 
-            es_end = Execute();
+            es_end = Execute(instruccion_separada);
             log_debug(logger_worker, "hice Execute");
             if(es_end){
                 log_debug(logger_worker, "Query %d: Finalizo ES_END", query->id_query);

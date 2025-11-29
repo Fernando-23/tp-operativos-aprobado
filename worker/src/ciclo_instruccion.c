@@ -145,7 +145,7 @@ int obtenerOperacionCodOp(char* string_operacion){
     return -1;
 }
 
-void Decode(char* instruccionCom){
+char** Decode(char* instruccionCom){
 
     char **instruccion_separada = string_split(instruccionCom, " ");
     // [cod-op,cola]
@@ -171,17 +171,18 @@ void Decode(char* instruccionCom){
         instruccion->cod_op = DELETE;
     else if (strcmp(op_code, "END") == 0)
         instruccion->cod_op = END;*/
+        return instruccion_separada;
 }
 
-bool Execute(){
+bool Execute(char** instruccion_separada){
 
     char* nombre_instruccion; // create 1:rrere
     char* file;
     char* tag;
     bool finaliza = true;
-    if (instruccion->cod_op != END){ //TRUNCATE <NOMBRE_FILE>:<TAG> <TAMAÑO>
+    if (instruccion->cod_op != END){ //TRUNCATE <NOMBRE_FILE>:<TAG> <TAMAÑO> 
 
-        file = strtok(instruccion->operacion, ":");
+        file = strtok(instruccion->operacion, ":"); // instruccion_separa[1]
         tag = strtok(NULL, " ");
         finaliza = false;
     }
@@ -198,7 +199,8 @@ bool Execute(){
 
     case TRUNCATE:
         //<NOMBRE_FILE>:<TAG> <TAMAÑO>
-        int tamanio_truncate = atoi(strtok(NULL, " "));
+        int tamanio_truncate = atoi(instruccion_separada[2]);
+        log_debug(logger_worker, "(Execute) Ejecutando TRUNCATE");
         log_debug(logger_worker, "(Execute) - Ejecutando TRUNCATE %s:%s TAMANIO:%d", file, tag, tamanio_truncate);
         
         finaliza = ejecutarTruncate(file, tag, tamanio_truncate);
@@ -209,8 +211,8 @@ bool Execute(){
     case WRITE:
         //<FILE>:<TAG> <DIRECCIÓN BASE> <CONTENIDO>
         log_debug(logger_worker, "(Execute) - Ejecutando WRITE %s:%s", file, tag);
-        int dir_base_write = atoi(strtok(NULL, " "));
-        char *contenido = strtok(NULL, " ");
+        int dir_base_write = atoi(instruccion_separada[2]);
+        char *contenido = instruccion_separada[3];
 
         finaliza = ejecutarWrite(file, tag, dir_base_write, contenido);
         nombre_instruccion = "WRITE";
@@ -219,8 +221,8 @@ bool Execute(){
     case READ:
         //<NOMBRE_FILE>:<TAG> <DIRECCIÓN BASE> <TAMAÑO>
         log_debug(logger_worker, "(Execute) - Ejecutando READ %s:%s", file, tag);
-        int dir_base_read = atoi(strtok(NULL, " "));
-        int tamanio_read = atoi(strtok(NULL, " "));
+        int dir_base_read = atoi(instruccion_separada[2]);
+        int tamanio_read = atoi(instruccion_separada[3]);
 
         finaliza = ejecutarRead(file, tag, dir_base_read, tamanio_read);
         nombre_instruccion = "READ";
@@ -229,7 +231,9 @@ bool Execute(){
     case TAG:
         //<NOMBRE_FILE_ORIGEN>:<TAG_ORIGEN> <NOMBRE_FILE_DESTINO>:<TAG_DESTINO
         log_debug(logger_worker, "(Execute) - Ejecutando TAG %s:%s", file, tag);
-        char *file_destino = strtok(NULL, ":");
+        char* file_tag = instruccion_separada[2];
+
+        char *file_destino  = strtok(file_tag, ":"); // instruccion_separa[1]
         char *tag_destino = strtok(NULL, " ");
 
         finaliza = ejecutarTag(file, tag, file_destino, tag_destino);
@@ -307,11 +311,11 @@ bool ejecutarCreate(char *file, char *tag){
 bool ejecutarTruncate(char *file, char *tag, int tamanio){
 
     log_debug(logger_worker, "entre a (ejecutarTruncate)");
-    if (tamanio % tam_pag != 0 || tam_pag % tamanio != 0)
-    {
-        log_error(logger_worker, "El tamanio a truncar debe ser multiplo del tamanio de pagina");
-        return true;
-    }
+   // if (tamanio % tam_pag != 0 || tam_pag % tamanio != 0)
+   // {
+   //     log_error(logger_worker, "El tamanio a truncar debe ser multiplo del tamanio de pagina");
+   //     return true;
+  //  }
      log_debug(logger_worker, "(ejecutarTruncate) - pase checkeo tam pag ");
     char *mensaje_truncado = string_from_format("TRUNCATE %d %s %s %d", query->id_query,file, tag, tamanio);
 

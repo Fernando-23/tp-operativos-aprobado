@@ -247,9 +247,12 @@ ErrorStorageEnum realizarTRUNCATE(int query_id,char* nombre_file, char* nombre_t
 
     // chequeo errores
     pthread_mutex_lock(&mutex_files);
+
+    log_debug(logger_storage,"(realizarTRUNCATE) - Cant Files:%d" ,lista_files_gb->elements_count);
+    File* fileo = list_get(lista_files_gb,0);
+    log_debug(logger_storage,"(realizarTRUNCATE) - Nombre File:%s",fileo->nombre_file);
     if (fileInexistente(nombre_file))
     {
-       
         pthread_mutex_unlock(&mutex_files);
         return FILE_INEXISTENTE;
     }
@@ -365,7 +368,7 @@ File *buscarFilePorNombre(char *nombre)
     bool tieneMismoNombre(void *ptr)
     {
         File *file = (File *)ptr;
-        return (strcmp(nombre, file->nombre_file));
+        return (string_equals_ignore_case(nombre, file->nombre_file));
     }
     return list_find(lista_files_gb, tieneMismoNombre);
 }
