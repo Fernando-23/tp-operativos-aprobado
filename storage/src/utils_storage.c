@@ -183,7 +183,6 @@ void crearInitialFile(){
 
     char *buffer = calloc(datos_superblock_gb->tamanio_bloque, 1);   // llena de ceros
 
-
     fwrite(buffer, 1, datos_superblock_gb->tamanio_bloque, arch_a_escribir);
 
     free(buffer);
