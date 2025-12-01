@@ -7,6 +7,7 @@
 void inicializarBitmapYMapeo();
 RespuestaConsultaBitmap* consultarBitmapPorBloquesLibres(int cant_bloques_que_quiero);
 void liberarBitmapYMapeo();
+void limpiarBitmap();
 
 
 #endif /*BITMAP_H_*/

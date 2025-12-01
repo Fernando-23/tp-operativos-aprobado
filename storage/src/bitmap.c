@@ -3,7 +3,7 @@
 #include <unistd.h>
 
 void inicializarBitmapYMapeo(){
-    FILE* arch_bitmap = fopen("bitmap.bin", "a+");
+    FILE* arch_bitmap = fopen(RUTA_BITMAP, "a+");
     if (arch_bitmap == NULL) {
         log_error(logger_storage, "ERROR: No se pudo abrir/crear bitmap.bin");
         exit(EXIT_FAILURE);
@@ -92,3 +92,13 @@ void liberarBitmapYMapeo(){
     munmap(bitmap_mmap_gb, cant_bloques_en_bytes_gb);
     bitarray_destroy(bitmap_gb);
 }   
+
+void limpiarBitmap(){
+    log_debug(logger_storage, "(limpiarBitmap) - entre");
+    for (int i = 0; i < bitarray_get_max_bit(bitmap_gb); i++)
+    {
+        bitarray_clean_bit(bitmap_gb,i);
+    }
+    
+    log_debug(logger_storage,"(limpiarBitmap) - Bitmap reseteado de fabrica");
+}

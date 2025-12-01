@@ -232,15 +232,20 @@ Deberá crear el archivo de metadata en estado WORK_IN_PROGRESS y no asignarle n
 ErrorStorageEnum realizarCREATE(char *nombre_file, char *nombre_tag)
 {
 
+    log_debug(logger_storage, "(realizarCREATE) - Comienzo create");
+
     if (filePreexistente(nombre_file))
         return FILE_PREEXISTENTE; // chequeo de error del enunciado
     //
+    log_debug(logger_storage, "(realizarCREATE) - Pase validaciones de creacion");
     File *nuevo_file = crearFile(nombre_file);
+    
+    
     list_add(lista_files_gb, nuevo_file);
     Tag *nuevo_tag = crearTag(nombre_tag, nombre_file);
 
     list_add(nuevo_file->tags, nuevo_tag);
-
+    log_debug(logger_storage,"(realizarCREATE) - Termine correctamente create");
     return OK;
 }
 
@@ -310,6 +315,7 @@ void crearDirectorio(char *path_directorio)
 
 File *crearFile(char *nombre_file)
 {
+    log_debug(logger_storage, "(crearFile) - Intentando crear file %s", nombre_file);
     File *nuevo_file = malloc(sizeof(File));
     nuevo_file->nombre_file = string_duplicate(nombre_file); // LIBERAR
     char *dir_a_crear = string_from_format("%s/%s", RUTA_FILES, nuevo_file->nombre_file);
@@ -317,26 +323,33 @@ File *crearFile(char *nombre_file)
 
     nuevo_file->tags = list_create();
 
+     log_debug(logger_storage, "(crearFile) - File %s creado", nombre_file);
+
     return nuevo_file;
 }
 
 Tag *crearTag(char *nombre_tag, char *nombre_file_asociado)
 {
+    log_debug(logger_storage, "(crearTag) - Intentando crear tag %s", nombre_tag);
     Tag *tag = malloc(sizeof(Tag));
 
     tag->nombre_tag = string_duplicate(nombre_tag);
 
     // home/utnso/rerewr/reewrwe/ewr/wer/nombrefile/nombretag
     tag->directorio = string_from_format("%s/%s/%s", RUTA_FILES, nombre_file_asociado, tag->nombre_tag);
+    log_debug(logger_storage, "(crearTag) - Directorio a crear: %s", tag->directorio);
     crearDirectorio(tag->directorio);
 
     // Creo carpeta logical blocks
+    log_debug(logger_storage, "(crearTag) - Creando directorio logical_blocks en: %s", tag->directorio);
     char *ruta_aux_lblocks = string_from_format("%s/logical_blocks", tag->directorio);
     crearDirectorio(ruta_aux_lblocks);
     free(ruta_aux_lblocks);
     
+    log_debug(logger_storage, "(crearTag) - Directorio logical_blocks creado en: %s", tag->directorio);
     tag->metadata_config_tag = crearMetadata(tag->directorio);
-
+    log_debug(logger_storage, "(crearTag) - Metadata creada en: %s/metadata.config", tag->directorio);
+    
     tag->bloques_logicos = list_create();
 
     log_debug(logger_storage, "Debug - (crearTag) - Se creo el tag %s", nombre_tag);
@@ -347,16 +360,17 @@ Tag *crearTag(char *nombre_tag, char *nombre_file_asociado)
 t_config *crearMetadata(char *path_tag)
 {
     char *path_metadata = string_from_format("%s/metadata.config", path_tag);
+    log_debug(logger_storage, "(crearMetadata) - path metadata: %s", path_metadata);
 
-    FILE *arch_config = fopen(path_metadata, "w+");
-    fclose(arch_config);
-
+    FILE *arch_config = fopen(path_metadata, "a+");
+    
     t_config *metadata = config_create(path_metadata);
     config_set_value(metadata, "TAMANIO", "0");
     config_set_value(metadata, "BLOCKS", "[]");
     config_set_value(metadata, "ESTADO", "WORK_IN_PROGRESS");
 
     config_save_in_file(metadata, path_metadata);
+    fclose(arch_config);
     free(path_metadata);
     return metadata;
 }
@@ -480,7 +494,6 @@ void asignarBloquesFisicosATagEnTruncate(Tag *tag_a_asignar_hardlinks, int cant_
     string_array_destroy(bloques_logicos);
 }
 
-// TODO - PROXIMAMENTE EN DBZ - arreglar bien tema directorios en bloque logico y tag
 // ----------------------/home/utnso/storage/files/tag1_0_0
 BloqueLogico *crearBloqueLogico(int nro_bloque_logico, BloqueFisico *bloque_fisico_a_asignar, char *path_tag)
 { //-- ta checkkkk  -- update 22/11/25 que hijo de puta, firma Joe

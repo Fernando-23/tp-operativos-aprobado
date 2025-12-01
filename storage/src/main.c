@@ -17,7 +17,7 @@ int main(int argc, char* argv[]) {
     log_debug(logger_storage, "llegue aca");
     // FRESH_STORAGE
     iniciarStorage();
-    inicializarBitmapYMapeo();
+    
 
     log_debug(logger_storage, "storage iniciado");
     pthread_t thread_rrhh;

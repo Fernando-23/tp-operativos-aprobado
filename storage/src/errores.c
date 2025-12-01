@@ -9,7 +9,7 @@ bool filePreexistente(char* nombre_file){
         return true;
     }
 
-     log_debug(logger_storage, "(filePreexistente) - FILE %s INEXISTENTE",nombre_file);
+    log_debug(logger_storage, "(filePreexistente) - Efectivamente el archivo %s no existia",nombre_file);
 
     return false;
 }

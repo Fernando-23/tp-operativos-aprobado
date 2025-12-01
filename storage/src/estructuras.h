@@ -73,12 +73,14 @@ extern pthread_mutex_t mutex_cant_workers;
 extern int cant_workers_conectados;
 extern char* NOMBRE_CODOP_STORAGE[8];
 
-
+extern char* RUTA_BASE_TAG;
+extern char* RUTA_BITMAP;
 extern char* PATH_PHYSICAL_BLOCKS;
 extern char* RUTA_BASE_STORAGE;
 extern char* RUTA_FILES;
 extern char* RUTA_HASH_INDEX;
 extern char* RUTA_AUX_FSTART_HASH_INDEX;
+
 
 
 #endif //ESTRUCTURAS_H_

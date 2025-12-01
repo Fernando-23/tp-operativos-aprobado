@@ -1,8 +1,5 @@
 #include "utils_storage.h"
 
-
-
-
 int obtenerTareaCodOperacion(char *string_codop){
     for (int i = 0; i < 8; i++)
     {
@@ -28,23 +25,28 @@ void handshake(int fd){
 
 
 void iniciarStorage(){
-    crearDirectorio(PATH_PHYSICAL_BLOCKS);
-    crearDirectorio(RUTA_FILES);    
-
-    cargarConfigSuperblock();
-    
-    if (string_equals_ignore_case(config_storage->fresh_start,"TRUE")){
-        //ACA IRIA LA_SANGUINARIA();
-        
-        limpiarHashIndexConfig();
-    }
-
-
-
-    hash_index_config_gb = config_create(RUTA_HASH_INDEX);
-
     bloques_fisicos_gb = list_create();
     lista_files_gb = list_create();
+
+    cargarConfigSuperblock();
+    inicializarBitmapYMapeo();
+    
+    if (string_equals_ignore_case(config_storage->fresh_start,"TRUE")){
+        LA_SANGUINARIA(); 
+        log_debug(logger_storage,"(iniciarStorage)- SANGUINARIA HECHA");
+        crearDirectorio(PATH_PHYSICAL_BLOCKS);
+        crearDirectorio(RUTA_FILES);
+        crearBloquesFisicos(); 
+        log_debug(logger_storage,"(iniciarStorage)- Bloques fisicos creados");
+    }
+
+    crearDirectorio(PATH_PHYSICAL_BLOCKS);
+    crearDirectorio(RUTA_FILES);
+
+    crearInitialFile();
+
+    hash_index_config_gb = config_create(RUTA_HASH_INDEX);
+    
     crearBloquesFisicos();
 
 }
@@ -113,6 +115,7 @@ int calcularCantBloques(){
 
 void crearBloquesFisicos(){
 
+
     for (int i = 0; i < datos_superblock_gb->cant_bloques; i++){
         char nombre_fijo[32];
         snprintf(nombre_fijo, sizeof(nombre_fijo),"block%04d",i );
@@ -151,7 +154,7 @@ void crearYAgregarBloqueFisicoIndividual(int id,char* nombre_bloque, char* ruta_
 
 void inicializarSemaforos(){
     pthread_mutex_init(&mutex_bitmap,NULL);
-     pthread_mutex_init(&mutex_files,NULL);
+    pthread_mutex_init(&mutex_files,NULL);
     pthread_mutex_init(&mutex_bloques_fisicos,NULL);
     pthread_mutex_init(&mutex_cant_workers,NULL);
    
@@ -165,4 +168,53 @@ Mensaje* mensajitoResultadoStorage(ErrorStorageEnum cod_error){
     mensajito->size = string_length(mensajito->mensaje);
 	
     return mensajito;
+}
+
+void crearInitialFile(){
+    log_debug(logger_storage,"(crearInitialFile) - Intentando crear initial_file");
+    if(realizarCREATE("initial_file","BASE")!= OK){
+        log_error(logger_storage,"(crearInitialFile) - No se pudo crear initial_file");
+        exit(EXIT_FAILURE);
+    }
+    log_debug(logger_storage,"(crearInitialFile) - initial_file creado");
+
+    BloqueLogico* bloque_0 = crearBloqueLogico(0,list_get(bloques_fisicos_gb,0),RUTA_BASE_TAG);
+    FILE* arch_a_escribir= fopen(bloque_0->ruta_hl, "w");
+
+    char *buffer = calloc(datos_superblock_gb->tamanio_bloque, 1);   // llena de ceros
+
+
+    fwrite(buffer, 1, datos_superblock_gb->tamanio_bloque, arch_a_escribir);
+
+    free(buffer);
+
+    fclose(arch_a_escribir);
+    File* file_initial_file = buscarFilePorNombre("initial_file");
+    log_debug(logger_storage, "(crearInitialFile) - Cantidad de Tags: %d", file_initial_file->tags->elements_count);
+    
+    Tag* tag = list_get(file_initial_file->tags,0);
+    list_add(tag->bloques_logicos,bloque_0);
+} 
+
+void LA_SANGUINARIA(){
+    char* preguntemos_a_la_caracola_magica;
+    preguntemos_a_la_caracola_magica = string_from_format("rm -rf %s",PATH_PHYSICAL_BLOCKS); // /physical_blocks
+    LA_CARACOLA_MAGICA(preguntemos_a_la_caracola_magica);
+    preguntemos_a_la_caracola_magica = string_from_format("rm -rf %s",RUTA_FILES); // /files
+    LA_CARACOLA_MAGICA(preguntemos_a_la_caracola_magica);
+    preguntemos_a_la_caracola_magica = string_from_format("rm %s",RUTA_HASH_INDEX); // 
+    LA_CARACOLA_MAGICA(preguntemos_a_la_caracola_magica);
+    preguntemos_a_la_caracola_magica = string_from_format("rm %s",RUTA_BITMAP);
+    //ya borre todo, ahora creemos todo
+    log_debug(logger_storage, "(LA_SANGUINARIA) - Elimine rutas");
+    limpiarBitmap();
+   
+    preguntemos_a_la_caracola_magica = string_from_format("touch %s",RUTA_HASH_INDEX);
+    LA_CARACOLA_MAGICA(preguntemos_a_la_caracola_magica); 
+}
+
+void LA_CARACOLA_MAGICA(char* pregunta){
+    system(pregunta);
+	log_debug(logger_storage,"LA CARACOLA MAGICA HA HABLADO:%s",pregunta); 
+	free(pregunta);
 }

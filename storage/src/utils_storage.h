@@ -9,9 +9,7 @@
 #include <sys/stat.h>
 #include "estructuras.h"
 #include "operaciones.h"
-
-
-
+#include "bitmap.h"
 
 
 int obtenerTareaCodOperacion(char *string_codop);
@@ -26,6 +24,10 @@ void crearYAgregarBloqueFisicoIndividual(int id,char* nombre_bloque, char* ruta_
 void handshake(int fd);
 void limpiarHashIndexConfig();
 
+void LA_SANGUINARIA();
+void LA_CARACOLA_MAGICA(char* pregunta);
+
+void crearInitialFile();
 
 Mensaje* mensajitoError(ErrorStorageEnum cod_error);
 
