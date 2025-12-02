@@ -166,12 +166,13 @@ Mensaje* mensajitoResultadoStorage(ErrorStorageEnum cod_error){
 	
     mensajito->mensaje = string_from_format("%s", NOMBRE_ERRORES[cod_error]); // string_equals desde worker
     mensajito->size = string_length(mensajito->mensaje);
-	
+
     return mensajito;
 }
 
 void crearInitialFile(){
     log_debug(logger_storage,"(crearInitialFile) - Intentando crear initial_file");
+    
     if(realizarCREATE("initial_file","BASE")!= OK){
         log_error(logger_storage,"(crearInitialFile) - No se pudo crear initial_file");
         exit(EXIT_FAILURE);
@@ -193,7 +194,12 @@ void crearInitialFile(){
     
     Tag* tag = list_get(file_initial_file->tags,0);
     list_add(tag->bloques_logicos,bloque_0);
+    waitPropio(mutex_bitmap);
+    bitarray_set_bit(bitmap_gb,0); // marco como ocupaso el bloque 0
+    signalPropio(mutex_bitmap);
 } 
+
+
 
 void LA_SANGUINARIA(){
     char* preguntemos_a_la_caracola_magica;

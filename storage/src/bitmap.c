@@ -3,7 +3,8 @@
 #include <unistd.h>
 
 void inicializarBitmapYMapeo(){
-    FILE* arch_bitmap = fopen(RUTA_BITMAP, "a+");
+    
+    FILE* arch_bitmap = fopen(RUTA_BITMAP, "r+");
     if (arch_bitmap == NULL) {
         log_error(logger_storage, "ERROR: No se pudo abrir/crear bitmap.bin");
         exit(EXIT_FAILURE);
@@ -11,7 +12,7 @@ void inicializarBitmapYMapeo(){
     
     int arch_bitmap_fd = fileno(arch_bitmap);
     cant_bloques_en_bytes_gb = datos_superblock_gb->cant_bloques / 8;
-    
+
     log_debug(logger_storage, "DEBUG inicializarBitmapYMapeo: cant_bloques=%d, cant_bloques_en_bytes=%d", 
               datos_superblock_gb->cant_bloques, cant_bloques_en_bytes_gb);
     

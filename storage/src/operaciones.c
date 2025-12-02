@@ -268,8 +268,8 @@ ErrorStorageEnum realizarTRUNCATE(int query_id,char* nombre_file, char* nombre_t
     File *file = buscarFilePorNombre(nombre_file);
 
     
-     log_debug(logger_storage,"(realizarTRUNCATE) - Cant Tags:%d" ,file->tags->elements_count);
-     Tag* tageo = list_get(file->tags,0);
+    log_debug(logger_storage,"(realizarTRUNCATE) - Cant Tags:%d" ,file->tags->elements_count);
+    Tag* tageo = list_get(file->tags,0);
     log_debug(logger_storage,"(realizarTRUNCATE) - Nombre Tag Estructura:%s, Nombre Tag Parametro:%s",tageo->nombre_tag, nombre_tag);
 
     if (tagInexistente(file->tags, nombre_tag, nombre_file))
@@ -280,6 +280,12 @@ ErrorStorageEnum realizarTRUNCATE(int query_id,char* nombre_file, char* nombre_t
     }
 
     Tag *tag_concreto = buscarTagPorNombre(file->tags, nombre_tag);
+
+    if (!tag_concreto) {
+        log_error(logger_storage, "(realizarTRUNCATE) - ERROR: tag_concreto es NULL");
+        pthread_mutex_unlock(&mutex_files);
+        return TAG_INEXISTENTE;
+    }
 
     gestionarTruncateSegunTamanio(tag_concreto,query_id, tamanio_a_truncar,nombre_file,nombre_tag);
     actualizarTamanioMetadata(nombre_file, tag_concreto, tamanio_a_truncar);
@@ -359,16 +365,15 @@ t_config *crearMetadata(char *path_tag)
 {
     char *path_metadata = string_from_format("%s/metadata.config", path_tag);
     log_debug(logger_storage, "(crearMetadata) - path metadata: %s", path_metadata);
-
     FILE *arch_config = fopen(path_metadata, "a+");
-    
+    fclose(arch_config);
     t_config *metadata = config_create(path_metadata);
     config_set_value(metadata, "TAMANIO", "0");
     config_set_value(metadata, "BLOCKS", "[]");
     config_set_value(metadata, "ESTADO", "WORK_IN_PROGRESS");
 
     config_save_in_file(metadata, path_metadata);
-    fclose(arch_config);
+   
     free(path_metadata);
     return metadata;
 }
@@ -425,8 +430,7 @@ void gestionarTruncateSegunTamanio(Tag *tag_concreto,int query_id, int tamanio_a
     
 }
 
-void ferConLaMexicana(Tag *tag, int query_id,int tamanio_actual, int nuevo_tamanio,char* nombre_file,char* nombre_tag)
-{ // tag tamanio
+void ferConLaMexicana(Tag *tag, int query_id,int tamanio_actual, int nuevo_tamanio,char* nombre_file,char* nombre_tag){ // tag tamanio
     int cant_bloques_a_desasignar = (tamanio_actual - nuevo_tamanio) / datos_superblock_gb->tamanio_bloque;
     unlinkearBloquesLogicos(query_id,cant_bloques_a_desasignar, tag->bloques_logicos,nombre_file,nombre_tag);
 }
@@ -434,7 +438,7 @@ void ferConLaMexicana(Tag *tag, int query_id,int tamanio_actual, int nuevo_taman
 void unlinkearBloquesLogicos(int query_id,int cant_a_unlinkear, t_list *bloques_logicos,char* nombre_file,char* nombre_tag)
 {
     for (int i = 0; i < cant_a_unlinkear; i++){
-        BloqueLogico *bloque_popeado = (BloqueLogico *)list_remove(bloques_logicos, list_size(bloques_logicos));
+        BloqueLogico *bloque_popeado = (BloqueLogico *)list_remove(bloques_logicos, list_size(bloques_logicos) - 1 );
         BloqueFisico *bloque_fisico_asociado = bloque_popeado->ptr_bloque_fisico;
 
         //---------------------------------- /files/tag/logical-blocks/0002.dat
@@ -645,9 +649,9 @@ char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino, int
     // ======================== chequeo errores
     pthread_mutex_lock(&mutex_files);
     // NO EXISTE FILE ORIGEN
-    if (fileInexistente(nombre_file_origen))
-    {
-        
+    if (fileInexistente(nombre_file_origen)){
+
+        log_debug(logger_storage,"(realizarTAG) - El file origen %s no existe:",nombre_file_origen);
         pthread_mutex_unlock(&mutex_files);
         return FILE_INEXISTENTE;
     }
@@ -656,7 +660,7 @@ char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino, int
     // NO EXISTE TAG ORIGEN
     if (tagInexistente(file_origen->tags, nombre_tag_origen, nombre_file_origen))
     {
-        
+        log_debug(logger_storage,"(realizarTAG) - No existe el tag origen %s en el file origen %s",nombre_tag_origen,nombre_file_origen);
         pthread_mutex_unlock(&mutex_files);
         return TAG_INEXISTENTE;
     }
@@ -673,8 +677,11 @@ char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino, int
 
     if (!filePreexistente(nombre_file_destino))
     {
+        log_debug(logger_storage,"(realizarTAG) - No existe el file, intentando crear file destino %s y tag destino %s",nombre_file_destino,nombre_tag_destino);
         file_destino_estructura = crearFile(nombre_file_destino);
         tag_destino_estructura = crearTag(nombre_tag_destino, nombre_file_destino);
+        list_add(lista_files_gb,file_destino_estructura);
+        list_add(file_destino_estructura->tags, tag_destino_estructura);
         asignarBloquesFisicosATagCopiado(tag_destino_estructura,nombre_file_destino, query_id);
 
         pthread_mutex_unlock(&mutex_files);
@@ -686,23 +693,52 @@ char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino, int
     file_destino_estructura = buscarFilePorNombre(nombre_file_destino);
     if (!tagPreexistente(file_destino_estructura->tags, nombre_tag_destino, nombre_file_destino))
     {
+        log_debug(logger_storage,"(realizarTAG) - El tag destino %s no existe, voy a intentar crearlo jejeje",nombre_file_origen);
+        
+        // BUSCAR EL TAG ORIGEN PARA COPIAR SU METADATA
+        Tag *tag_origen = buscarTagPorNombre(file_origen->tags, nombre_tag_origen);
+        
+        // CREAR EL TAG DESTINO
         tag_destino_estructura = crearTag(nombre_tag_destino, nombre_file_destino);
-        asignarBloquesFisicosATagCopiado(tag_destino_estructura,nombre_file_destino, query_id);
+        
+        // COPIAR LA METADATA DEL TAG ORIGEN AL TAG DESTINO
+        int tamanio_origen = config_get_int_value(tag_origen->metadata_config_tag, "TAMANIO");
+        char **bloques_origen = config_get_array_value(tag_origen->metadata_config_tag, "BLOCKS");
+        char *bloques_string = stringArrayConfigAString(bloques_origen);
+        
+        char* tamanio_string = string_itoa(tamanio_origen);
+        config_set_value(tag_destino_estructura->metadata_config_tag, "TAMANIO", tamanio_string);
+        config_set_value(tag_destino_estructura->metadata_config_tag, "BLOCKS", bloques_string);
+        config_set_value(tag_destino_estructura->metadata_config_tag,"ESTADO","WORK_IN_PROGRESS");
+        config_save(tag_destino_estructura->metadata_config_tag);
+        free(tamanio_string);
+        log_debug(logger_storage, "(realizarTAG) - tamanio tag copiado: %d", tamanio_origen);
+        
+        // AHORA SÍ, ASIGNAR LOS BLOQUES FÍSICOS AL TAG DESTINO
+        asignarBloquesFisicosATagCopiado(tag_destino_estructura, nombre_file_destino, query_id);
         list_add(file_destino_estructura->tags, tag_destino_estructura);
 
+        free(bloques_string);
+        string_array_destroy(bloques_origen);
+
         pthread_mutex_unlock(&mutex_files);
-        
         
         return OK;
     }
 
     // TODO CREADO, SOLO COPIA
-    tag_destino_estructura = buscarTagPorNombre(file_origen->tags, nombre_tag_origen);
-  
+    log_debug(logger_storage,"(realizarTAG) - File y Tag destino ya existen, solo se copia la info del tag origen %s al tag destino %s",nombre_tag_origen,nombre_tag_destino);
+    tag_destino_estructura = buscarTagPorNombre(file_destino_estructura->tags, nombre_tag_destino);
+    
+    if (!tag_destino_estructura) {
+        log_error(logger_storage, "(realizarTAG) - ERROR: No se encontro tag destino %s en file %s", nombre_tag_destino, nombre_file_destino);
+        pthread_mutex_unlock(&mutex_files);
+        return TAG_INEXISTENTE;
+    }
+
     asignarBloquesFisicosATagCopiado(tag_destino_estructura,nombre_file_destino, query_id);
     
-     
-
+    pthread_mutex_unlock(&mutex_files);
     return OK;
 }
 
@@ -946,7 +982,7 @@ ErrorStorageEnum realizarWRITE(int query_id,char* nombre_file,char* nombre_tag,i
     BloqueLogico* bloque_a_escribir = buscarBloqueLogicoPorId(tag_a_escribir,id_bloque_logico);
     
     // caso feo/fer 
-    if (contadorHLinks(bloque_a_escribir->ruta_hl) > 2){ // 
+    if (contadorHLinks(bloque_a_escribir->ruta_hl) > 2){  
         log_debug(logger_storage, "caso feo/fer ");
         BloqueFisico* bloque_nuevo_a_asignar = obtenerBloqueFisicoLibre();
         log_debug(logger_storage, "(realizarWRITE) - id bloque fisico: %d", bloque_nuevo_a_asignar->id_fisico);
@@ -1075,7 +1111,6 @@ char* leerBloqueLogico(BloqueLogico* bloque_logico){
     fclose(arch_a_leer);
 
     contenido[datos_superblock_gb->tamanio_bloque] = '\0';
-
     log_debug(logger_storage, "(leerBloqueLogico) pude leer bloque, contenido: %s", contenido);
 
     return (char *)contenido;
@@ -1107,16 +1142,20 @@ void reapuntarBloque(BloqueFisico* bloque_fisico_a_reapuntar,BloqueLogico* bloqu
     }
 
      char** array_blocks = config_get_array_value(metadata,"BLOCKS"); 
-    char* bloque_a_modificar = array_blocks[bloque_logico->id_logico]; 
+     array_blocks[bloque_logico->id_logico] = string_itoa(bloque_fisico_a_reapuntar->id_fisico);
+   // char* bloque_a_modificar = array_blocks[bloque_logico->id_logico]; 
 
     log_debug(logger_storage, "(reapuntarBloque) - Pequenio chequeo antes del reapuntamiento");
-    log_debug(logger_storage, "(reapuntarBloque) - Id bloque fisico en logico(estructura): %d , Bloque obtenido de la metadata(.config) %s. DEBEN SER IGUALES", bloque_logico->ptr_bloque_fisico->id_fisico,bloque_a_modificar);
-    sprintf(bloque_a_modificar,"%d",bloque_fisico_a_reapuntar->id_fisico);
+    log_debug(logger_storage, "(reapuntarBloque) - Id bloque fisico en logico(estructura): %d , Bloque obtenido de la metadata(.config) %s. DEBEN SER IGUALES",
+     bloque_logico->ptr_bloque_fisico->id_fisico,array_blocks[bloque_logico->id_logico]);
+    //sprintf(bloque_a_modificar,"%d",bloque_fisico_a_reapuntar->id_fisico);
 
     char* nuevo_array_blocks = stringArrayConfigAString(array_blocks);
     config_set_value(metadata, "BLOCKS", nuevo_array_blocks);
 
     bloque_logico->ptr_bloque_fisico = bloque_fisico_a_reapuntar;
+
+    config_save(metadata);
 
     string_array_destroy(array_blocks);
 }

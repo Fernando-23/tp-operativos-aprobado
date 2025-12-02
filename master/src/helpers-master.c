@@ -431,6 +431,8 @@ void atenderWorker(int fd_worker) {
 
     while (1) {
         Mensaje* msg = recibirMensajito(fd_worker, logger_master);
+        log_debug(logger_master,"(atenderWorker) - El mensaje recibido del worker %d es: %s",
+        worker->id,msg->mensaje);
 
         if (!msg) {  // Worker murió
             log_error(logger_master, "Worker %d se desconectó inesperadamente", worker->id);
@@ -439,15 +441,23 @@ void atenderWorker(int fd_worker) {
         }
 
         char** mensaje_array = string_split(msg->mensaje, " ");
-        int cod_op = obtenerRespuestaWorkerEnum(mensaje_array[0]);
-
+        int cod_op = obtenerRespuestaWorkerEnum(mensaje_array[0],logger_master);
+        log_debug(logger_master,"(atenderWorker) - El codigo de operacion recibido del worker %d es: %d, string pasado: %s",
+        worker->id,cod_op,mensaje_array[0]);
+            
         switch (cod_op){
         case LEER:
-            enviarMensajito(msg, worker->query_actual->fd, logger_master);
+            char* file = mensaje_array[1];
+            char* tag = mensaje_array[2];
+            char* contenido = mensaje_array[3];
+            char* formato_query_leer = string_from_format("%d %s %s %s",
+            LEER, file, tag, contenido);
+            Mensaje* msg_query_leer = crearMensajito(formato_query_leer);
+            enviarMensajito(msg_query_leer, worker->query_actual->fd, logger_master);
             //////////////////////////////////////////// LOG OBLIGATORIO ////////////////////////////////////////////////////////////////
             log_info(logger_master, "Se envía un mensaje de lectura de la Query %d en el Worker %d al Query Control",worker->query_actual->quid, worker->id);
             //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        
+            free(formato_query_leer);
             string_array_destroy(mensaje_array);
             continue;
 
@@ -475,15 +485,15 @@ void atenderWorker(int fd_worker) {
             log_info(logger_master, "Se desconecta un Query Control. Se finaliza la Query %d con prioridad %d. Nivel multiprocesamiento %d",
                 worker->query_actual->quid, worker->query_actual->prioridad, list_size(lista_workers));
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-           Mensaje* mensaje_end_finaliza = crearMensajito("0 Finaliza");
+           char* formato_finalizar = string_from_format("%d Finaliza_Naturalmente", FINALIZAR);
+           Mensaje* mensaje_end_finaliza = crearMensajito(formato_finalizar);
            enviarMensajito(mensaje_end_finaliza, worker->query_actual->fd, logger_master);
            
             Query * query_actual = worker->query_actual;
             worker->query_actual = NULL;
             free(query_actual->query);
             free(query_actual);
+            free(formato_finalizar);
            
         
             intentarEnviarQueryAExecutePorWorker(worker);
@@ -502,16 +512,16 @@ void atenderWorker(int fd_worker) {
                 
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             
-            char* formato = string_from_format("0 %s", motivo);
-            Mensaje* mensaje_error_query = crearMensajito(formato);
+            char* formato_error = string_from_format("%d %s", FINALIZAR, motivo);
+            Mensaje* mensaje_error_query = crearMensajito(formato_error);
             
             enviarMensajito(mensaje_error_query,worker->query_actual->fd,logger_master);
 
-            free (formato);
+           
             
             Query * query_actual_d = worker->query_actual;
             worker->query_actual = NULL;
-            
+            free (formato_error);
             free(query_actual_d->query);
             free(query_actual_d);
 
@@ -522,22 +532,18 @@ void atenderWorker(int fd_worker) {
         
         case FINALIZAR_WORKER:
 
-                
+            int id_worker = worker->id;
 
-                int id_worker = worker->id;
+            worker = list_remove(lista_workers, id_worker);
+            ///////////////////////////////////////////// LOG OBLIGATORIO ////////////////////////////////////////////////////////////////
+            log_info(logger_master, "Se desconecta el Worker %d - Se finaliza la Query %d - Cantidad total de Workers: %d",
+            worker->id,worker->query_actual->quid, list_size(lista_workers));
+            ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-                worker = list_remove(lista_workers, id_worker);
-                 ///////////////////////////////////////////// LOG OBLIGATORIO ////////////////////////////////////////////////////////////////
-                log_info(logger_master, "Se desconecta el Worker %d - Se finaliza la Query %d - Cantidad total de Workers: %d",
-                worker->id,worker->query_actual->quid, list_size(lista_workers));
-                ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-                list_add(lista_ready,worker->query_actual);
-                if(worker->query_pendiente != NULL)
-                     list_add(lista_ready,worker->query_pendiente);
-                free(worker);
-
+            list_add(lista_ready,worker->query_actual);
+            if(worker->query_pendiente != NULL)
+                list_add(lista_ready,worker->query_pendiente);
+            free(worker);
 
 
         default:

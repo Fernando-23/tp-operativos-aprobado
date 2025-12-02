@@ -45,9 +45,11 @@ Mensaje* crearMensajeRegistroQuery(char* ruta,int prioridad){
 
 int gestionarOrdenMaestro(Mensaje* orden_de_mi_maestro){ //pasar logger
 
+	log_debug(logger_query,"(gestionarOrdenMaestro) - Orden de mi maestro %s",orden_de_mi_maestro->mensaje);
 	char **orden_cortada = string_split(orden_de_mi_maestro->mensaje," "); // 0 1
 	RespuestaEnum cod_op = atoi(orden_cortada[0]);
 	switch (cod_op){
+	//case ERROR:
 	case FINALIZAR: // 0 motivo 
 		char* motivo = orden_cortada[1];
 		log_info(logger_query,"### Query Finalizada - <%s>", motivo);
@@ -59,7 +61,8 @@ int gestionarOrdenMaestro(Mensaje* orden_de_mi_maestro){ //pasar logger
 		char* nombre_archivo = orden_cortada[1];
 		char* tag = orden_cortada[2];
 		char* contenido = orden_cortada[3];
-		log_info(logger_query,"Lectura realizada: Archivo %s:%s, contenido: %s",nombre_archivo,tag,contenido);
+		log_info(logger_query,"Lectura realizada: Archivo %s:%s, contenido: %s",
+		nombre_archivo,tag,contenido);
 		string_array_destroy(orden_cortada);
 		return 1; //siga nomas
 		break;

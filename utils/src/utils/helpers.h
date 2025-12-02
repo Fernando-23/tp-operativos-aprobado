@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <pthread.h>
 #define CANT_ERRORES 9
 #define CANT_MODULOS 4
 
@@ -80,7 +81,7 @@ extern char* NOMBRE_MODULOS[CANT_MODULOS];
 extern char* NOMBRE_ERRORES[CANT_ERRORES];
 extern char* NOMBRE_RESPUESTA_WORKER[5];
 
-t_log* iniciarLogger(char* nombre_modulo, int nivel_log);
+t_log* iniciarLogger(char* nombre_modulo,char* nivel_log);
 t_config* iniciarConfig(char* nombre_config); 
 
 
@@ -94,12 +95,15 @@ void *recibir_buffer(uint32_t *size, int socket_cliente);
 t_list *recibir_paquete(int socket_cliente);
 
 int obtenerModuloCodOp(char* string_modulo);
-int obtenerRespuestaWorkerEnum(char* string_cod_op);
+int obtenerRespuestaWorkerEnum(char* string_cod_op,t_log* logger);
 
 Mensaje* crearMensajito(char* mensaje);
 void enviarMensajito(Mensaje* mensaje_a_enviar,int fd,t_log* logger);
 Mensaje* recibirMensajito(int socket_cliente, t_log* logger);
 void liberarMensajito(Mensaje* mensajito_a_liberar);
 Mensaje* mensajitoOk();
+
+void waitPropio(pthread_mutex_t mutex);
+void signalPropio(pthread_mutex_t mutex);
 
 #endif 

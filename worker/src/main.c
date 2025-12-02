@@ -113,10 +113,15 @@ int main(int argc, char* argv[]) {
     }
 
     log_info(logger_worker, "Worker recibio sigint o sigterm");
-    char* mensaje_de_finalizacion = string_from_format("CARTA_DOCUMENTO %d %d",query->id_query, id_worker);
+    char* mensaje_de_finalizacion;
+    mensaje_de_finalizacion = string_from_format("CARTA_DOCUMENTO %d %d",query->id_query, id_worker);
     Mensaje* mensaje_storage = crearMensajito(mensaje_de_finalizacion);
-    enviarMensajito(mensaje_storage, socket_storage, logger_worker);
 
+    enviarMensajito(mensaje_storage, socket_storage, logger_worker);
+    free(mensaje_de_finalizacion);
+
+
+    mensaje_de_finalizacion = string_from_format("FINALIZAR_WORKER");
     Mensaje* mensaje_master = crearMensajito(mensaje_de_finalizacion);
     enviarMensajito(mensaje_master, socket_master, logger_worker);
 

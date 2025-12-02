@@ -168,11 +168,15 @@ int obtenerModuloCodOp(char *string_modulo){
     return -1;
 }
 
-int obtenerRespuestaWorkerEnum(char* string_cod_op){
-	for (int i = 0; i < 4; i++){
-    	if (string_equals_ignore_case(NOMBRE_RESPUESTA_WORKER[i],string_cod_op)==0)
+int obtenerRespuestaWorkerEnum(char* string_cod_op,t_log* logger){
+	log_debug(logger, "(obtenerRespuestaWorkerEnum) - parametro: %s", string_cod_op);
+	for (int i = 0; i < 5; i++){
+    	if (string_equals_ignore_case(NOMBRE_RESPUESTA_WORKER[i],string_cod_op)){
+			log_debug(logger, "(obtenerRespuestaWorkerEnum) - ENTRO AL IF.. codigo de respuesta del worker: %s -> %d", string_cod_op, i);	
 			return i;
+		}
     }
+	log_debug(logger,"(obtenerRespuestaWorkerEnum) - No se encontro el codop, se devuelve -1");
     return -1;
 }
 
@@ -183,6 +187,16 @@ Mensaje* mensajitoOk(){
     mensajito->mensaje = string_duplicate("OK");
     mensajito->size = string_length(mensajito->mensaje);
     return mensajito;
+}
+
+
+void waitPropio(pthread_mutex_t mutex){ // no tengo novia pero tengo a la novia de mi amigo de operativos (comentario del que tiene la novia:"COMOOOOOOOOOOOOOO")
+    pthread_mutex_lock(&mutex);
+    
+}
+
+void signalPropio(pthread_mutex_t mutex){
+    pthread_mutex_unlock(&mutex);
 }
 
 

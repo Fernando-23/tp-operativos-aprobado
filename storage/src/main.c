@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
 
 
     pthread_create(&thread_rrhh,NULL,recursosHumanos,(void *)&socket_sv); 
-    
+
     pthread_join(thread_rrhh,NULL);
 
     return 0;

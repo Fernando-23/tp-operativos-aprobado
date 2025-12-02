@@ -318,7 +318,7 @@ bool ejecutarTruncate(char *file, char *tag, int tamanio){
    //     log_error(logger_worker, "El tamanio a truncar debe ser multiplo del tamanio de pagina");
    //     return true;
   //  }
-     log_debug(logger_worker, "(ejecutarTruncate) - pase checkeo tam pag ");
+    log_debug(logger_worker, "(ejecutarTruncate) - pase checkeo tam pag ");
     char *mensaje_truncado = string_from_format("TRUNCATE %d %s %s %d", query->id_query,file, tag, tamanio);
 
     Mensaje* mensajito = crearMensajito(mensaje_truncado);
@@ -350,11 +350,12 @@ bool ejecutarWrite(char *file, char *tag, int dir_base, char *contenido_a_escrib
     int desplazamiento = dir_base % tam_pag;
     if(!escribirEnMemoria(file, tag, nro_pagina, desplazamiento,contenido_a_escribir)){
         char* formato_error_master = string_from_format("ERROR %s", error_en_operacion);
-        error_en_operacion = "OK";
+       
         Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
         enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
 
         free(formato_error_master);
+        error_en_operacion = "OK";
         return true;
     }
     return false;
@@ -375,18 +376,18 @@ bool ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
     char *datoLeido = leerEnMemoria(file, tag, pagina, desplazamiento, tamanio);
     if(datoLeido == NULL){
         log_debug(logger_worker, "(ejecutarRead) Query %d finalizada", query->id_query);    
-         char* formato_error_master = string_from_format("ERROR %s", error_en_operacion);
-        error_en_operacion = "OK";
+        char* formato_error_master = string_from_format("ERROR %s", error_en_operacion);
+       
         Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
         
         enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
         free(formato_error_master);
-
+        error_en_operacion = "OK";
         return true;
     }
     
-    char* mensaje_a_master_formateado = string_from_format("LEER_BLOQUE %d %s %s %s",
-    query->id_query,file, tag, datoLeido); // LEER_BLOQUE ID_QUERY FILE TAG CONTENIDO
+    char* mensaje_a_master_formateado = string_from_format("LEER %s %s %s",
+     file, tag, datoLeido); // LEER(el codigo) FILE TAG CONTENIDO
 
     Mensaje* mensajito = crearMensajito(mensaje_a_master_formateado); 
    
@@ -496,9 +497,10 @@ bool ejecutarDelete(char *file, char *tag){ // las páginas se van a ir limpiand
     free(mensaje_delete);
     Mensaje* respuesta_delete = recibirMensajito(socket_storage,logger_worker); // ENumERrrorCapaz OK 
     
-    if (string_equals_ignore_case(respuesta_delete->mensaje,"OK")){
+    log_debug(logger_worker,"(ejecutarDelete) - Me llego el mensajito %s", respuesta_delete->mensaje);
+    if (!string_equals_ignore_case(respuesta_delete->mensaje,"OK")){
         log_debug(logger_worker, "(ejecutarDelete) Query %d finalizada", query->id_query);
-         char* formato_error_master = string_from_format("ERROR %s", respuesta_delete->mensaje);
+        char* formato_error_master = string_from_format("ERROR %s", respuesta_delete->mensaje);
         Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
         enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
 
@@ -518,8 +520,9 @@ bool ejecutarEnd(){
 
     log_debug(logger_worker, "Query %d finalizada", query->id_query);
 
-   
-    Mensaje* mensajito = crearMensajito("END");
+    //char* respuesta_END = string_from_format("FINALIZAR",NOMBRE_RESPUESTA_WORKER[FINALIZAR]);
+    Mensaje* mensajito = crearMensajito("FINALIZAR");
+    //free(respuesta_END);
     enviarMensajito(mensajito,socket_master,logger_worker);
 
     return true;

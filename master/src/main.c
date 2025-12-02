@@ -11,7 +11,7 @@ int main(int argc, char* argv[]) {
 
     log_debug(logger_master, "(cargarConfigMaster) asignacion hecha");
 
-    log_debug(logger_master, "config creada. PUERTO: %s, ALGORITMO: %s, TIEMPO_AGING: %d, LOG_LEVEL: %d",
+    log_debug(logger_master, "config creada. PUERTO: %s, ALGORITMO: %s, TIEMPO_AGING: %d, LOG_LEVEL: %s",
     config_master->puerto_escucha,config_master->algoritmo_plani,config_master->tiempo_aging,config_master->log_level);
     
     inicializarSemaforosMaster();

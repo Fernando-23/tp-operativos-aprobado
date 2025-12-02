@@ -407,7 +407,7 @@ uint64_t now_ms(void){ // mmmmm
 
 int gestionarPAGE_FAULT(char* file, char* tag, int nro_pagina){
     log_debug(logger_worker,"(gestionarPAGE_FAULT) - Gestionando PAGE FAULT - File: %s - Tag: %s - Pagina: %d",file,tag,nro_pagina);
-    char* mensaje_formateado = string_from_format("LEER_BLOQUE %d %s %s %d" ,query->id_query, file, tag, nro_pagina); // storage lee toda la pagina y decime que tiene
+    char* mensaje_formateado = string_from_format("LEER_BLOQUE %d %s %s %d",query->id_query, file, tag, nro_pagina); // storage lee toda la pagina y decime que tiene
     
     Mensaje* mensajito = crearMensajito(mensaje_formateado);
     enviarMensajito(mensajito, socket_storage, logger_worker);
@@ -417,7 +417,7 @@ int gestionarPAGE_FAULT(char* file, char* tag, int nro_pagina){
     char** datos_recibidos = string_split(mensaje_recibido->mensaje," "); //LIBERAR
     liberarMensajito(mensaje_recibido);
     ErrorStorageEnum cod_op_storage_recv = atoi(datos_recibidos[0]);
-    log_debug(logger_worker,"(gestionarPAGE_FAULT) - Codigo de operacion recibido de Storage: %d",cod_op_storage_recv);
+    log_debug(logger_worker,"(gestionarPAGE_FAULT) - Codigo de operacion recibido de Storage, enum:%d , string:%s ",cod_op_storage_recv,datos_recibidos[0]);
     switch (cod_op_storage_recv){
         case OK:
             char* contenido_pagina = datos_recibidos[1]; // no escribimos en memoria
@@ -430,8 +430,9 @@ int gestionarPAGE_FAULT(char* file, char* tag, int nro_pagina){
             return frame_a_asignar;
 
 
-        default: 
-        error_en_operacion = datos_recibidos[0];
+        default:
+        // ERROR MOTIVO
+        error_en_operacion = NOMBRE_ERRORES[cod_op_storage_recv];
         log_error(logger_worker, "Storage mando cualquier cosa, Cosa que mando: %d", cod_op_storage_recv);
         }
     return -1;
