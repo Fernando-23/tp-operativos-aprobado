@@ -274,10 +274,12 @@ ErrorStorageEnum realizarTRUNCATE(int query_id,char* nombre_file, char* nombre_t
 
     if (tagInexistente(file->tags, nombre_tag, nombre_file))
     {
-        
+        log_debug(logger_storage,"(realizarTRUNCATE) - TAG INEXISTENTE, O SEA NO EXISTe");
         pthread_mutex_unlock(&mutex_files);
         return TAG_INEXISTENTE;
     }
+
+
 
     Tag *tag_concreto = buscarTagPorNombre(file->tags, nombre_tag);
 
@@ -402,7 +404,7 @@ File *buscarFilePorNombre(char *nombre)
 
 Tag *buscarTagPorNombre(t_list *tags, char *nombre_tag)
 {
-
+    log_debug(logger_storage, "DEBUG -(buscarTagPorNombre)");
     bool tieneMismoNombreTag(void *ptr)
     {
         Tag *tag = (Tag *)ptr;
@@ -415,6 +417,8 @@ Tag *buscarTagPorNombre(t_list *tags, char *nombre_tag)
 
 void gestionarTruncateSegunTamanio(Tag *tag_concreto,int query_id, int tamanio_a_truncar,char* nombre_file,char* nombre_tag)
 {
+    log_debug(logger_storage, "DEBUG -(gestionarTruncateSegunTamanio)");
+
     int tamanio_actual = config_get_int_value(tag_concreto->metadata_config_tag, "TAMANIO");
 
     if (tamanio_actual == tamanio_a_truncar)
@@ -431,6 +435,7 @@ void gestionarTruncateSegunTamanio(Tag *tag_concreto,int query_id, int tamanio_a
 }
 
 void ferConLaMexicana(Tag *tag, int query_id,int tamanio_actual, int nuevo_tamanio,char* nombre_file,char* nombre_tag){ // tag tamanio
+    log_debug(logger_storage, "DEBUG -(ferConLaMexicana)- f fer");
     int cant_bloques_a_desasignar = (tamanio_actual - nuevo_tamanio) / datos_superblock_gb->tamanio_bloque;
     unlinkearBloquesLogicos(query_id,cant_bloques_a_desasignar, tag->bloques_logicos,nombre_file,nombre_tag);
 }
@@ -459,6 +464,7 @@ void unlinkearBloquesLogicos(int query_id,int cant_a_unlinkear, t_list *bloques_
 
 void agrandarEnTruncate(Tag *tag, int tamanio_acutal, int nuevo_tamanio)
 {
+    log_debug(logger_storage, "DEBUG -(agrandarEnTruncate)- vamos fer");
     int tamanio_a_agrandar = nuevo_tamanio - tamanio_acutal;
     int cant_bloques_necesarios = tamanio_a_agrandar / datos_superblock_gb->tamanio_bloque;
 
@@ -470,13 +476,17 @@ void agrandarEnTruncate(Tag *tag, int tamanio_acutal, int nuevo_tamanio)
 
 void asignarBloquesFisicosATagEnTruncate(Tag *tag_a_asignar_hardlinks, int cant_bloques_necesarios)
 {
+    log_debug(logger_storage, "DEBUG -(asignarBloquesFisicosATagEnTruncate)- paso1");
     BloqueFisico *block0 = (BloqueFisico *)list_get(bloques_fisicos_gb, 0); // esto puede ser global (block0)
-
+    log_debug(logger_storage, "DEBUG -(asignarBloquesFisicosATagEnTruncate)- paso 2");
     t_list *logicos_a_asignar = tag_a_asignar_hardlinks->bloques_logicos;
+    log_debug(logger_storage, "DEBUG -(asignarBloquesFisicosATagEnTruncate)- paso 3");
     int cant_bloques_antes_de_asignacion = list_size(logicos_a_asignar); // 5 8 3
+    
 
+    log_debug(logger_storage, "DEBUG -(asignarBloquesFisicosATagEnTruncate)- BLOCKS");
     char **bloques_logicos = config_get_array_value(tag_a_asignar_hardlinks->metadata_config_tag, "BLOCKS");
-
+    log_debug(logger_storage, "DEBUG -(asignarBloquesFisicosATagEnTruncate)- entro al for %d", cant_bloques_necesarios);
     for (int i = 0; i < cant_bloques_necesarios; i++)
     {
         BloqueLogico *logico_a_crear = crearBloqueLogico(cant_bloques_antes_de_asignacion, block0, tag_a_asignar_hardlinks->directorio);
@@ -488,6 +498,8 @@ void asignarBloquesFisicosATagEnTruncate(Tag *tag_a_asignar_hardlinks, int cant_
     }
 
     char *nueva_info_blocks_metadata = stringArrayConfigAString(bloques_logicos);
+    log_debug(logger_storage,"carga los bloques logicos en la config (asignarBloquesFisicosATagEnTruncate-");
+    
 
     config_set_value(tag_a_asignar_hardlinks->metadata_config_tag, "BLOCKS", nueva_info_blocks_metadata);
     config_save(tag_a_asignar_hardlinks->metadata_config_tag);
@@ -502,12 +514,15 @@ BloqueLogico *crearBloqueLogico(int nro_bloque_logico, BloqueFisico *bloque_fisi
     BloqueLogico *bloque_logico = malloc(sizeof(BloqueLogico));
     bloque_logico->ptr_bloque_fisico = bloque_fisico_a_asignar;
     bloque_logico->id_logico = nro_bloque_logico;
-    bloque_logico->ruta_hl = string_from_format("%s/logical_blocks/%04d.dat", path_tag, nro_bloque_logico);    bloque_logico->ruta_hl = string_from_format("%s/logical_blocks/%04d.dat", path_tag, nro_bloque_logico);
+    bloque_logico->ruta_hl = string_from_format("%s/logical_blocks/%04d.dat", path_tag, nro_bloque_logico);    
+
     
     
+
     // Crear el directorio logical_blocks si no existe
     char *dir_logical_blocks = string_from_format("%s/logical_blocks", path_tag);
     crearDirectorio(dir_logical_blocks);
+    log_debug(logger_storage, "(crearArchBloqueLogico) - CREE directorio )");
     free(dir_logical_blocks);
 
 

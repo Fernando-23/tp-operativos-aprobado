@@ -41,13 +41,13 @@ void iniciarStorage(){
     }
 
     crearDirectorio(PATH_PHYSICAL_BLOCKS);
-    crearDirectorio(RUTA_FILES);
-
-    crearInitialFile();
+    //
+    //crearDirectorio(RUTA_FILES);
+    crearBloquesFisicos();
+    //crearInitialFile();
 
     hash_index_config_gb = config_create(RUTA_HASH_INDEX);
     
-    crearBloquesFisicos();
 
 }
 
