@@ -476,17 +476,15 @@ void agrandarEnTruncate(Tag *tag, int tamanio_acutal, int nuevo_tamanio)
 
 void asignarBloquesFisicosATagEnTruncate(Tag *tag_a_asignar_hardlinks, int cant_bloques_necesarios)
 {
-    log_debug(logger_storage, "DEBUG -(asignarBloquesFisicosATagEnTruncate)- paso1");
     BloqueFisico *block0 = (BloqueFisico *)list_get(bloques_fisicos_gb, 0); // esto puede ser global (block0)
-    log_debug(logger_storage, "DEBUG -(asignarBloquesFisicosATagEnTruncate)- paso 2");
+    
     t_list *logicos_a_asignar = tag_a_asignar_hardlinks->bloques_logicos;
-    log_debug(logger_storage, "DEBUG -(asignarBloquesFisicosATagEnTruncate)- paso 3");
+
     int cant_bloques_antes_de_asignacion = list_size(logicos_a_asignar); // 5 8 3
     
 
-    log_debug(logger_storage, "DEBUG -(asignarBloquesFisicosATagEnTruncate)- BLOCKS");
     char **bloques_logicos = config_get_array_value(tag_a_asignar_hardlinks->metadata_config_tag, "BLOCKS");
-    log_debug(logger_storage, "DEBUG -(asignarBloquesFisicosATagEnTruncate)- entro al for %d", cant_bloques_necesarios);
+    
     for (int i = 0; i < cant_bloques_necesarios; i++)
     {
         BloqueLogico *logico_a_crear = crearBloqueLogico(cant_bloques_antes_de_asignacion, block0, tag_a_asignar_hardlinks->directorio);

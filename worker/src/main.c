@@ -67,17 +67,15 @@ int main(int argc, char* argv[]) {
         esperandoQuery(socket_master);
     
         while (!interrumpir_query) {
-            log_debug(logger_worker, "llegue loop interno main worker");
             
             char* instruccion = Fetch();  // "WRITE 345 42"
-             log_debug(logger_worker, "hice Fetch");
+    
 
             char** instruccion_separada = Decode(instruccion);
-            log_debug(logger_worker, "hice Decode");
             log_debug(logger_worker,"Instrucción a ejecutar: %s", instruccion);
 
             es_end = Execute(instruccion_separada);
-            log_debug(logger_worker, "hice Execute");
+    
             if(es_end){
                 log_debug(logger_worker, "Query %d: Finalizo ES_END", query->id_query);
                 break;
