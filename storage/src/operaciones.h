@@ -2,6 +2,7 @@
 #define OPERACIONES_H_
 
 #include <sys/stat.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include "../../utils/src/utils/helpers.h"
 #include "../../utils/src/utils/conexiones.h"

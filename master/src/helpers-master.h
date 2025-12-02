@@ -13,7 +13,7 @@ typedef struct{
     char* puerto_escucha;
     char* algoritmo_plani;
     int tiempo_aging;
-    int log_level;
+    char* log_level;
 }ConfigMaster;
 
 typedef enum {

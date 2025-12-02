@@ -10,7 +10,6 @@ int main(int argc, char* argv[]) {
     logger_storage = iniciarLogger("storage", config_storage->log_level);
     
     int socket_sv = iniciarServidor(config_storage->puerto_escucha,"Storage",logger_storage);
-
     
     if (socket_sv == -1) return 1;
 
@@ -22,7 +21,9 @@ int main(int argc, char* argv[]) {
     log_debug(logger_storage, "storage iniciado");
     pthread_t thread_rrhh;
 
+
     pthread_create(&thread_rrhh,NULL,recursosHumanos,(void *)&socket_sv); 
+    
     pthread_join(thread_rrhh,NULL);
 
     return 0;

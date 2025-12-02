@@ -26,7 +26,7 @@ void cargarConfigMaster(char* nombre_config_sin_formato){
     config_master->puerto_escucha = string_duplicate(config_get_string_value(config, "PUERTO_ESCUCHA"));
     config_master->algoritmo_plani = string_duplicate(config_get_string_value(config, "ALGORITMO_PLANIFICACION"));
     config_master->tiempo_aging = config_get_int_value(config, "TIEMPO_AGING");
-    config_master->log_level = config_get_int_value(config, "LOG_LEVEL");
+    config_master->log_level = string_duplicate(config_get_string_value(config, "LOG_LEVEL"));
     
     free(path_completo);
     config_destroy(config);

@@ -68,14 +68,16 @@ void* realizarAgingIndividual(void *args){
     while (1)
     {
         usleep(config_master->tiempo_aging * 1000);
-        if (sigueEnReady(query_gestionando)/*&& !query_gestionando->ya_estuvo_en_ready*/){
+        if (sigueEnReady(query_gestionando->quid)/*&& !query_gestionando->ya_estuvo_en_ready*/){
             query_gestionando->prioridad--;
             log_info(logger_master, "%d Cambio de prioridad: %d - %d", query_gestionando->quid, query_gestionando->prioridad + 1, query_gestionando->prioridad);
             //probablemente tenga q replanificar
         }else{
-            log_debug(logger_master,"(realizarAgingIndividual) - Query %d ya no sigue en ready, terminando thread...");
-            return;
+            log_debug(logger_master,"(realizarAgingIndividual) - Query %d ya no sigue en ready, terminando thread..."
+            ,query_gestionando->quid);
+            break;
         }
     }
+    return NULL;
     
 }

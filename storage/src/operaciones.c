@@ -2,14 +2,14 @@
 
 void* recursosHumanos(void *args_sin_formato)
 {
-    int socket_cliente = *(int *)args_sin_formato;
+    int socket_server = *(int *)args_sin_formato;
 
     while (1)
     {
         int fd_cliente;
         log_debug(logger_storage, "esperando cliente");
-        fd_cliente = esperarCliente(socket_cliente, logger_storage);
-         log_debug(logger_storage, "se conecto un cliente");
+        fd_cliente = esperarCliente(socket_server, logger_storage);
+        log_debug(logger_storage, "se conecto un cliente");
         pthread_t thread_labubu;
         pthread_create(&thread_labubu, NULL, atenderLaburanteDisconforme, (void *)&fd_cliente);
         //pthread_detach(thread_labubu);
@@ -27,7 +27,6 @@ void *atenderLaburanteDisconforme(void *args_sin_formato)
     //}
     do
     {
-        log_debug(logger_storage,"peto");
         pedidoDeLaburante(fd_cliente);
     } while (1);
 }
@@ -182,7 +181,7 @@ void pedidoDeLaburante(int mail_laburante){
 
     case ESCRIBIR_BLOQUE:
         log_debug(logger_storage, "(pedidoDeLaburante) - ESCRIBIR_BLOQUE");
-    //ESCRIBIR_BLOQUE QUERY_ID FILE TAG NRO_PAG CONTENIDO
+        //ESCRIBIR_BLOQUE QUERY_ID FILE TAG NRO_PAG CONTENIDO
         nombre_file = mensajito_cortado[2];
         nombre_tag = mensajito_cortado[3];
         int id_bloque_logico_a = atoi(mensajito_cortado[4]);
@@ -290,9 +289,8 @@ ErrorStorageEnum realizarTRUNCATE(int query_id,char* nombre_file, char* nombre_t
     return OK;
 }
 
-void hacerRetardoOperacion()
-{
-    sleep(config_storage->retardo_operacion / 1000); // te tengo al lado y me siento solo el miedo me come y no entiendo como raszones no faltan para que me
+void hacerRetardoOperacion(){
+    usleep(config_storage->retardo_operacion  * 1000); 
 }
 
 void actualizarTamanioMetadata(char *nombre_file, Tag *tag, int tamanio_a_truncar)
@@ -929,7 +927,7 @@ ErrorStorageEnum realizarWRITE(int query_id,char* nombre_file,char* nombre_tag,i
     t_list* bloques_logicos_asociados = tag_a_escribir->bloques_logicos;
 
 
-     if (bloques_logicos_asociados == NULL){
+    if (bloques_logicos_asociados == NULL){
         log_debug(logger_storage, "(realizarWRITE) - bloques_logicos_asociado a tag == NULL");
     }
 
@@ -948,16 +946,20 @@ ErrorStorageEnum realizarWRITE(int query_id,char* nombre_file,char* nombre_tag,i
     BloqueLogico* bloque_a_escribir = buscarBloqueLogicoPorId(tag_a_escribir,id_bloque_logico);
     
     // caso feo/fer 
-    if (contadorHLinks(bloque_a_escribir->ruta_hl) > 1){
+    if (contadorHLinks(bloque_a_escribir->ruta_hl) > 2){ // 
         log_debug(logger_storage, "caso feo/fer ");
         BloqueFisico* bloque_nuevo_a_asignar = obtenerBloqueFisicoLibre();
+        log_debug(logger_storage, "(realizarWRITE) - id bloque fisico: %d", bloque_nuevo_a_asignar->id_fisico);
         if (!bloque_nuevo_a_asignar){
             log_warning(logger_storage,"(realizarWRITE) - No se encontro bloque fisico libre en el bitmap");
             return ESPACIO_INSUFICIENTE;
         }
+    
         reapuntarBloque(bloque_nuevo_a_asignar,bloque_a_escribir,tag_a_escribir->metadata_config_tag,query_id,file_a_escribir->nombre_file,tag_a_escribir->nombre_tag);
         log_info(logger_storage, "“## %d - Bloque Físico Reservado - Número de Bloque: %d",query_id,bloque_nuevo_a_asignar->id_fisico);
+    
     } // caso lindo/liam
+    
     log_debug(logger_storage, "caso lindo/liam ");
     escribirEnBloque(bloque_a_escribir->ruta_hl,contenido);
     log_debug(logger_storage,"Escribio en bloque (realizarWRITE)");
@@ -1008,10 +1010,10 @@ BloqueFisico* obtenerBloqueFisicoLibre(){
     }
     
     int max_bits = (int)bitarray_get_max_bit(bitmap_gb);
-    log_debug(logger_storage,"Voy a intentar buscar un bloque fisico libre, bitarray: %d", max_bits);
+    //log_debug(logger_storage,"Voy a intentar buscar un bloque fisico libre, bitarray: %d", max_bits);
 
     for (int i = 0; i < max_bits; i++){
-        log_debug(logger_storage,"entro a for de (obtenerBloqueFisicoLibre)");
+        //log_debug(logger_storage,"entro a for de (obtenerBloqueFisicoLibre)");
 
         if (!bitarray_test_bit(bitmap_gb,i)){
             bitarray_set_bit(bitmap_gb,i); // lo pones en 1
@@ -1188,3 +1190,21 @@ bool estaCommiteado(t_config* metadata){
     return string_contains(config_get_string_value(metadata, "ESTADO"), "COMMITED");
 }
 
+/*
+void esperar_operacion() {
+    if (retardo_operacion > 0)
+        usleep(retardo_operacion * 1000); // ms --> µs
+}
+
+void esperar_acceso_bloque() {
+    if (retardo_acceso_bloque > 0)
+        usleep(retardo_acceso_bloque * 1000); // ms --> µs
+}
+*/
+
+/*
+mutex storage : 
+pthread_mutex_lock(&mutex_files);
+pthread_mutex_lock(&mutex_bitmap);
+
+*/

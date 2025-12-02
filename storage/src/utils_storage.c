@@ -75,7 +75,7 @@ void cargarConfigStorage(char* arch_config){
     config_storage->punto_montaje = string_duplicate(config_get_string_value(config, "PUNTO_MONTAJE"));
     config_storage->retardo_operacion = config_get_int_value(config, "RETARDO_OPERACION");
     config_storage->retardo_acceso_bloque = config_get_int_value(config, "RETARDO_ACCESO_BLOQUE");
-    config_storage->log_level = config_get_int_value(config, "LOG_LEVEL");
+    config_storage->log_level = string_duplicate(config_get_string_value(config, "LOG_LEVEL"));
     
     free(path_completo);
     config_destroy(config);

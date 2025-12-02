@@ -13,7 +13,7 @@
 typedef struct{
     char* ip_master;
     char* puerto_master;
-    int log_level;
+    char* log_level;
 }ConfigQuery;
 
 //Variables Globales

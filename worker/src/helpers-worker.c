@@ -52,7 +52,7 @@ void cargarConfigWorker(char* arch_config){
     config_worker->retardo_memoria = config_get_int_value(config, "RETARDO_MEMORIA");
     config_worker->algoritmo_reemplazo = string_duplicate(config_get_string_value(config, "ALGORITMO_REEMPLAZO"));
     config_worker->path_queries = string_duplicate(config_get_string_value(config, "PATH_SCRIPTS"));
-    config_worker->log_level = config_get_int_value(config, "LOG_LEVEL");
+    config_worker->log_level = string_duplicate(config_get_int_value(config, "LOG_LEVEL"));
 
     free(path_completo);
     config_destroy(config);

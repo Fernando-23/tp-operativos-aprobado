@@ -11,12 +11,12 @@ char* NOMBRE_RESPUESTA_WORKER[5] = {"LEER","DESALOJAR","FINALIZAR","ERROR", "FIN
 char* path_base_query = "/home/utnso/tp-2025-2c-Nombre-que-llamar-un-ayudante-/queries";
 
 
-t_log* iniciarLogger(char* nombre_modulo,int nivel_log)
+t_log* iniciarLogger(char* nombre_modulo,char* nivel_log)
 {
 	char* nombre_archivo = string_from_format("%s.log", nombre_modulo);
 
-
-    t_log* nuevo_logger = log_create(nombre_archivo, nombre_modulo, true, nivel_log); //ultimo parametro es un int no un t_log
+	
+    t_log* nuevo_logger = log_create(nombre_archivo, nombre_modulo, true, log_level_from_string(nivel_log)); //ultimo parametro es un int no un t_log
     if(!nuevo_logger){
         fprintf(stderr, "ERROR - (iniciarLogger) - No se pudo crear el logger para %s\n", nombre_modulo);
         free(nombre_archivo);

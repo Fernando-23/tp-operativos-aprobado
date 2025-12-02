@@ -18,7 +18,7 @@ typedef struct config_worker{
     int retardo_memoria;
     char *algoritmo_reemplazo;
     char *path_queries;
-    int log_level;
+    char *log_level;
 }ConfigWorker;
 
 typedef struct query{

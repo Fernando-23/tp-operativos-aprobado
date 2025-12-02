@@ -38,7 +38,7 @@ typedef struct {
     char* punto_montaje;
     int retardo_operacion;
     int retardo_acceso_bloque;
-    int log_level;
+    char* log_level;
 }ConfigStorage;
 
 typedef struct{

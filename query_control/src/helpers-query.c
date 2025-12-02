@@ -17,7 +17,7 @@ void cargarConfigQuery(char* nombre_config_sin_extension){
 
     config_query->ip_master = string_duplicate(config_get_string_value(config, "IP_MASTER"));
     config_query->puerto_master = string_duplicate(config_get_string_value(config, "PUERTO_MASTER"));
-    config_query->log_level = config_get_int_value(config, "LOG_LEVEL");
+    config_query->log_level = string_duplicate(config_get_string_value(config, "LOG_LEVEL"));
     
 	printf("holamama\n");
     free(path_completo);
