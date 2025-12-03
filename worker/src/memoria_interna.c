@@ -306,7 +306,8 @@ RespuestaAlgoritmoReemplazo* cicloClockM(int resetear_bit_uso, int bit_uso, int 
             EntradaDeTabla* entrada = (EntradaDeTabla *)list_get(tabla_selec->entradas, id_entrada);
 
             if (entrada->bit_presencia == 1 && entrada->bit_uso == bit_uso && entrada->bit_modificado == bit_modificado) {
-                id_entrada++;
+                if(!id_entrada == 0)id_entrada++;
+                
                 
                 if(id_entrada == list_size(tabla_selec->entradas)) { 
                     id_entrada = 0;
@@ -581,6 +582,7 @@ bool estaPagEnMemoria(char* file, char* tag, int nro_pag){
 
 t_list* obtenerEntradasAFlushear(TablaPaginas* tabla_a_flush){
     t_list* entradas_a_retornar = list_create();
+    
     for (int i = 0; i < list_size(tabla_a_flush->entradas); i++){
         EntradaDeTabla* entrada = list_get(tabla_a_flush->entradas,i);
         if (entrada->bit_modificado == 1){

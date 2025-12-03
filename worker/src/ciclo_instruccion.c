@@ -467,18 +467,19 @@ bool ejecutarFlush(char *file, char *tag){
     }
 
     for (int i = 0; i < list_size(entradas_obtenidas); i++){
-        log_debug(logger_worker, "(ejecutarFlush) - Flusheando entrada %d de %d", i+1, list_size(entradas_obtenidas));
-        EntradaDeTabla* entrada_a_persistir = list_remove(entradas_obtenidas,0);
+        log_debug(logger_worker, "(ejecutarFlush) - Flusheando entrada %d de %d", i, list_size(entradas_obtenidas));
+        EntradaDeTabla* entrada_a_persistir = list_get(entradas_obtenidas,i);
         if(!escribirEnStorage(entrada_a_persistir)){
             char* formato_error_master = string_from_format("ERROR %s", error_en_operacion);
-            error_en_operacion = "OK";
             Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
             
             enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
-
             free(formato_error_master);
+
+            error_en_operacion = "OK";
             return true;
         }
+        entrada_a_persistir->bit_modificado = 0;
     }
 
     list_destroy(entradas_obtenidas);

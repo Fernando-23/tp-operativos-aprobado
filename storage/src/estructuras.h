@@ -28,7 +28,7 @@ typedef struct{
 typedef struct{
     int id_logico; //id del bloque logico
     char* ruta_hl; //para mas comodidad
-    char* nombre;
+    //char* nombre;
     BloqueFisico* ptr_bloque_fisico; //puntero al bloque fisico asociado
 }BloqueLogico;
 

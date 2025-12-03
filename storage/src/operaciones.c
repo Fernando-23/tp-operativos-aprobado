@@ -255,8 +255,8 @@ ErrorStorageEnum realizarTRUNCATE(int query_id,char* nombre_file, char* nombre_t
     pthread_mutex_lock(&mutex_files);
 
     log_debug(logger_storage,"(realizarTRUNCATE) - Cant Files:%d" ,lista_files_gb->elements_count);
-    File* fileo = list_get(lista_files_gb,0);
-    log_debug(logger_storage,"(realizarTRUNCATE) - Nombre File Estructura:%s, Nombre File Parametro:%s",fileo->nombre_file, nombre_file);
+    //File* fileo = list_get(lista_files_gb,0);
+    //log_debug(logger_storage,"(realizarTRUNCATE) - Nombre File Estructura:%s, Nombre File Parametro:%s",fileo->nombre_file, nombre_file);
     if (fileInexistente(nombre_file))
     {
         pthread_mutex_unlock(&mutex_files);
@@ -269,8 +269,8 @@ ErrorStorageEnum realizarTRUNCATE(int query_id,char* nombre_file, char* nombre_t
 
     
     log_debug(logger_storage,"(realizarTRUNCATE) - Cant Tags:%d" ,file->tags->elements_count);
-    Tag* tageo = list_get(file->tags,0);
-    log_debug(logger_storage,"(realizarTRUNCATE) - Nombre Tag Estructura:%s, Nombre Tag Parametro:%s",tageo->nombre_tag, nombre_tag);
+    //Tag* tageo = list_get(file->tags,0);
+    //log_debug(logger_storage,"(realizarTRUNCATE) - Nombre Tag Estructura:%s, Nombre Tag Parametro:%s",tageo->nombre_tag, nombre_tag);
 
     if (tagInexistente(file->tags, nombre_tag, nombre_file))
     {
@@ -526,8 +526,8 @@ BloqueLogico *crearBloqueLogico(int nro_bloque_logico, BloqueFisico *bloque_fisi
 
     if (!crearHLink(bloque_logico->ruta_hl, bloque_fisico_a_asignar->ruta_absoluta))
     {
-        log_error(logger_storage, "(crearArchBloqueLogico) - Error al hacer link :(");
-        abort();
+        log_warning(logger_storage, "(crearArchBloqueLogico) - Error al hacer link :|");
+        //abort();
     }
 
     log_debug(
@@ -605,15 +605,15 @@ void liberarBloqueLogico(BloqueLogico *bloque_a_liberar)
 {
     log_debug(logger_storage, "(liberarBloqueLogico) - voy a liberar bloque el bloque logico");
     log_debug(logger_storage, "(liberarBloqueLogico) - id_logido: %d", bloque_a_liberar->id_logico);
-    log_debug(logger_storage, "(liberarBloqueLogico) - nombre: ",bloque_a_liberar->nombre);
+    //log_debug(logger_storage, "(liberarBloqueLogico) - nombre: ",bloque_a_liberar->nombre);
     log_debug(logger_storage, "(liberarBloqueLogico) - ruta_hl: %s",bloque_a_liberar->ruta_hl);
 
 
     
     free(bloque_a_liberar->ruta_hl);
     log_debug(logger_storage,"(liberarBloqueLogico) - libere ruta_hl");
-    free(bloque_a_liberar->nombre);
-    log_debug(logger_storage,"(liberarBloqueLogico) - libere nombre");
+    //free(bloque_a_liberar->nombre);
+    //log_debug(logger_storage,"(liberarBloqueLogico) - libere nombre");
     free(bloque_a_liberar);
     log_debug(logger_storage,"(liberarBloqueLogico) - libere bloque");
     log_debug(logger_storage, "(liberarBloqueLogico) - bloque logico liberado");
@@ -1083,9 +1083,6 @@ BloqueFisico* obtenerBloqueFisicoLibre(){
     return NULL;
 }
 
-
-
-
 void escribirEnBloque(char* ruta_abs_bloque_logico,char* contenido){
 
     FILE* bloque_a_escribir = fopen(ruta_abs_bloque_logico, "r+b");
@@ -1256,7 +1253,6 @@ void unlinkearBloquesLogicosParaELIMINAR_UN_TAG(int query_id,int cant_a_unlinkea
                 free(hash_a_remover);
             }
 
-        
             
             log_debug(logger_storage, "(unlinkearBloquesLogicosParaELIMINAR_UN_TAG)- El bloque fisico %s fue liberado", bloque_fisico_asociado->nombre);
         }
