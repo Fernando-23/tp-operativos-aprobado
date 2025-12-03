@@ -41,6 +41,7 @@ extern void *memoria;
 extern pthread_mutex_t frame_modificado;
 
 
+
 void iniciarMemoria();
 
 TablaPaginas* buscarTablaPags(char* file, char* tag);

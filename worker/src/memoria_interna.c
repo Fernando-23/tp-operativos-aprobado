@@ -126,7 +126,7 @@ bool escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,cha
                 log_debug(logger_worker,"(escribirEnMemoria) - Se crea la entrada de pagina %d en tabla de paginas",pag_actual);    
             }
             log_info(logger_worker,"Query %d: - Memoria Miss - File: %s - Tag: %s - Pagina: %d",query->id_query,file,tag,pag_actual);
-            frame_seleccionado = gestionarPAGE_FAULT(file,tag,pagina);
+            frame_seleccionado = gestionarPAGE_FAULT(file,tag,pag_actual);
             if(frame_seleccionado == -1) return false; 
             entrada_pag->bit_presencia = 1;
             entrada_pag->nro_frame = frame_seleccionado;
@@ -137,8 +137,9 @@ bool escribirEnMemoria(char* file, char* tag, int pagina, int desplazamiento,cha
         if (por_copiar > espacioLibre) por_copiar = espacioLibre; 
 
         // Copia del tramo que cae en ESTA página
+       
         memcpy(base_frame + desp_actual, contenido + escritos, por_copiar);
-
+     
         entrada_pag->bit_uso = 1;
         entrada_pag->bit_modificado = 1;
         entrada_pag->last_used_ms = now_ms();

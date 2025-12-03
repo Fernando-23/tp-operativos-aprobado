@@ -170,3 +170,7 @@ char* RecibirString(int socket_cliente){
 	return mensaje;
 }
 
+// void eliminarConexion(int ip,int puerto){
+//     kill -9 $(lsof -t ip:puerto);
+//     log_info(logger,"Se ha cerrado la conexion del socket: %d",socket);
+// }

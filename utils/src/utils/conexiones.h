@@ -32,5 +32,6 @@ void *recibir_buffer(uint32_t *size, int socket_cliente);
 int recibir_operacion(int socket_cliente);
 void EnviarString(char* mensajito,int socket_servidor,t_log* logger);
 char* RecibirString(int socket_cliente);
+//void eliminar_conexion(int ip_cliente, int puerto_cliente);
 
 #endif /* CONEXIONES_H_ */

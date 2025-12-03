@@ -24,6 +24,9 @@ int main(int argc, char* argv[]) {
 
     cargarConfigWorker(path_config);
 
+   // eliminarConexion(config_worker->ip_storage, config_worker->puerto_storage);
+   // eliminarConexion(config_worker->ip_master, config_worker->puerto_master);
+
     logger_worker = iniciarLogger("worker", config_worker->log_level);
 
     inicializarMutexWorker();

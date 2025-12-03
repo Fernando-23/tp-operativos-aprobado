@@ -137,7 +137,7 @@ void pedidoDeLaburante(int mail_laburante){
         log_debug(logger_storage, "(pedidoDeLaburante) - DELETE");
     // DELETE QUERY_ID FILE:TAG
         nombre_file = mensajito_cortado[2];
-        nombre_tag = mensajito_cortado[3];
+        nombre_tag = mensajito_cortado[3];  
         ErrorStorageEnum resultado_DELETE = realizarELIMINAR_UN_TAG(query_id,nombre_file,nombre_tag);
 
         enviarMensajito(mensajitoResultadoStorage(resultado_DELETE), mail_laburante, logger_storage);
@@ -594,9 +594,7 @@ void limpiarBitsPorStringArray(char **bloques_a_limpiar)
     log_debug(logger_storage, "Debug - (limpiarBitsPorStringArray) - Se liberaron bloques del bitmap");
 }
 
-void liberarBloqueDeBitmap(int nro_bloque, int query_id)
-{
-
+void liberarBloqueDeBitmap(int nro_bloque, int query_id){
     bitarray_clean_bit(bitmap_gb, nro_bloque);
     log_info(logger_storage, "## %d - Bloque Físico Liberado - Número de Bloque: %d",query_id, nro_bloque);
 }
@@ -605,9 +603,20 @@ void liberarBloqueDeBitmap(int nro_bloque, int query_id)
 
 void liberarBloqueLogico(BloqueLogico *bloque_a_liberar)
 {
-    // free(bloque_a_liberar->directorio);
-    // free(bloque_a_liberar->nombre);
+    log_debug(logger_storage, "(liberarBloqueLogico) - voy a liberar bloque el bloque logico");
+    log_debug(logger_storage, "(liberarBloqueLogico) - id_logido: %d", bloque_a_liberar->id_logico);
+    log_debug(logger_storage, "(liberarBloqueLogico) - nombre: ",bloque_a_liberar->nombre);
+    log_debug(logger_storage, "(liberarBloqueLogico) - ruta_hl: %s",bloque_a_liberar->ruta_hl);
+
+
+    
+    free(bloque_a_liberar->ruta_hl);
+    log_debug(logger_storage,"(liberarBloqueLogico) - libere ruta_hl");
+    free(bloque_a_liberar->nombre);
+    log_debug(logger_storage,"(liberarBloqueLogico) - libere nombre");
     free(bloque_a_liberar);
+    log_debug(logger_storage,"(liberarBloqueLogico) - libere bloque");
+    log_debug(logger_storage, "(liberarBloqueLogico) - bloque logico liberado");
 }
 
 int contadorHLinks(char *ruta_abs_a_consultar)
@@ -1187,13 +1196,30 @@ ErrorStorageEnum realizarELIMINAR_UN_TAG(int query_id,char *nombre_file,char *no
         return TAG_INEXISTENTE;
     }
 
-    Tag *tag_a_commitear = buscarTagPorNombre(file_a_commitear->tags, nombre_tag);
+    log_debug(logger_storage, "(realizarELIMINAR_UN_TAG) - file: %s, tag: %s existentes",
+        nombre_file, nombre_tag);
+//GENIO!!!!!!!!!!!
+    Tag *tag_a_elminar = buscarTagPorNombre(file_a_commitear->tags, nombre_tag);
 
-    unlinkearBloquesLogicosParaELIMINAR_UN_TAG(query_id,list_size(tag_a_commitear->bloques_logicos), tag_a_commitear, nombre_file, nombre_tag);
-    char* ruta_metadata_config = string_from_format("%s/metadata.config",tag_a_commitear->directorio);
+    log_debug(logger_storage, "(realizarELIMINAR_UN_TAG) -  tag encontrado, cantidad de bloques logicos: %d, ruta %s",
+    tag_a_elminar->bloques_logicos->elements_count, tag_a_elminar->directorio);
+
+    unlinkearBloquesLogicosParaELIMINAR_UN_TAG(query_id, list_size(tag_a_elminar->bloques_logicos), tag_a_elminar, nombre_file, nombre_tag);
+    
+    char* ruta_metadata_config = string_from_format("%s/metadata.config",tag_a_elminar->directorio);
+    char* ruta_logical_blocks = string_from_format("%s/logical_blocks", tag_a_elminar->directorio);
     remove(ruta_metadata_config);
-    rmdir(tag_a_commitear->directorio);
+    
+    if(rmdir(ruta_logical_blocks)){
+        log_debug(logger_storage, "(realizarELIMINAR_UN_TAG) - se elimina: %s", ruta_logical_blocks);
+    }
+    
+    if(rmdir(tag_a_elminar->directorio)){
+        log_debug(logger_storage,"(realizarELIMINAR_UN_TAG) - se elimina: %s", tag_a_elminar->directorio);
+    }
+        
 
+    free(ruta_logical_blocks);
     free(ruta_metadata_config);
     
     return OK;
@@ -1205,18 +1231,20 @@ void unlinkearBloquesLogicosParaELIMINAR_UN_TAG(int query_id,int cant_a_unlinkea
     bool esta_commiteado = estaCommiteado(tag->metadata_config_tag);
     
     for (int i = 0; i < cant_a_unlinkear; i++){
-        // Remover el último bloque de la lista
-        BloqueLogico *bloque_popeado = (BloqueLogico *)list_remove(bloques_logicos, list_size(bloques_logicos) - 1); //agregamos el -1
+    
+        BloqueLogico *bloque_popeado = (BloqueLogico *)list_remove(bloques_logicos, i); //agregamos el -1
         BloqueFisico *bloque_fisico_asociado = bloque_popeado->ptr_bloque_fisico;
 
         //---------------------------------- /files/tag/logical-blocks/0002.dat
+        log_debug(logger_storage, "(unlinkearBloquesLogicosParaELIMINAR_UN_TAG) - hlink a unlinkear: %s", bloque_popeado->ruta_hl);
         unlink(bloque_popeado->ruta_hl);       // quitarle el hlink
         log_info(logger_storage,"## %d - %s:%s Se eliminó el hard link del bloque lógico %d al bloque físico %d",
         query_id,nombre_file,nombre_tag,bloque_popeado->id_logico,bloque_popeado->ptr_bloque_fisico->id_fisico);
-        bloque_popeado->ptr_bloque_fisico = NULL; // JORGE EL CURIOSO - Capaz por enunciado deberia apuntar al block0;
+        
 
         if (!tieneHLinks(bloque_fisico_asociado->ruta_absoluta)){ // 1 hard links -> liberar en el bitmap
-            liberarBloqueDeBitmap(bloque_fisico_asociado->id_fisico,query_id);
+            log_debug(logger_storage,"(unlinkearBloquesLogicosParaELIMINAR_UN_TAG) - no tenia hrlinks");
+            liberarBloqueDeBitmap(bloque_fisico_asociado->id_fisico, query_id);
             
             if(esta_commiteado){
                 DatosParaHash* datos_para_hash = obtenerDatosParaHash(bloque_popeado);
@@ -1227,11 +1255,17 @@ void unlinkearBloquesLogicosParaELIMINAR_UN_TAG(int query_id,int cant_a_unlinkea
                 liberarDatosParaHash(datos_para_hash);
                 free(hash_a_remover);
             }
-            
-            log_debug(logger_storage, "(unlinkearBloquesLogicos)- El bloque fisico %s fue liberado", bloque_fisico_asociado->nombre);
-        }
 
-        bloque_popeado->ptr_bloque_fisico = NULL; // JORGE EL CURIOSO - Capaz por enunciado deberia apuntar al block0;
+        
+            
+            log_debug(logger_storage, "(unlinkearBloquesLogicosParaELIMINAR_UN_TAG)- El bloque fisico %s fue liberado", bloque_fisico_asociado->nombre);
+        }
+        else{
+            log_debug(logger_storage, "(unlinkearBloquesLogicosParaELIMINAR_UN_TAG) - tenia hlinks");
+        }
+        
+
+        //bloque_popeado->ptr_bloque_fisico = NULL; // JORGE EL CURIOSO - Capaz por enunciado deberia apuntar al block0;
         liberarBloqueLogico(bloque_popeado);
         log_debug(logger_storage, "(unlinkearBloquesLogicos) - FER lo hizo de nuevo");
     }
@@ -1239,7 +1273,8 @@ void unlinkearBloquesLogicosParaELIMINAR_UN_TAG(int query_id,int cant_a_unlinkea
 
 
 bool estaCommiteado(t_config* metadata){
-    return string_contains(config_get_string_value(metadata, "ESTADO"), "COMMITED");
+    char* estado = config_get_string_value(metadata, "ESTADO");
+    return string_equals_ignore_case(estado, "COMMITED");
 }
 
 /*

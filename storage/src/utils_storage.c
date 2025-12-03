@@ -1,111 +1,120 @@
 #include "utils_storage.h"
 
-int obtenerTareaCodOperacion(char *string_codop){
+int obtenerTareaCodOperacion(char *string_codop)
+{
     for (int i = 0; i < 8; i++)
     {
-        if (strcmp(NOMBRE_CODOP_STORAGE[i],string_codop)==0)
-		 return i;
+        if (strcmp(NOMBRE_CODOP_STORAGE[i], string_codop) == 0)
+            return i;
     }
     return -1;
 }
 
-
-void handshake(int fd){
-    char* mensajito_hanshake = string_from_format("%d",datos_superblock_gb->tamanio_bloque);
-    Mensaje* mensajito_a_enviar = crearMensajito(mensajito_hanshake);
+void handshake(int fd)
+{
+    char *mensajito_hanshake = string_from_format("%d", datos_superblock_gb->tamanio_bloque);
+    Mensaje *mensajito_a_enviar = crearMensajito(mensajito_hanshake);
     free(mensajito_hanshake);
-    enviarMensajito(mensajito_a_enviar,fd,logger_storage);
-    Mensaje* resp_handshake = recibirMensajito(fd,logger_storage);
+    enviarMensajito(mensajito_a_enviar, fd, logger_storage);
+    Mensaje *resp_handshake = recibirMensajito(fd, logger_storage);
     pthread_mutex_lock(&mutex_cant_workers);
     cant_workers_conectados++;
-    log_info(logger_storage,"“##Se conecta el Worker %s - Cantidad de Workers: %d",resp_handshake->mensaje,cant_workers_conectados);
+    log_info(logger_storage, "“##Se conecta el Worker %s - Cantidad de Workers: %d", resp_handshake->mensaje, cant_workers_conectados);
     pthread_mutex_unlock(&mutex_cant_workers);
     liberarMensajito(resp_handshake);
 }
 
-
-void iniciarStorage(){
+void iniciarStorage()
+{
     bloques_fisicos_gb = list_create();
     lista_files_gb = list_create();
 
     cargarConfigSuperblock();
     inicializarBitmapYMapeo();
-    
-    if (string_equals_ignore_case(config_storage->fresh_start,"TRUE")){
-        LA_SANGUINARIA(); 
-        log_debug(logger_storage,"(iniciarStorage)- SANGUINARIA HECHA");
+
+    if (string_equals_ignore_case(config_storage->fresh_start, "TRUE"))
+    {
+        LA_SANGUINARIA();
+        log_debug(logger_storage, "(iniciarStorage)- SANGUINARIA HECHA");
         crearDirectorio(PATH_PHYSICAL_BLOCKS);
         crearDirectorio(RUTA_FILES);
-        crearBloquesFisicos(); 
-        log_debug(logger_storage,"(iniciarStorage)- Bloques fisicos creados");
+        crearBloquesFisicos();
+        log_debug(logger_storage, "(iniciarStorage)- Bloques fisicos creados");
     }
 
     crearDirectorio(PATH_PHYSICAL_BLOCKS);
-    //crearDirectorio(RUTA_FILES);
+    crearDirectorio(RUTA_FILES);
+
+   
+    reconstruirBitmapDesdeHardlinks();  
     crearBloquesFisicos();
-    //crearInitialFile();
+    crearInitialFile();
 
     hash_index_config_gb = config_create(RUTA_HASH_INDEX);
-    
-
 }
 
-void limpiarHashIndexConfig(){
-    t_config* aux_para_vaciar_hash_index = config_create(RUTA_AUX_FSTART_HASH_INDEX);  
+void limpiarHashIndexConfig()
+{
+    t_config *aux_para_vaciar_hash_index = config_create(RUTA_AUX_FSTART_HASH_INDEX);
     log_debug(logger_storage, "intenta limpiar hash");
-    config_save_in_file(aux_para_vaciar_hash_index,RUTA_HASH_INDEX);
+    config_save_in_file(aux_para_vaciar_hash_index, RUTA_HASH_INDEX);
     config_destroy(aux_para_vaciar_hash_index);
     log_debug(logger_storage, "hash limpio");
 }
 
-void cargarConfigStorage(char* arch_config){
-    char* path_completo = string_from_format("../configs/%s.config",arch_config);
+void cargarConfigStorage(char *arch_config)
+{
+    char *path_completo = string_from_format("../configs/%s.config", arch_config);
 
-    t_config* config = config_create(path_completo);
+    t_config *config = config_create(path_completo);
     config_storage = malloc(sizeof(ConfigStorage));
-    
-    if(config_storage == NULL){
+
+    if (config_storage == NULL)
+    {
         printf("cargo mal");
         abort();
     }
-    
+
     config_storage->puerto_escucha = string_duplicate(config_get_string_value(config, "PUERTO_ESCUCHA"));
     config_storage->fresh_start = string_duplicate(config_get_string_value(config, "FRESH_START"));
     config_storage->punto_montaje = string_duplicate(config_get_string_value(config, "PUNTO_MONTAJE"));
     config_storage->retardo_operacion = config_get_int_value(config, "RETARDO_OPERACION");
     config_storage->retardo_acceso_bloque = config_get_int_value(config, "RETARDO_ACCESO_BLOQUE");
     config_storage->log_level = string_duplicate(config_get_string_value(config, "LOG_LEVEL"));
-    
+
     free(path_completo);
     config_destroy(config);
 }
 
-void cargarConfigSuperblock(){
-    t_config* superblock = config_create("../configs/superblock.config");
+void cargarConfigSuperblock()
+{
+    t_config *superblock = config_create("../configs/superblock.config");
     datos_superblock_gb = malloc(sizeof(ConfigSuperblock));
 
-    if(superblock == NULL){
-       log_debug(logger_storage, "ruta_superblock incorrecta");
+    if (superblock == NULL)
+    {
+        log_debug(logger_storage, "ruta_superblock incorrecta");
         exit(EXIT_FAILURE);
     }
 
     log_debug(logger_storage, "cargando config super block");
 
-    datos_superblock_gb->tamanio_fsystem = config_get_int_value(superblock,"FS_SIZE");
-    datos_superblock_gb->tamanio_bloque = config_get_int_value(superblock,"BLOCK_SIZE");
+    datos_superblock_gb->tamanio_fsystem = config_get_int_value(superblock, "FS_SIZE");
+    datos_superblock_gb->tamanio_bloque = config_get_int_value(superblock, "BLOCK_SIZE");
     datos_superblock_gb->cant_bloques = calcularCantBloques();
 
     log_debug(logger_storage, "se cargaron config super block ");
-    
+
     config_destroy(superblock);
     log_debug(logger_storage, "se cargaron config super block config destroy");
 }
 
-
-int calcularCantBloques(){
+int calcularCantBloques()
+{
     int cant_bloques = datos_superblock_gb->tamanio_fsystem / datos_superblock_gb->tamanio_bloque;
 
-    if (datos_superblock_gb->tamanio_fsystem % datos_superblock_gb->tamanio_bloque != 0){
+    if (datos_superblock_gb->tamanio_fsystem % datos_superblock_gb->tamanio_bloque != 0)
+    {
         cant_bloques++;
     }
 
@@ -113,112 +122,159 @@ int calcularCantBloques(){
 }
 
 void crearBloquesFisicos(){
-
-
-    for (int i = 0; i < datos_superblock_gb->cant_bloques; i++){
+    for (int i = 0; i < datos_superblock_gb->cant_bloques; i++)
+    {
         char nombre_fijo[32];
-        snprintf(nombre_fijo, sizeof(nombre_fijo),"block%04d",i );
-            
-        char* ruta_absoluta = string_from_format("%s/%s.dat",PATH_PHYSICAL_BLOCKS,nombre_fijo);
-        FILE* arch = fopen(ruta_absoluta, "a+");
+        snprintf(nombre_fijo, sizeof(nombre_fijo), "block%04d", i);
 
-        fclose(arch);
-        
-        
-        crearYAgregarBloqueFisicoIndividual(i,string_duplicate(nombre_fijo),ruta_absoluta);
+        char *ruta_absoluta = string_from_format("%s/%s.dat", PATH_PHYSICAL_BLOCKS, nombre_fijo);
+        FILE *arch = fopen(ruta_absoluta, "r+");
+        if (arch == NULL)
+        {
+            // sólo si NO existe lo creás
+            arch = fopen(ruta_absoluta, "a+");
+        }
+        fclose(arch);// "Soy agus y no me olvido de cerrar archivos (era abi)"
+
+        crearYAgregarBloqueFisicoIndividual(i, string_duplicate(nombre_fijo), ruta_absoluta);
     }
-    log_debug(logger_storage,"Debug - (crearBloquesFisicos) - Bloques fisicos creados");
+    log_debug(logger_storage, "Debug - (crearBloquesFisicos) - Bloques fisicos creados");
 }
 
-int cantidadDeCaracteres(int numero){
+int cantidadDeCaracteres(int numero)
+{
     int cont = 1;
-    while(numero >= 10){
-        numero/= 10;
+    while (numero >= 10)
+    {
+        numero /= 10;
         cont++;
     }
     return cont;
 }
 
-
-
-//sirve para inicializar el fs
-void crearYAgregarBloqueFisicoIndividual(int id,char* nombre_bloque, char* ruta_absoluta){//JORGE EL CURIOSO
-    BloqueFisico* bloque_fisico = malloc(sizeof(BloqueFisico));
+// sirve para inicializar el fs
+void crearYAgregarBloqueFisicoIndividual(int id, char *nombre_bloque, char *ruta_absoluta)
+{ // JORGE EL CURIOSO
+    BloqueFisico *bloque_fisico = malloc(sizeof(BloqueFisico));
     bloque_fisico->id_fisico = id;
     bloque_fisico->nombre = nombre_bloque;
     bloque_fisico->ruta_absoluta = ruta_absoluta;
-    
-    list_add(bloques_fisicos_gb,bloque_fisico); 
+
+    list_add(bloques_fisicos_gb, bloque_fisico);
 }
 
-void inicializarSemaforos(){
-    pthread_mutex_init(&mutex_bitmap,NULL);
-    pthread_mutex_init(&mutex_files,NULL);
-    pthread_mutex_init(&mutex_bloques_fisicos,NULL);
-    pthread_mutex_init(&mutex_cant_workers,NULL);
-   
+void inicializarSemaforos()
+{
+    pthread_mutex_init(&mutex_bitmap, NULL);
+    pthread_mutex_init(&mutex_files, NULL);
+    pthread_mutex_init(&mutex_bloques_fisicos, NULL);
+    pthread_mutex_init(&mutex_cant_workers, NULL);
 }
 
+Mensaje *mensajitoResultadoStorage(ErrorStorageEnum cod_error)
+{
+    Mensaje *mensajito = malloc(sizeof(Mensaje));
 
-Mensaje* mensajitoResultadoStorage(ErrorStorageEnum cod_error){
-    Mensaje* mensajito = malloc(sizeof(Mensaje));
-	
     mensajito->mensaje = string_from_format("%s", NOMBRE_ERRORES[cod_error]); // string_equals desde worker
     mensajito->size = string_length(mensajito->mensaje);
 
     return mensajito;
 }
 
-void crearInitialFile(){
-    log_debug(logger_storage,"(crearInitialFile) - Intentando crear initial_file");
-    
-    if(realizarCREATE("initial_file","BASE")!= OK){
-        log_error(logger_storage,"(crearInitialFile) - No se pudo crear initial_file");
+void crearInitialFile()
+{
+    log_debug(logger_storage, "(crearInitialFile) - Intentando crear initial_file");
+
+    if (realizarCREATE("initial_file", "BASE") != OK)
+    {
+        log_error(logger_storage, "(crearInitialFile) - No se pudo crear initial_file");
         exit(EXIT_FAILURE);
     }
-    log_debug(logger_storage,"(crearInitialFile) - initial_file creado");
+    log_debug(logger_storage, "(crearInitialFile) - initial_file creado");
 
-    BloqueLogico* bloque_0 = crearBloqueLogico(0,list_get(bloques_fisicos_gb,0),RUTA_BASE_TAG);
-    FILE* arch_a_escribir= fopen(bloque_0->ruta_hl, "w");
+    BloqueLogico *bloque_0 = crearBloqueLogico(0, list_get(bloques_fisicos_gb, 0), RUTA_BASE_TAG);
+    FILE *arch_a_escribir = fopen(bloque_0->ruta_hl, "w");
 
-    char *buffer = calloc(datos_superblock_gb->tamanio_bloque, 1);   // llena de ceros
+    char *buffer = calloc(datos_superblock_gb->tamanio_bloque, 1); // llena de ceros
 
     fwrite(buffer, 1, datos_superblock_gb->tamanio_bloque, arch_a_escribir);
 
     free(buffer);
 
     fclose(arch_a_escribir);
-    File* file_initial_file = buscarFilePorNombre("initial_file");
+    File *file_initial_file = buscarFilePorNombre("initial_file");
     log_debug(logger_storage, "(crearInitialFile) - Cantidad de Tags: %d", file_initial_file->tags->elements_count);
-    
-    Tag* tag = list_get(file_initial_file->tags,0);
-    list_add(tag->bloques_logicos,bloque_0);
+
+    Tag *tag = list_get(file_initial_file->tags, 0);
+    list_add(tag->bloques_logicos, bloque_0);
     waitPropio(mutex_bitmap);
-    bitarray_set_bit(bitmap_gb,0); // marco como ocupaso el bloque 0
+    bitarray_set_bit(bitmap_gb, 0); // marco como ocupaso el bloque 0
     signalPropio(mutex_bitmap);
-} 
-
-
-
-void LA_SANGUINARIA(){
-    char* preguntemos_a_la_caracola_magica;
-    preguntemos_a_la_caracola_magica = string_from_format("rm -rf %s",PATH_PHYSICAL_BLOCKS); // /physical_blocks
-    LA_CARACOLA_MAGICA(preguntemos_a_la_caracola_magica);
-    preguntemos_a_la_caracola_magica = string_from_format("rm -rf %s",RUTA_FILES); // /files
-    LA_CARACOLA_MAGICA(preguntemos_a_la_caracola_magica);
-    preguntemos_a_la_caracola_magica = string_from_format("rm %s",RUTA_HASH_INDEX); // 
-    LA_CARACOLA_MAGICA(preguntemos_a_la_caracola_magica);
-    preguntemos_a_la_caracola_magica = string_from_format("rm %s",RUTA_BITMAP);
-    //ya borre todo, ahora creemos todo
-    log_debug(logger_storage, "(LA_SANGUINARIA) - Elimine rutas");
-    limpiarBitmap();
-   
-    preguntemos_a_la_caracola_magica = string_from_format("touch %s",RUTA_HASH_INDEX);
-    LA_CARACOLA_MAGICA(preguntemos_a_la_caracola_magica); 
 }
 
-void LA_CARACOLA_MAGICA(char* pregunta){
+void LA_SANGUINARIA()
+{
+    char *preguntemos_a_la_caracola_magica;
+    preguntemos_a_la_caracola_magica = string_from_format("rm -rf %s", PATH_PHYSICAL_BLOCKS); // /physical_blocks
+    LA_CARACOLA_MAGICA(preguntemos_a_la_caracola_magica);
+    preguntemos_a_la_caracola_magica = string_from_format("rm -rf %s", RUTA_FILES); // /files
+    LA_CARACOLA_MAGICA(preguntemos_a_la_caracola_magica);
+    preguntemos_a_la_caracola_magica = string_from_format("rm %s", RUTA_HASH_INDEX); //
+    LA_CARACOLA_MAGICA(preguntemos_a_la_caracola_magica);
+    preguntemos_a_la_caracola_magica = string_from_format("rm %s", RUTA_BITMAP);
+    // ya borre todo, ahora creemos todo
+    log_debug(logger_storage, "(LA_SANGUINARIA) - Elimine rutas");
+    limpiarBitmap();
+
+    preguntemos_a_la_caracola_magica = string_from_format("touch %s", RUTA_HASH_INDEX);
+    LA_CARACOLA_MAGICA(preguntemos_a_la_caracola_magica);
+}
+
+void LA_CARACOLA_MAGICA(char *pregunta)
+{
     system(pregunta);
-	log_debug(logger_storage,"LA CARACOLA MAGICA HA HABLADO:%s",pregunta); 
-	free(pregunta);
+    log_debug(logger_storage, "LA CARACOLA MAGICA HA HABLADO:%s", pregunta);
+    free(pregunta);
+}
+
+void reconstruirBitmapDesdeHardlinks() {
+    log_debug(logger_storage, "(reconstruirBitmapDesdeHardlinks) - Recalculando bitmap según st_nlink");
+
+    // Primero limpio todo el bitmap (todo libre)
+    for (int i = 0; i < bitarray_get_max_bit(bitmap_gb); i++) {
+        bitarray_clean_bit(bitmap_gb, i);
+    }
+
+    for (int i = 0; i < datos_superblock_gb->cant_bloques; i++) {
+        char nombre_fijo[32];
+        snprintf(nombre_fijo, sizeof(nombre_fijo), "block%04d", i);
+
+        char* ruta_absoluta = string_from_format("%s/%s.dat", PATH_PHYSICAL_BLOCKS, nombre_fijo);
+
+        struct stat info;
+        if (stat(ruta_absoluta, &info) == -1) {
+            log_error(logger_storage,
+                      "(reconstruirBitmapDesdeHardlinks) - Error en stat para %s: %s",
+                      ruta_absoluta, strerror(errno));
+            free(ruta_absoluta);
+            continue;
+        }
+
+        // Si hay más de 1 hardlink, asumimos que el bloque está en uso
+        if (info.st_nlink > 1) {
+            bitarray_set_bit(bitmap_gb, i);
+            log_trace(logger_storage,
+                      "(reconstruirBitmapDesdeHardlinks) - Bloque %d marcado OCUPADO (nlink=%ld)",
+                      i, (long)info.st_nlink);
+        } else {
+            bitarray_clean_bit(bitmap_gb, i);
+            log_trace(logger_storage,
+                      "(reconstruirBitmapDesdeHardlinks) - Bloque %d marcado LIBRE (nlink=%ld)",
+                      i, (long)info.st_nlink);
+        }
+
+        free(ruta_absoluta);
+    }
+
+    log_debug(logger_storage, "(reconstruirBitmapDesdeHardlinks) - Bitmap reconstruido");
 }
