@@ -49,7 +49,6 @@ Worker* buscarWorkerConMenorPrioridad(){
             }
         
     }
-
     return victima;
 }
 
@@ -67,17 +66,65 @@ void* realizarAgingIndividual(void *args){
     Query* query_gestionando = (Query *)args;
     while (1)
     {
+        log_info(logger_master, "(realizarAgingIndividual) - Thread aging iniciado cada %d ms", config_master->tiempo_aging);
         usleep(config_master->tiempo_aging * 1000);
+        pthread_mutex_lock(&mutex_workers);
+        pthread_mutex_lock(&mutex_lista_ready);
         if (sigueEnReady(query_gestionando->quid)/*&& !query_gestionando->ya_estuvo_en_ready*/){
             query_gestionando->prioridad--;
-            log_info(logger_master, "%d Cambio de prioridad: %d - %d", query_gestionando->quid, query_gestionando->prioridad + 1, query_gestionando->prioridad);
-            //probablemente tenga q replanificar
+            log_info(logger_master, "(realizarAgingIndividual) - %d Cambio de prioridad: %d - %d", query_gestionando->quid, query_gestionando->prioridad + 1, query_gestionando->prioridad);
+
+            list_sort(lista_ready, ordenarPorPrioridad);
+            Query* primer_elemento = list_get(lista_ready,0);
+            
+            if(primer_elemento->quid == query_gestionando->quid){
+                log_debug(logger_master,"(realizarAgingIndividual) - Soy el primero en READY despues de ordenar");
+                intentarEnviarQueryAExecutePorPrioridades(query_gestionando);
+            }
+            
         }else{
             log_debug(logger_master,"(realizarAgingIndividual) - Query %d ya no sigue en ready, terminando thread..."
             ,query_gestionando->quid);
+            pthread_mutex_unlock(&mutex_lista_ready);
+            pthread_mutex_unlock(&mutex_workers);
             break;
         }
+
+        pthread_mutex_unlock(&mutex_lista_ready);
+        pthread_mutex_unlock(&mutex_workers);
     }
     return NULL;
     
+}
+
+void* hiloAging(void* args){
+    int intervalo_ms = config_master->tiempo_aging;
+
+    struct timespec ts;
+    ts.tv_sec = intervalo_ms / 1000;
+    ts.tv_nsec = (intervalo_ms % 1000) * 1000000L;
+
+    while(1){
+        nanosleep(&ts, NULL);
+
+        pthread_mutex_lock(&mutex_lista_ready);
+
+        if (list_is_empty(lista_ready)) { // se duerme un ratito
+            pthread_mutex_unlock(&mutex_lista_ready);
+            continue;
+        }
+
+        for (int i = 0; i < list_size(lista_ready); i++) { // bajar prioridadE
+            Query* q = list_get(lista_ready, i);
+            if (q->prioridad > 0) {
+                q->prioridad--;
+                log_info(logger_master, "%d Cambio de prioridad: %d - %d", q->quid, q->prioridad + 1, q->prioridad);
+            }
+        }
+            list_sort(lista_ready, ordenarPorPrioridad);
+            intentarPlanificarDesdeReady();
+        
+        pthread_mutex_unlock(&mutex_lista_ready);
+    }
+    return NULL;
 }

@@ -8,6 +8,7 @@
 #include <commons/collections/list.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include "prioridades.h"
 
 typedef struct{
     char* puerto_escucha;
@@ -66,6 +67,8 @@ void* hiloAging(void* args);
 void realizarDesalojo(Worker* vistima, Query* nueva_query);
 
 void intentarPlanificarDesdeReady();
+
+void intentarEnviarQueryAExecutePorPrioridades(Query* query_pendiente);
 
 void gestionarWorkerIndividual(int id_worker ,int fd_conexion);
 void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd);

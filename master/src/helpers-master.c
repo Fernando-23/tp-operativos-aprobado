@@ -195,6 +195,38 @@ void intentarPlanificarDesdeReady() {
 }
 
 
+void intentarEnviarQueryAExecutePorPrioridades(Query* query_pendiente){
+    if (!string_equals_ignore_case(config_master->algoritmo_plani, "PRIORIDADES")){
+        log_error(logger_master, "(intentarEnviarQueryAExecutePorPrioridades) - algoritmo no era prioridades");
+        return;
+    }
+    
+    Worker* worker_libre = buscarWorkerLibre();
+    list_sort(lista_ready, ordenarPorPrioridad);
+    if (worker_libre) {
+        Query* a_ejecutar = list_remove(lista_ready, 0);
+        log_trace(logger_master, "(intentarEnviarQueryAExecutePorPrioridades) - query_param_id : %d, query_lista_id %d",
+        query_pendiente->quid, a_ejecutar->quid);
+        asignarQueryAWorker(worker_libre, a_ejecutar);
+        log_info(logger_master, "Planificación  Query %d asignada por disponibilidad (Worker %d)", 
+                 a_ejecutar->quid, worker_libre->id);
+    }
+
+    else{
+        Worker* victima = buscarWorkerConMenorPrioridad();
+        if (victima && victima->query_actual->prioridad > query_pendiente->prioridad) {
+            Query* a_ejecutar = list_remove(lista_ready, 0);
+            log_trace(logger_master, "(intentarEnviarQueryAExecutePorPrioridades) - query_param_id : %d, query_lista_id %d",
+            query_pendiente->quid, a_ejecutar->quid);
+            log_warning(logger_master, "DESALOJO por AGING  Query %d (prio %d) saca a Query %d (prio %d)",
+            a_ejecutar->quid, a_ejecutar->prioridad,
+            victima->query_actual->quid, victima->query_actual->prioridad);
+            realizarDesalojo(victima, a_ejecutar);
+        }
+    }   
+}
+
+
 void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
     Query* nueva_query = crearQuery(nombre_query,prioridad,fd);
     if(!nueva_query) return;
@@ -213,6 +245,14 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
     bool estaba_vacia = list_is_empty(lista_ready);
     int id_query_nueva = nueva_query->quid;
     list_add(lista_ready, nueva_query);
+    if(string_equals_ignore_case(config_master->algoritmo_plani, "PRIORIDADES") && config_master->tiempo_aging > 0){
+        pthread_t thread_aging;
+        pthread_create(&thread_aging,NULL,realizarAgingIndividual,(void *)nueva_query);
+        pthread_detach(thread_aging);
+    }
+
+
+
     log_info(logger_master, "Query %d llegada - Prioridad: %d", nueva_query->quid, prioridad);
 
     //ESTO CUBRE FIFO
