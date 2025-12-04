@@ -629,7 +629,8 @@ int contadorHLinks(char *ruta_abs_a_consultar)
         log_error(logger_storage, "(contadorHLinks) -Error en stat, Ruta: %s", ruta_abs_a_consultar);
          return 1;
     }
-
+    log_debug(logger_storage,"(contadorHLinks) - Cantidad HLinks consultada");
+    log_debug(logger_storage,"ruta: %s cant_hl:%ld",ruta_abs_a_consultar,info.st_nlink);
     return info.st_nlink;
 }
 
@@ -837,7 +838,8 @@ ErrorStorageEnum realizarCOMMIT(int query_id, char *nombre_file,char *nombre_tag
 
     escribirEnHashIndex(query_id,nombre_file,tag_a_commitear);
 
-    config_set_value(tag_a_commitear)
+    config_set_value(tag_a_commitear->metadata_config_tag,"ESTADO","COMMITED");
+    config_save(tag_a_commitear->metadata_config_tag);
     
     return OK;
 }
@@ -906,7 +908,7 @@ BloqueFisico *buscarBloqueFisicoPorNombre(char *nombre){
     bool tieneMismoNombre(void *ptr)
     {
         BloqueFisico *bloque = (BloqueFisico *)ptr;
-        return (strcmp(nombre, bloque->nombre));
+        return (string_equals_ignore_case(nombre, bloque->nombre));
     }
     return list_find(bloques_fisicos_gb, tieneMismoNombre);
 }
@@ -1008,9 +1010,10 @@ ErrorStorageEnum realizarWRITE(int query_id,char* nombre_file,char* nombre_tag,i
     }
 
     BloqueLogico* bloque_a_escribir = buscarBloqueLogicoPorId(tag_a_escribir,id_bloque_logico);
-    
+    log_debug(logger_storage,"(realizarWRITE) - ruta hl del bloque a escribir");
+    log_debug(logger_storage,"%s",bloque_a_escribir->ruta_hl);
     // caso feo/fer 
-    if (contadorHLinks(bloque_a_escribir->ruta_hl) > 2){  
+    if (contadorHLinks(bloque_a_escribir->ruta_hl) > 2){ // era > 2  segun fer
         log_debug(logger_storage, "caso feo/fer ");
         BloqueFisico* bloque_nuevo_a_asignar = obtenerBloqueFisicoLibre();
         log_debug(logger_storage, "(realizarWRITE) - id bloque fisico: %d", bloque_nuevo_a_asignar->id_fisico);
@@ -1031,9 +1034,14 @@ ErrorStorageEnum realizarWRITE(int query_id,char* nombre_file,char* nombre_tag,i
 }
 
 ErrorStorageEnum realizarREAD(char* nombre_file,char* nombre_tag,int id_bloque_logico,char** contenido){
-    char* contenido_a_cargar = *contenido;
+    
+    if(*contenido != NULL){
+        free(*contenido);
+        *contenido = NULL;
+    }
+    
     if (fileInexistente(nombre_file)){
-        contenido_a_cargar = string_duplicate("");
+        *contenido = string_duplicate("");
         return FILE_INEXISTENTE;
     }
 
@@ -1041,12 +1049,11 @@ ErrorStorageEnum realizarREAD(char* nombre_file,char* nombre_tag,int id_bloque_l
 
 
     if (tagInexistente(file_a_leer->tags, nombre_tag, nombre_file)){
-        contenido_a_cargar = string_duplicate("");
+        *contenido = string_duplicate("");
         return TAG_INEXISTENTE;
     }
 
     // ESTAMOS ACA
-
 
     Tag *tag_a_leer = buscarTagPorNombre(file_a_leer->tags, nombre_tag);
    
@@ -1057,13 +1064,19 @@ ErrorStorageEnum realizarREAD(char* nombre_file,char* nombre_tag,int id_bloque_l
     }
     log_debug(logger_storage," (realizarREAD) - cant_bloques_logicos: %d", bloques_logicos_asociados->elements_count);
     if (list_size(bloques_logicos_asociados) <= id_bloque_logico) {
-        contenido_a_cargar = string_duplicate("");
+        *contenido = string_duplicate("");
         return LECTURA_FUERA_DE_LIMITE;
     }
     log_debug(logger_storage," (realizarREAD) - Pase validaciones");
     BloqueLogico* bloque_a_leer = buscarBloqueLogicoPorId(tag_a_leer, id_bloque_logico);
     log_debug(logger_storage," (realizarREAD) - Tengo el bloques logico a leer");
-    *contenido = leerBloqueLogico(bloque_a_leer);
+    char* datos_leidos = leerBloqueLogico(bloque_a_leer);
+    if(datos_leidos == NULL){
+        log_error(logger_storage, "Error al leer bloque fisico");
+        *contenido = string_duplicate("");
+        return -1;
+    }
+    *contenido = datos_leidos;
     return OK;
 }
 
@@ -1097,7 +1110,17 @@ void escribirEnBloque(char* ruta_abs_bloque_logico,char* contenido){
         return;     
     }
 
-    fwrite(contenido, 1, datos_superblock_gb->tamanio_bloque, bloque_a_escribir);\
+    if(fseek(bloque_a_escribir, 0, SEEK_SET) != 0 ){
+        log_error(logger_storage, "(escribirEnBloque) - fseek fallo en %s", ruta_abs_bloque_logico);
+        fclose(bloque_a_escribir);
+        return;
+    }
+
+
+
+    if(fwrite(contenido, 1, datos_superblock_gb->tamanio_bloque, bloque_a_escribir) < datos_superblock_gb->tamanio_bloque){
+        log_error(logger_storage, "(escribirEnBloque) - tamanio a escribir incompleto");
+    }
 
     if (fflush(bloque_a_escribir) != 0) {
         log_error(logger_storage, "escribirEnBloque: fallo en fflush() para %s", ruta_abs_bloque_logico);
@@ -1167,14 +1190,16 @@ void reapuntarBloque(BloqueFisico* bloque_fisico_a_reapuntar,BloqueLogico* bloqu
     array_blocks[bloque_logico->id_logico] = string_itoa(bloque_fisico_a_reapuntar->id_fisico);
     
     log_debug(logger_storage, "(reapuntarBloque) - Pequenio chequeo antes del reapuntamiento");
-    log_debug(logger_storage, "(reapuntarBloque) - Id bloque fisico en logico(estructura): %d , Bloque obtenido de la metadata(.config) %s. DEBEN SER IGUALES",
-    bloque_logico->ptr_bloque_fisico->id_fisico,array_blocks[bloque_logico->id_logico]);
+   
     //sprintf(bloque_a_modificar,"%d",bloque_fisico_a_reapuntar->id_fisico);
 
     char* nuevo_array_blocks = stringArrayConfigAString(array_blocks);
     config_set_value(metadata, "BLOCKS", nuevo_array_blocks);
 
     bloque_logico->ptr_bloque_fisico = bloque_fisico_a_reapuntar;
+
+    log_debug(logger_storage, "(reapuntarBloque) - Id bloque fisico en logico(estructura): %d , Bloque obtenido de la metadata(.config) %s. DEBEN SER IGUALES",
+    bloque_logico->ptr_bloque_fisico->id_fisico,array_blocks[bloque_logico->id_logico]);
 
     config_save(metadata);
 
@@ -1183,7 +1208,7 @@ void reapuntarBloque(BloqueFisico* bloque_fisico_a_reapuntar,BloqueLogico* bloqu
     string_array_destroy(array_blocks);
         
     //gestion bloque viejo Karol Aquino
-    if(!tieneHLink(bloque_fisico_viejo->ruta_absoluta)){
+    if(!tieneHLinks(bloque_fisico_viejo->ruta_absoluta)){
         liberarBloqueDeBitmap(bloque_fisico_viejo->id_fisico,query_id);
     }
 

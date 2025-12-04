@@ -353,7 +353,7 @@ bool ejecutarWrite(char *file, char *tag, int dir_base, char *contenido_a_escrib
        
         Mensaje* mensaje_error_master = crearMensajito(formato_error_master);
         enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
-
+        
         free(formato_error_master);
         error_en_operacion = "OK";
         return true;

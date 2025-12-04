@@ -703,8 +703,18 @@ bool escribirEnStorage(EntradaDeTabla *entrada_a_persistir)
 {
     log_debug(logger_worker, "(escribirEnStorage) - Escribiendo en storage - File: %s - Tag: %s - Pagina: %d", entrada_a_persistir->tabla->file, entrada_a_persistir->tabla->tag, entrada_a_persistir->nro_pag);
     TablaPaginas *tabla_padre = entrada_a_persistir->tabla;
+
+
+
+    char* datos = leerBloque(entrada_a_persistir);
+    char* bloque_completo = malloc(tam_pag);
+    memset(bloque_completo, 0, tam_pag);
+    memcpy(bloque_completo, datos, tam_pag);
+    free(datos);
+
+
     char *contenido_a_persistir =
-        string_from_format("ESCRIBIR_BLOQUE %d %s %s %d %s", query->id_query, tabla_padre->file, tabla_padre->tag, entrada_a_persistir->nro_pag, leerBloque(entrada_a_persistir));
+        string_from_format("ESCRIBIR_BLOQUE %d %s %s %d %s", query->id_query, tabla_padre->file, tabla_padre->tag, entrada_a_persistir->nro_pag, bloque_completo);
     Mensaje *mensajito_a_enviar = crearMensajito(contenido_a_persistir); // ESCRIBIR_BLOQUE query_id file tag nro_pag contenido
 
     enviarMensajito(mensajito_a_enviar, socket_storage, logger_worker);
@@ -714,11 +724,13 @@ bool escribirEnStorage(EntradaDeTabla *entrada_a_persistir)
     {
         liberarMensajito(respuesta_storage);
         log_error(logger_worker, "(escribirEnStorage) Conexion cerrada con storage o no pudo escribir");
+        free(bloque_completo);
         error_en_operacion = respuesta_storage->mensaje;
         return false;
     }
 
     liberarMensajito(respuesta_storage);
+    free(bloque_completo);
     return true;
 }
 

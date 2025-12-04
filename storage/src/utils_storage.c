@@ -199,10 +199,12 @@ void crearInitialFile()
 
     fwrite(buffer, 1, datos_superblock_gb->tamanio_bloque, arch_a_escribir);
 
+    fclose(arch_a_escribir);
+
     free(buffer);
 
-    fclose(arch_a_escribir);
     File *file_initial_file = buscarFilePorNombre("initial_file");
+    
     log_debug(logger_storage, "(crearInitialFile) - Cantidad de Tags: %d", file_initial_file->tags->elements_count);
 
     Tag *tag = list_get(file_initial_file->tags, 0);

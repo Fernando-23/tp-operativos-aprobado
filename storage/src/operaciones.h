@@ -113,7 +113,7 @@ bool estaCommiteado(t_config* metadata);
 ErrorStorageEnum realizarWRITE(int query_id,char* nombre_file,char* nombre_tag,int id_bloque_logico,char* contenido);
 ErrorStorageEnum realizarREAD(char* nombre_file,char* nombre_tag,int id_bloque_logico,char** contenido);
 void liberarDatosParaHash(DatosParaHash *dato_a_liberar);
-DatosParaHash *crearDatosHash(char* contenido, size_t tamanio)
+DatosParaHash *crearDatosHash(char* contenido, size_t tamanio);
 
 //--------RETARDOS----------
 void hacerRetardoOperacion();
