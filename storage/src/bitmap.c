@@ -57,7 +57,7 @@ RespuestaConsultaBitmap* consultarBitmapPorBloquesLibres(int cant_bloques_que_qu
     char** bloques_a_devolver = string_array_new();
 
     pthread_mutex_lock(&mutex_bitmap);
-       
+    
     for(int i = 0; i < bitarray_get_max_bit(bitmap_gb) && cant_bloques_que_quiero > 0;i++){
         bool esta_libre = bitarray_test_bit(bitmap_gb,i);
 
@@ -96,6 +96,7 @@ void liberarBitmapYMapeo(){
 
 void limpiarBitmap(){
     log_debug(logger_storage, "(limpiarBitmap) - entre");
+    
     for (int i = 0; i < bitarray_get_max_bit(bitmap_gb); i++)
     {
         bitarray_clean_bit(bitmap_gb,i);

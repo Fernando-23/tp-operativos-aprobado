@@ -163,7 +163,7 @@ bool pedidoDeLaburante(int mail_laburante){
         break;
 
     case LEER_BLOQUE: //  QUERY_ID FILE TAG NRO_PAG
-    log_debug(logger_storage, "(pedidoDeLaburante) - LEER_BLOQUE");
+        log_debug(logger_storage, "(pedidoDeLaburante) - LEER_BLOQUE");
         nombre_file = mensajito_cortado[2];
         nombre_tag = mensajito_cortado[3];
         int id_bloque_logico = atoi(mensajito_cortado[4]);
@@ -242,8 +242,9 @@ Deberá crear el archivo de metadata en estado WORK_IN_PROGRESS y no asignarle n
 ErrorStorageEnum realizarCREATE(char *nombre_file, char *nombre_tag){
 
     log_debug(logger_storage, "(realizarCREATE) - Comienzo create");
-
+    pthread_mutex_lock(&mutex_files);
     if (filePreexistente(nombre_file))
+        pthread_mutex_unlock(&mutex_files);
         return FILE_PREEXISTENTE; // chequeo de error del enunciado
     //
     log_debug(logger_storage, "(realizarCREATE) - Pase validaciones de creacion");
@@ -254,14 +255,14 @@ ErrorStorageEnum realizarCREATE(char *nombre_file, char *nombre_tag){
     Tag *nuevo_tag = crearTag(nombre_tag, nombre_file);
 
     list_add(nuevo_file->tags, nuevo_tag);
+    
+    pthread_mutex_unlock(&mutex_files);
     log_debug(logger_storage,"(realizarCREATE) - Termine correctamente create");
     return OK;
 }
 
 
-ErrorStorageEnum realizarTRUNCATE(int query_id,char* nombre_file, char* nombre_tag, int tamanio_a_truncar)
-{
-
+ErrorStorageEnum realizarTRUNCATE(int query_id,char* nombre_file, char* nombre_tag, int tamanio_a_truncar){
     // chequeo errores
     pthread_mutex_lock(&mutex_files);
 
@@ -278,7 +279,6 @@ ErrorStorageEnum realizarTRUNCATE(int query_id,char* nombre_file, char* nombre_t
 
     File *file = buscarFilePorNombre(nombre_file);
 
-    
     log_debug(logger_storage,"(realizarTRUNCATE) - Cant Tags:%d" ,file->tags->elements_count);
     //Tag* tageo = list_get(file->tags,0);
     //log_debug(logger_storage,"(realizarTRUNCATE) - Nombre Tag Estructura:%s, Nombre Tag Parametro:%s",tageo->nombre_tag, nombre_tag);
@@ -497,6 +497,7 @@ void ferConLaMexicana(Tag *tag, int query_id,int tamanio_actual, int nuevo_taman
 
 void unlinkearBloquesLogicos(int query_id,int cant_a_unlinkear, t_list *bloques_logicos,char* nombre_file,char* nombre_tag)
 {
+    pthread_mutex_lock(&mutex_bloques_fisicos);
     for (int i = 0; i < cant_a_unlinkear; i++){
         BloqueLogico *bloque_popeado = (BloqueLogico *)list_remove(bloques_logicos, list_size(bloques_logicos) - 1 );
         BloqueFisico *bloque_fisico_asociado = bloque_popeado->ptr_bloque_fisico;
@@ -508,13 +509,17 @@ void unlinkearBloquesLogicos(int query_id,int cant_a_unlinkear, t_list *bloques_
         bloque_popeado->ptr_bloque_fisico = NULL; // JORGE EL CURIOSO - Capaz por enunciado deberia apuntar al block0;
 
         if (!tieneHLinks(bloque_fisico_asociado->ruta_absoluta)){ // 1 hard links -> liberar en el bitmap
+            pthread_mutex_lock(&mutex_bitmap);
             liberarBloqueDeBitmap(bloque_fisico_asociado->id_fisico, query_id);
+            msync(bitmap_mmap_gb, cant_bloques_en_bytes_gb, MS_SYNC);
+            pthread_mutex_unlock(&mutex_bitmap);
             log_debug(logger_storage, "(unlinkearBloquesLogicos)- El bloque fisico %s fue liberado", bloque_fisico_asociado->nombre);
         }
 
         liberarBloqueLogico(bloque_popeado);
         log_debug(logger_storage, "(unlinkearBloquesLogicos) - FER lo hizo de nuevo");
     }
+    pthread_mutex_unlock(&mutex_bloques_fisicos);
 }
 
 void agrandarEnTruncate(Tag *tag, int tamanio_acutal, int nuevo_tamanio)
@@ -523,7 +528,9 @@ void agrandarEnTruncate(Tag *tag, int tamanio_acutal, int nuevo_tamanio)
     int tamanio_a_agrandar = nuevo_tamanio - tamanio_acutal;
     int cant_bloques_necesarios = tamanio_a_agrandar / datos_superblock_gb->tamanio_bloque;
 
+    pthread_mutex_lock(&mutex_bloques_fisicos);
     asignarBloquesFisicosATagEnTruncate(tag, cant_bloques_necesarios);
+    pthread_mutex_unlock(&mutex_bloques_fisicos);
     // actualizar metadata
     config_set_value(tag->metadata_config_tag, "TAMANIO", string_itoa(nuevo_tamanio));
     config_save(tag->metadata_config_tag);
@@ -641,18 +648,22 @@ void limpiarBitsPorStringArray(char **bloques_a_limpiar)
 
     for (int i = 0; i < tope_array; i++)
     {
+
         char *bloque_popeado = string_array_pop(bloques_a_limpiar);
         int nro_bloque = atoi(bloque_popeado);
         free(bloque_popeado);
+
         bitarray_clean_bit(bitmap_gb, nro_bloque);
     }
+    msync(bitmap_mmap_gb, cant_bloques_en_bytes_gb, MS_SYNC);
     log_debug(logger_storage, "Debug - (limpiarBitsPorStringArray) - Se liberaron bloques del bitmap");
 }
 
-//HACER SYNC AFUERA
+//HACER SYNC AFUERA... yo lo voy a hacer adentro
 void liberarBloqueDeBitmap(int nro_bloque, int query_id){
     bitarray_clean_bit(bitmap_gb, nro_bloque);
     log_info(logger_storage, "## %d - Bloque Físico Liberado - Número de Bloque: %d",query_id, nro_bloque);
+     
 }
 
 
@@ -815,8 +826,9 @@ char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino, int
         return TAG_INEXISTENTE;
     }
 
+    //pthread_mutex_lock(&mutex_bloques_fisicos);
     asignarBloquesFisicosATagCopiado(tag_destino_estructura,nombre_file_destino, query_id);
-    
+    //pthread_mutex_lock(&mutex_bloques_fisicos);
     pthread_mutex_unlock(&mutex_files);
     return OK;
 }
@@ -839,6 +851,7 @@ char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino, int
 
 void asignarBloquesFisicosATagCopiado(Tag *tag_destino, char* nombre_file, int query_id) // falta query id
 {
+    
     char **bloques_logicos_a_copiar = config_get_array_value(tag_destino->metadata_config_tag, "BLOCKS");
     t_list *logicos_a_copiar = tag_destino->bloques_logicos;
 
@@ -862,20 +875,23 @@ void asignarBloquesFisicosATagCopiado(Tag *tag_destino, char* nombre_file, int q
 }
 
 BloqueFisico *obtenerBloqueFisico(int nro_bloque_a_buscar){
+    pthread_mutex_lock(&mutex_bloques_fisicos);
     return (BloqueFisico *)list_get(bloques_fisicos_gb, nro_bloque_a_buscar);
+    pthread_mutex_unlock(&mutex_bloques_fisicos);
 }
 
 
 ErrorStorageEnum realizarCOMMIT(int query_id, char *nombre_file,char *nombre_tag){
 
+    pthread_mutex_lock(&mutex_files);
     if (fileInexistente(nombre_file)){
-        
+        pthread_mutex_unlock(&mutex_files);
         return FILE_INEXISTENTE;
     }
     File *file_a_commitear = buscarFilePorNombre(nombre_file);
 
     if (tagInexistente(file_a_commitear->tags, nombre_tag, nombre_file)){
-        
+        pthread_mutex_unlock(&mutex_files);
         return TAG_INEXISTENTE;
     }
 
@@ -883,18 +899,20 @@ ErrorStorageEnum realizarCOMMIT(int query_id, char *nombre_file,char *nombre_tag
 
     // log
 
-    if (tieneEstadoCOMMITED(tag_a_commitear))
-    {
+    if (tieneEstadoCOMMITED(tag_a_commitear)){
         log_debug(logger_storage, "(realizarCOMMIT) - El estado del tag %s ya estaba en COMMITED", tag_a_commitear->nombre_tag);
-        
+        pthread_mutex_unlock(&mutex_files);
         return OK;
     }
 
+    pthread_mutex_lock(&mutex_bloques_fisicos);
     escribirEnHashIndex(query_id,nombre_file,tag_a_commitear);
+    pthread_mutex_unlock(&mutex_bloques_fisicos);
 
     config_set_value(tag_a_commitear->metadata_config_tag,"ESTADO","COMMITED");
     config_save(tag_a_commitear->metadata_config_tag);
     
+    pthread_mutex_unlock(&mutex_files);
     return OK;
 }
 /*
@@ -906,6 +924,7 @@ void escribirEnHashIndex(int query_id,char* nombre_file,Tag *tag)
 {
     int cant_blogicos = list_size(tag->bloques_logicos);
     
+    pthread_mutex_lock(&mutex_hash_index);
     for (int i = 0; i < cant_blogicos; i++)
     {
         BloqueLogico *bloque_logico_a_consultar = list_get(tag->bloques_logicos, i);
@@ -915,6 +934,7 @@ void escribirEnHashIndex(int query_id,char* nombre_file,Tag *tag)
         DatosParaHash *datos_para_hash = obtenerDatosParaHash(bloque_logico_a_consultar, nombre_file);
         log_debug(logger_storage, "(escribirEnHashIndex) - id: %d, contenido: %s", i, datos_para_hash->contenido);
 
+        
         char *hash_bloque_logico = crypto_md5(datos_para_hash->contenido, datos_para_hash->tamanio); // block0000 // 9
         bool existe_hash = config_has_property(hash_index_config_gb,hash_bloque_logico);
         
@@ -938,7 +958,6 @@ void escribirEnHashIndex(int query_id,char* nombre_file,Tag *tag)
             "## %d - %s:%s Se agregó el hard link del bloque lógico %d al bloque físico %d",
             query_id,nombre_file,tag->nombre_tag,bloque_logico_a_consultar->id_logico,bloque_fisico_a_apuntar->id_fisico);
             
-            
             log_debug(logger_storage,
                 "(escribirEnHashIndex) - Bloque logico %d reapuntado al Bloque fisico %d correctamente",
                 bloque_logico_a_consultar->id_logico,bloque_fisico_a_apuntar->id_fisico);
@@ -953,9 +972,11 @@ void escribirEnHashIndex(int query_id,char* nombre_file,Tag *tag)
             hash_bloque_logico,
             bloque_logico_a_consultar->ptr_bloque_fisico->nombre); //creo key mi bro no se me preocupe, cierre los ojos y salte nomas.
         config_save(hash_index_config_gb);
+
         free(hash_bloque_logico);
         liberarDatosParaHash(datos_para_hash);
     }
+    pthread_mutex_unlock(&mutex_hash_index);
     
     log_debug(logger_storage, "Yo sali del barrio me dicen MOMO");
 }
@@ -1031,13 +1052,17 @@ void liberarDatosParaHash(DatosParaHash *dato_a_liberar){
 ErrorStorageEnum realizarWRITE(int query_id,char* nombre_file,char* nombre_tag,int id_bloque_logico,char* contenido){ 
     // ESCRIBIR_BLOQUE query_id file tag nro_pag contenido
     
+    pthread_mutex_lock(&mutex_files);
+
     if (fileInexistente(nombre_file)){
+        pthread_mutex_unlock(&mutex_files);
         return FILE_INEXISTENTE;
     }
 
     File *file_a_escribir = buscarFilePorNombre(nombre_file);
 
     if (tagInexistente(file_a_escribir->tags, nombre_tag, nombre_file)){
+        pthread_mutex_unlock(&mutex_files);
         return TAG_INEXISTENTE;
     }
 
@@ -1055,7 +1080,8 @@ ErrorStorageEnum realizarWRITE(int query_id,char* nombre_file,char* nombre_tag,i
     }
 
 
-    if (list_size(bloques_logicos_asociados) <= id_bloque_logico) {
+    if (list_size(bloques_logicos_asociados) <= id_bloque_logico){
+        pthread_mutex_unlock(&mutex_files);
         return ESCRITURA_FUERA_DE_LIMITE;
     }
 
@@ -1063,6 +1089,7 @@ ErrorStorageEnum realizarWRITE(int query_id,char* nombre_file,char* nombre_tag,i
 
     if (tieneEstadoCOMMITED(tag_a_escribir)){
         log_debug(logger_storage, "(realizarWRITE) - El estado del tag %s ya estaba en COMMITED", tag_a_escribir->nombre_tag);    
+        pthread_mutex_unlock(&mutex_files);
         return ESCRITURA_NO_PERMITIDA;
     }
 
@@ -1072,20 +1099,24 @@ ErrorStorageEnum realizarWRITE(int query_id,char* nombre_file,char* nombre_tag,i
     // caso feo/fer 
     if (contadorHLinks(bloque_a_escribir->ruta_hl) > 2){ // era > 2  segun fer
         log_debug(logger_storage, "caso feo/fer ");
+        pthread_mutex_lock(&mutex_bloques_fisicos);
         BloqueFisico* bloque_nuevo_a_asignar = obtenerBloqueFisicoLibre();
         log_debug(logger_storage, "(realizarWRITE) - id bloque fisico: %d", bloque_nuevo_a_asignar->id_fisico);
         if (!bloque_nuevo_a_asignar){
             log_warning(logger_storage,"(realizarWRITE) - No se encontro bloque fisico libre en el bitmap");
+            pthread_mutex_unlock(&mutex_bloques_fisicos);
+            pthread_mutex_unlock(&mutex_files);
             return ESPACIO_INSUFICIENTE;
         }
     
         reapuntarBloque(bloque_nuevo_a_asignar,bloque_a_escribir,tag_a_escribir->metadata_config_tag,query_id,file_a_escribir->nombre_file,tag_a_escribir->nombre_tag);
+        pthread_mutex_unlock(&mutex_bloques_fisicos);
         log_info(logger_storage, "“## %d - Bloque Físico Reservado - Número de Bloque: %d",query_id,bloque_nuevo_a_asignar->id_fisico);
-    
     } // caso lindo/liam
     
     log_debug(logger_storage, "caso lindo/liam ");
     escribirEnBloque(bloque_a_escribir->ruta_hl,contenido);
+    pthread_mutex_unlock(&mutex_files);
     log_debug(logger_storage,"Escribio en bloque (realizarWRITE)");
     return OK;
 }
@@ -1096,9 +1127,11 @@ ErrorStorageEnum realizarREAD(char* nombre_file,char* nombre_tag,int id_bloque_l
         free(*contenido);
         *contenido = NULL;
     }
-    
+
+    pthread_mutex_lock(&mutex_files);
     if (fileInexistente(nombre_file)){
         *contenido = string_duplicate("");
+        pthread_mutex_unlock(&mutex_files);
         return FILE_INEXISTENTE;
     }
 
@@ -1107,39 +1140,49 @@ ErrorStorageEnum realizarREAD(char* nombre_file,char* nombre_tag,int id_bloque_l
 
     if (tagInexistente(file_a_leer->tags, nombre_tag, nombre_file)){
         *contenido = string_duplicate("");
+        pthread_mutex_unlock(&mutex_files);
         return TAG_INEXISTENTE;
     }
 
     // ESTAMOS ACA
-
+    
     Tag *tag_a_leer = buscarTagPorNombre(file_a_leer->tags, nombre_tag);
-   
+    
     t_list* bloques_logicos_asociados = tag_a_leer->bloques_logicos;
 
     if (bloques_logicos_asociados == NULL){
         log_debug(logger_storage, "(realizarREAD) - bloques_logicos_asociado a tag == NULL");
     }
+
     log_debug(logger_storage," (realizarREAD) - cant_bloques_logicos: %d", bloques_logicos_asociados->elements_count);
     if (list_size(bloques_logicos_asociados) <= id_bloque_logico) {
         *contenido = string_duplicate("");
+        pthread_mutex_unlock(&mutex_files);
         return LECTURA_FUERA_DE_LIMITE;
     }
+
     log_debug(logger_storage," (realizarREAD) - Pase validaciones");
     BloqueLogico* bloque_a_leer = buscarBloqueLogicoPorId(tag_a_leer, id_bloque_logico);
     log_debug(logger_storage," (realizarREAD) - Tengo el bloques logico a leer");
     char* datos_leidos = leerBloqueLogico(bloque_a_leer);
+
+    pthread_mutex_unlock(&mutex_files);
     if(datos_leidos == NULL){
         log_error(logger_storage, "Error al leer bloque fisico");
         *contenido = string_duplicate("");
+        //pthread_mutex_unlock(&mutex_files);
         return -1;
     }
+
     *contenido = datos_leidos;
     return OK;
 }
 
 BloqueFisico* obtenerBloqueFisicoLibre(){
+    pthread_mutex_lock(&mutex_bitmap);
     if(bitmap_gb == NULL){
         log_error(logger_storage, "ERROR: bitmap_gb es NULL en obtenerBloqueFisicoLibre");
+        pthread_mutex_unlock(&mutex_bitmap);
         return NULL;
     }
     
@@ -1147,15 +1190,17 @@ BloqueFisico* obtenerBloqueFisicoLibre(){
     //log_debug(logger_storage,"Voy a intentar buscar un bloque fisico libre, bitarray: %d", max_bits);
 
     for (int i = 0; i < max_bits; i++){
-        //log_debug(logger_storage,"entro a for de (obtenerBloqueFisicoLibre)");
-
+        
         if (!bitarray_test_bit(bitmap_gb,i)){
             bitarray_set_bit(bitmap_gb,i); // lo pones en 1
             log_debug(logger_storage, "(obtenerBloqueFisicoLibre) - Encontre bloque fisico libre en bitmap, id:%d", i);
+            pthread_mutex_unlock(&mutex_bitmap);
             return buscarBloqueFisicoPorId(i);
         }
     }
     log_warning(logger_storage,"(obtenerBloqueFisicoLibre) - No se encontro un bloque fisico libre");
+    msync(bitmap_mmap_gb, cant_bloques_en_bytes_gb, MS_SYNC);
+    pthread_mutex_unlock(&mutex_bitmap);
     return NULL;
 }
 
@@ -1210,7 +1255,6 @@ char* leerBloqueLogico(BloqueLogico* bloque_logico){
 
     log_debug(logger_storage, "(leerBloqueLogico) pude abrir bloque a leer");
 
-
     char *contenido = malloc(datos_superblock_gb->tamanio_bloque + 1);
     fread(contenido,datos_superblock_gb->tamanio_bloque ,1 , arch_a_leer);
     fclose(arch_a_leer);
@@ -1232,8 +1276,8 @@ void reapuntarBloque(BloqueFisico* bloque_fisico_a_reapuntar,BloqueLogico* bloqu
          log_info(logger_storage,"## %d - %s:%s Se eliminó el hard link del bloque lógico %d al bloque físico %d",
     query_id,nombre_file,nombre_tag,bloque_logico->id_logico,bloque_logico->ptr_bloque_fisico->id_fisico);
     }
-   
-   
+    
+    
     if(crearHLink(bloque_logico->ruta_hl,bloque_fisico_a_reapuntar->ruta_absoluta)){
         log_info(logger_storage,
         "## %d - %s:%s Se agregó el hard link del bloque lógico %d al bloque físico %d",
@@ -1266,23 +1310,25 @@ void reapuntarBloque(BloqueFisico* bloque_fisico_a_reapuntar,BloqueLogico* bloqu
         
     //gestion bloque viejo Karol Aquino
     if(!tieneHLinks(bloque_fisico_viejo->ruta_absoluta)){
+        pthread_mutex_lock(&mutex_bitmap);
         liberarBloqueDeBitmap(bloque_fisico_viejo->id_fisico,query_id);
+        pthread_mutex_unlock(&mutex_bitmap);
     }
 
     log_debug(logger_storage,"(reapuntarBloque) - Termine la funcion reapuntarBloque");
 }
 
 ErrorStorageEnum realizarELIMINAR_UN_TAG(int query_id,char *nombre_file,char *nombre_tag){ 
-
+    pthread_mutex_lock(&mutex_files);
     if (fileInexistente(nombre_file)){
-        
+        pthread_mutex_unlock(&mutex_files);
         return FILE_INEXISTENTE;
     }
 
     File *file_a_commitear = buscarFilePorNombre(nombre_file);
 
     if (tagInexistente(file_a_commitear->tags, nombre_tag, nombre_file)){
-        
+        pthread_mutex_unlock(&mutex_files);
         return TAG_INEXISTENTE;
     }
 
@@ -1302,6 +1348,7 @@ ErrorStorageEnum realizarELIMINAR_UN_TAG(int query_id,char *nombre_file,char *no
     if(remove(ruta_metadata_config)!=0){
         log_error(logger_storage,"Fallo al eliminar metadata");
         log_error(logger_storage,"ruta metadata %s",ruta_metadata_config);
+        pthread_mutex_unlock(&mutex_files);
         abort();
     }
     
@@ -1309,6 +1356,7 @@ ErrorStorageEnum realizarELIMINAR_UN_TAG(int query_id,char *nombre_file,char *no
     
     if (pos_tag_en_files == -1){
         log_error(logger_storage, "(realizarELIMINAR_UN_TAG) - el tag %s no se encontraba en la lista", tag_a_elminar->nombre_tag);
+        pthread_mutex_unlock(&mutex_files);
         return -1;
     } 
 
@@ -1324,10 +1372,7 @@ ErrorStorageEnum realizarELIMINAR_UN_TAG(int query_id,char *nombre_file,char *no
         log_debug(logger_storage,"(realizarELIMINAR_UN_TAG) - se elimina: %s", tag_a_elminar->directorio);
     }
 
-
     list_remove(file_a_commitear->tags,pos_tag_en_files);
-
-    
     
     if(file_a_commitear->tags->elements_count == 0){
         int index = obtenerIndexDeFileEnFileGB(nombre_file);
@@ -1341,7 +1386,7 @@ ErrorStorageEnum realizarELIMINAR_UN_TAG(int query_id,char *nombre_file,char *no
     free(ruta_logical_blocks);
     free(ruta_metadata_config);
     liberarTag(tag_a_elminar);
-    
+    pthread_mutex_unlock(&mutex_files);
     return OK;
 }
 
@@ -1351,6 +1396,10 @@ void unlinkearBloquesLogicosParaELIMINAR_UN_TAG(int query_id,int cant_a_unlinkea
     bool esta_commiteado = estaCommiteado(tag->metadata_config_tag);
     log_debug(logger_storage,"(unlinkearBloquesLogicosParaELIMINAR_UN_TAG) - cant_unlinkear:%d, list_size logical:%d",
     cant_a_unlinkear,list_size(bloques_logicos));
+    
+    pthread_mutex_lock(&mutex_hash_index);
+    pthread_mutex_lock(&mutex_bitmap);
+    
     for (int i = 0; i < list_size(bloques_logicos); i++){
     
         BloqueLogico *bloque_popeado = (BloqueLogico *)list_remove(bloques_logicos, i); //agregamos el -1
@@ -1365,6 +1414,8 @@ void unlinkearBloquesLogicosParaELIMINAR_UN_TAG(int query_id,int cant_a_unlinkea
 
         if (!tieneHLinks(bloque_fisico_asociado->ruta_absoluta)){ // 1 hard links -> liberar en el bitmap
             log_debug(logger_storage,"(unlinkearBloquesLogicosParaELIMINAR_UN_TAG) - no tenia hrlinks");
+            
+
             liberarBloqueDeBitmap(bloque_fisico_asociado->id_fisico, query_id);
             
             if(esta_commiteado){
@@ -1389,6 +1440,8 @@ void unlinkearBloquesLogicosParaELIMINAR_UN_TAG(int query_id,int cant_a_unlinkea
         liberarBloqueLogico(bloque_popeado);
         log_debug(logger_storage, "(unlinkearBloquesLogicos) - FER lo hizo de nuevo");
     }
+    pthread_mutex_unlock(&mutex_bitmap);
+    pthread_mutex_unlock(&mutex_hash_index);
 }
 
 
@@ -1428,7 +1481,6 @@ void liberarTag(Tag* tag_a_eliminar){
     config_destroy(tag_a_eliminar->metadata_config_tag);
     log_debug(logger_storage,"(liberarTag) - Libere el tag pedidooo");
 }
-
 
 
 /*

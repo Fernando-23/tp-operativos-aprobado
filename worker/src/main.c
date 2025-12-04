@@ -120,7 +120,7 @@ int main(int argc, char* argv[]) {
     enviarMensajito(mensaje_storage, socket_storage, logger_worker);
     free(mensaje_de_finalizacion);
 
-    mensaje_de_finalizacion = string_from_format("FINALIZAR_WORKER");
+    mensaje_de_finalizacion = string_from_format("FINALIZAR_WORKER %d", query->pc_query);
     Mensaje* mensaje_master = crearMensajito(mensaje_de_finalizacion);
     enviarMensajito(mensaje_master, socket_master, logger_worker);
 

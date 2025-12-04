@@ -72,6 +72,7 @@ void* gestionarClienteIndividual(void* args){
     switch (cod_op){
         
     case QUERY: //0
+    
         //QUERY nombre_query prioridad
         //--->args:nombre_query prioridad fd_cliente
         char* nombre_query = string_duplicate(mensajito_cortado[1]);
@@ -236,9 +237,9 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     free(path_query);
 
-
-    pthread_mutex_lock(&mutex_lista_ready);
     pthread_mutex_lock(&mutex_workers);
+    pthread_mutex_lock(&mutex_lista_ready);
+    
 
     
     bool estaba_vacia = list_is_empty(lista_ready);
@@ -264,8 +265,8 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
                 Query* primera = list_remove(lista_ready, 0);
                 if(primera->quid != id_query_nueva){
                     log_error(logger_master,"(gestionarQueryIndividual) - Incongruencia");
-                    pthread_mutex_unlock(&mutex_workers);
                     pthread_mutex_unlock(&mutex_lista_ready);
+                    pthread_mutex_unlock(&mutex_workers);
                     exit(EXIT_FAILURE);
                 }
                 asignarQueryAWorker(worker_libre, primera);
@@ -280,8 +281,8 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
 
         if(consulto_mas_prioritaria->quid != id_query_nueva){ // No soy la query mas prioritaria en READY
             log_debug(logger_master, "(gestionarQueryIndividual) - No soy la query mas prioritaria en READY");
-            pthread_mutex_unlock(&mutex_workers);
             pthread_mutex_unlock(&mutex_lista_ready);
+            pthread_mutex_unlock(&mutex_workers);
             return;
         } 
 
@@ -313,8 +314,9 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
     }
 
     log_debug(logger_master, "fin (gestionarQueryIndividual)");
-    pthread_mutex_unlock(&mutex_workers);
     pthread_mutex_unlock(&mutex_lista_ready);
+    pthread_mutex_unlock(&mutex_workers);
+    
 }
 
 
@@ -373,7 +375,7 @@ void gestionarWorkerIndividual(int id_worker ,int fd_conexion){
     
     
     intentarEnviarQueryAExecutePorWorker(nuevo_laburante_devuelto_por_la_funcion_que_crea_y_devuelve_worker);
-    
+    //ace las kosas vien
     pthread_mutex_lock(&mutex_workers);
     list_add(lista_workers, nuevo_laburante_devuelto_por_la_funcion_que_crea_y_devuelve_worker);
 
@@ -574,9 +576,14 @@ void atenderWorker(int fd_worker) {
             break;
 
         
-        case FINALIZAR_WORKER:
-
+        case FINALIZAR_WORKER: 
+            int pc = atoi(mensaje_array[1]);
             int id_worker = worker->id;
+            
+            worker->query_actual->pc = pc;
+
+            pthread_mutex_lock(&mutex_workers);
+            pthread_mutex_lock(&mutex_lista_ready);
 
             worker = list_remove(lista_workers, id_worker);
             ///////////////////////////////////////////// LOG OBLIGATORIO ////////////////////////////////////////////////////////////////
@@ -588,6 +595,10 @@ void atenderWorker(int fd_worker) {
             if(worker->query_pendiente != NULL)
                 list_add(lista_ready,worker->query_pendiente);
             free(worker);
+
+            pthread_mutex_unlock(&mutex_lista_ready);
+            pthread_mutex_unlock(&mutex_workers);
+            
 
 
         default:
@@ -602,7 +613,7 @@ void atenderWorker(int fd_worker) {
     }
 }
 
-void atenderQueryControl(int fd_qc) {
+void atenderQueryControl(int fd_qc) { // abstraerse
     Query* query = buscarQueryPorFd(fd_qc);
     if (!query) return;
 
@@ -635,7 +646,7 @@ Worker* buscarWorkerPorFd(int fd_buscado) {
 
 Query* buscarQueryPorFd(int fd_buscado) {
 
-     pthread_mutex_lock(&mutex_workers);
+    pthread_mutex_lock(&mutex_workers);
 
     for (int i = 0; i < list_size(lista_workers); i++) {
         Worker* w = list_get(lista_workers, i);

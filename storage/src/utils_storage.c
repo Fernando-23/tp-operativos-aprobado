@@ -4,7 +4,7 @@ int obtenerTareaCodOperacion(char *string_codop)
 {
     for (int i = 0; i < 8; i++)
     {
-        if (strcmp(NOMBRE_CODOP_STORAGE[i], string_codop) == 0)
+        if (strcmp(NOMBRE_CODOP_STORAGE[i], string_codop) == 0) //JORGE EL CURIOSO
             return i;
     }
     return -1;
@@ -32,8 +32,8 @@ bool handshake(int fd)
     return true;
 }
 
-void iniciarStorage()
-{
+void iniciarStorage(){
+
     bloques_fisicos_gb = list_create();
     lista_files_gb = list_create();
 
@@ -60,7 +60,6 @@ void iniciarStorage()
 
     crearDirectorio(PATH_PHYSICAL_BLOCKS);
     crearDirectorio(RUTA_FILES);
-
    
     reconstruirBitmapDesdeHardlinks();  
     crearBloquesFisicos();
@@ -181,12 +180,12 @@ void crearYAgregarBloqueFisicoIndividual(int id, char *nombre_bloque, char *ruta
     list_add(bloques_fisicos_gb, bloque_fisico);
 }
 
-void inicializarSemaforos()
-{
+void inicializarSemaforos(){
     pthread_mutex_init(&mutex_bitmap, NULL);
     pthread_mutex_init(&mutex_files, NULL);
     pthread_mutex_init(&mutex_bloques_fisicos, NULL);
     pthread_mutex_init(&mutex_cant_workers, NULL);
+    pthread_mutex_init(&mutex_hash_index, NULL);
 }
 
 Mensaje *mensajitoResultadoStorage(ErrorStorageEnum cod_error)

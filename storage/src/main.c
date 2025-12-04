@@ -8,10 +8,11 @@ int main(int argc, char* argv[]) {
     cargarConfigStorage(argv[1]);
 
     logger_storage = iniciarLogger("storage", config_storage->log_level);
-    
     int socket_sv = iniciarServidor(config_storage->puerto_escucha,"Storage",logger_storage);
+    inicializarSemaforos();
     
-    if (socket_sv == -1) return 1;
+    if (socket_sv == -1) 
+        return 1;
 
     log_debug(logger_storage, "llegue aca");
     // FRESH_STORAGE
