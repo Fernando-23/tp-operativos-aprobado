@@ -3,7 +3,7 @@
 #include <commons/log.h>
 #include <commons/config.h>
 #include <pthread.h>
-
+#include <signal.h>
 #include "../../utils/src/utils/conexiones.h"
 #include "../../utils/src/utils/helpers.h"
 #include "ciclo_instruccion.h"
@@ -48,6 +48,7 @@ extern pthread_mutex_t mx_conexion_master;
 extern pthread_mutex_t mx_recibir_query;
 extern pthread_mutex_t mx_bitmap;
 extern pthread_mutex_t sem_instruccion;
+extern volatile sig_atomic_t debo_morir; 
 
 void cargarConfigWorker(char* arch_config);
 int conexionStorage();

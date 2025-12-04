@@ -139,7 +139,7 @@ Mensaje* recibirMensajito(int socket_cliente, t_log* logger){
 
     
     if(recv(socket_cliente, mensajito->mensaje, mensajito->size, 0) <= 0){
-		log_error(logger, "(recibirMensajito) - Error recibiendo el mensaje en si mismo o conexión cerrada a mitad de mensaje.");
+		log_warning(logger, "(recibirMensajito) - Error recibiendo el mensaje en si mismo o conexión cerrada a mitad de mensaje.");
         liberarMensajito(mensajito);
 		return NULL;
 	}

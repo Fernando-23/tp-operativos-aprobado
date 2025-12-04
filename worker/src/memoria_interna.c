@@ -556,7 +556,9 @@ int gestionarPAGE_FAULT(char *file, char *tag, int nro_pagina)
     enviarMensajito(mensajito, socket_storage, logger_worker);
     free(mensaje_formateado);
 
-    Mensaje *mensaje_recibido = recibirMensajito(socket_storage, logger_worker); // ENUMSERRORSTORAGE CONTENIDO
+    Mensaje *mensaje_recibido = recibirMensajito(socket_storage, logger_worker);
+
+    // ENUMSERRORSTORAGE CONTENIDO
     char **datos_recibidos = string_split(mensaje_recibido->mensaje, " ");       // LIBERAR
     liberarMensajito(mensaje_recibido);
     ErrorStorageEnum cod_op_storage_recv = atoi(datos_recibidos[0]);
@@ -722,6 +724,7 @@ bool escribirEnStorage(EntradaDeTabla *entrada_a_persistir)
     Mensaje *respuesta_storage = recibirMensajito(socket_storage, logger_worker); // OK siempre... ponele
     if (respuesta_storage == NULL || !string_equals_ignore_case(respuesta_storage->mensaje, "OK"))
     {
+        debo_morir = 1;
         liberarMensajito(respuesta_storage);
         log_error(logger_worker, "(escribirEnStorage) Conexion cerrada con storage o no pudo escribir");
         free(bloque_completo);

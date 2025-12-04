@@ -92,7 +92,7 @@ Worker* buscarWorkerConMenorPrioridad();
 Worker* buscarWorkerLibre();
 Worker *buscarWorkerPorFd(int fd_worker);
 Worker* crearWorker(int id_worker_a_crear_ahora, int contacto_empleado);
-
+void atenderQueryControl(int fd_qc);
 
 void inicializarSemaforos();
 
@@ -101,7 +101,7 @@ Query* buscarQueryPorFd(int fd_buscado);
 Query* buscarQueryPorIdListaReady(int id_buscado);
 Query* buscarQueryPorIdListaWorkers(int id_buscado);
 
-
+void liberarQuery(Query* query);
 
 
 

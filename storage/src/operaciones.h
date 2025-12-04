@@ -26,8 +26,7 @@ void* recursosHumanos(void *args_sin_formato);
 
 void *atenderLaburanteDisconforme(void *args_sin_formato);
 
-void pedidoDeLaburante(int mail_laburante);
-
+bool pedidoDeLaburante(int mail_laburante);
 
 void actualizarTamanioMetadata(char *nombre_file, Tag *tag, int tamanio_a_truncar);
 

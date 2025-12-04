@@ -20,21 +20,30 @@ void *atenderLaburanteDisconforme(void *args_sin_formato)
 {
     int fd_cliente = *((int *)args_sin_formato);
 
-    handshake(fd_cliente);
-
+    if(!handshake(fd_cliente)){ //el close se hace dentro del handshake si falla
+        return NULL;
+    }
+    
     //while(1){
      //   Mensaje * mensajito = re
     //}
+    bool seguir = true;
     do
     {
-        pedidoDeLaburante(fd_cliente);
-    } while (1);
+        seguir = pedidoDeLaburante(fd_cliente);
+    } while (seguir);
+    return NULL;
 }
 
-void pedidoDeLaburante(int mail_laburante){
+bool pedidoDeLaburante(int mail_laburante){
     char* nombre_file;
     char* nombre_tag;
     Mensaje *mensajito = recibirMensajito(mail_laburante, logger_storage);
+
+    if(!mensajito){
+        close(mail_laburante);
+        return false;
+    }
 
     log_debug(logger_storage,
               "Debug - (pedidoDeLaburante) - Recibi el mensaje %s", mensajito->mensaje);
@@ -58,7 +67,7 @@ void pedidoDeLaburante(int mail_laburante){
 
         ErrorStorageEnum resultado_CREATE = realizarCREATE(nombre_file, nombre_tag);
 
-         enviarMensajito(mensajitoResultadoStorage(resultado_CREATE), mail_laburante, logger_storage);
+        enviarMensajito(mensajitoResultadoStorage(resultado_CREATE), mail_laburante, logger_storage);
         
         if (resultado_CREATE != OK)
             log_warning(logger_storage, "NO SE PUDO REALIZAR CREATE POR MOTIVO FILE_PREEXISTENTE"); // JOE PINO
@@ -220,6 +229,7 @@ void pedidoDeLaburante(int mail_laburante){
     }
 
     liberarMensajito(mensajito);
+    return true;
 }
 
 /*

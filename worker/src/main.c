@@ -1,11 +1,10 @@
 #include "helpers-worker.h"
 #include "ciclo_instruccion.h"
 #include "memoria_interna.h"
-#include <signal.h>
 #include <unistd.h>
 #include <sys/socket.h>
 
-static volatile sig_atomic_t debo_morir = 0;
+
 
 static void manejador_senial(int signo){
     debo_morir = 1;
@@ -120,7 +119,6 @@ int main(int argc, char* argv[]) {
 
     enviarMensajito(mensaje_storage, socket_storage, logger_worker);
     free(mensaje_de_finalizacion);
-
 
     mensaje_de_finalizacion = string_from_format("FINALIZAR_WORKER");
     Mensaje* mensaje_master = crearMensajito(mensaje_de_finalizacion);

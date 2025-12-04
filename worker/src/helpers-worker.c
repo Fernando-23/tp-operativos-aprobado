@@ -5,6 +5,7 @@
 t_log* logger_worker = NULL;
 ConfigWorker* config_worker = NULL;
 
+volatile sig_atomic_t debo_morir = 0;
 bool es_end = false;
 
 pthread_mutex_t mx_conexion_storage;
@@ -106,6 +107,8 @@ void esperandoQuery(int socket){
     log_debug(logger_worker, "(esperandoQuery) - por checkear args recibidas ");
     if(datos_query == NULL){
         log_error(logger_worker,"No me llegaron datos de Master");
+        debo_morir = 1;
+        return;
     }
     
     char ** lista_de_datos = string_split(datos_query->mensaje," ");

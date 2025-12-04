@@ -22,7 +22,7 @@ void cargarConfigSuperblock();
 int calcularCantBloques();
 void crearBloquesFisicos();
 void crearYAgregarBloqueFisicoIndividual(int id,char* nombre_bloque, char* ruta_absoluta);
-void handshake(int fd);
+bool handshake(int fd);
 void limpiarHashIndexConfig();
 void reconstruirBitmapDesdeHardlinks();  
 void LA_SANGUINARIA();

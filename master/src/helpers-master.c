@@ -81,7 +81,7 @@ void* gestionarClienteIndividual(void* args){
         liberarMensajito(handshake);
 
         gestionarQueryIndividual(nombre_query, prioridad, fd_conexion); 
-        free(nombre_query);
+        //free(nombre_query);
 
         // Dejo socket abierto para querys
         atenderQueryControl(fd_conexion);
@@ -286,8 +286,10 @@ void asignarQueryAWorker(Worker* worker, Query* query) { // los mutex deberian e
 
     log_debug(logger_master, "llegue a (asignarQueryAWorker)");
     // Marco worker como ocupado
+
     agarrarLaPala(worker, query);
 
+    log_debug(logger_master, "(asignarQueryAWorker) - agarro la pala");
 
     // Enviar la query al Worker
     char* mensaje_query = string_from_format("%d %d %s", query->quid,query->pc, query->query);
@@ -431,15 +433,15 @@ void atenderWorker(int fd_worker) {
 
     while (1) {
         Mensaje* msg = recibirMensajito(fd_worker, logger_master);
-        log_debug(logger_master,"(atenderWorker) - El mensaje recibido del worker %d es: %s",
-        worker->id,msg->mensaje);
-
+        
         if (!msg) {  // Worker murió
             log_error(logger_master, "Worker %d se desconectó inesperadamente", worker->id);
-            //manejarDesconexionWorker(worker);
-            break;
+            close(fd_worker);
+            return;
         }
 
+        log_debug(logger_master,"(atenderWorker) - El mensaje recibido del worker %d es: %s",
+        worker->id,msg->mensaje);
         char** mensaje_array = string_split(msg->mensaje, " ");
         int cod_op = obtenerRespuestaWorkerEnum(mensaje_array[0],logger_master);
         log_debug(logger_master,"(atenderWorker) - El codigo de operacion recibido del worker %d es: %d, string pasado: %s",
@@ -485,16 +487,19 @@ void atenderWorker(int fd_worker) {
             log_info(logger_master, "Se desconecta un Query Control. Se finaliza la Query %d con prioridad %d. Nivel multiprocesamiento %d",
                 worker->query_actual->quid, worker->query_actual->prioridad, list_size(lista_workers));
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-           char* formato_finalizar = string_from_format("%d Finaliza_Naturalmente", FINALIZAR);
-           Mensaje* mensaje_end_finaliza = crearMensajito(formato_finalizar);
-           enviarMensajito(mensaje_end_finaliza, worker->query_actual->fd, logger_master);
+            char* formato_finalizar = string_from_format("%d Finaliza_Naturalmente", FINALIZAR);
+            Mensaje* mensaje_end_finaliza = crearMensajito(formato_finalizar);
+            enviarMensajito(mensaje_end_finaliza, worker->query_actual->fd, logger_master);
            
-            Query * query_actual = worker->query_actual;
+            Query *query_actual = worker->query_actual;
+            
+            close(query_actual->fd);
+            
             worker->query_actual = NULL;
-            free(query_actual->query);
-            free(query_actual);
+            
+            liberarQuery(query_actual);
             free(formato_finalizar);
-           
+            //liberarQuery()
         
             intentarEnviarQueryAExecutePorWorker(worker);
             break;
@@ -517,13 +522,13 @@ void atenderWorker(int fd_worker) {
             
             enviarMensajito(mensaje_error_query,worker->query_actual->fd,logger_master);
 
-           
-            
-            Query * query_actual_d = worker->query_actual;
+            Query* query_actual_d = worker->query_actual;
+
+            close(query_actual_d->fd);
+
             worker->query_actual = NULL;
-            free (formato_error);
-            free(query_actual_d->query);
-            free(query_actual_d);
+            free(formato_error);
+            liberarQuery(query_actual_d);
 
             
             intentarEnviarQueryAExecutePorWorker(worker);
@@ -565,9 +570,8 @@ void atenderQueryControl(int fd_qc) {
     while (1) {
         Mensaje* msg = recibirMensajito(fd_qc, logger_master); //nunca va a pasar
         if (!msg) {
-            log_warning(logger_master, "Query Control de Query %d se desconectó", query->quid);
-            //cancelarQuery(query);
-            break;
+            log_error(logger_master, "Query Control de Query %d se desconectó", query->quid);
+            return;
         }
         liberarMensajito(msg);
     }
@@ -643,4 +647,10 @@ Query* buscarQueryPorIdListaWorkers(int id_buscado) {
 
     pthread_mutex_unlock(&mutex_workers);
     return NULL;
+}
+
+void liberarQuery(Query* query){
+    free(query->query);
+    free(query);
+    return;
 }
