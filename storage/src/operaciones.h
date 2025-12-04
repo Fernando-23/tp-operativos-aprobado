@@ -52,7 +52,7 @@ ErrorStorageEnum realizarCOMMIT(int query_id,char *nombre_file,char *nombre_tag)
 
 Mensaje* mensajitoResultadoStorage(ErrorStorageEnum);
 
-t_config* crearMetadata(char* path_tag);
+t_config *cargarMetadata(char *path_tag);
 File* crearFile(char* nombre_file);
 Tag* crearTag(char* nombre_tag, char* nombre_file_asociado);
 void crearDirectorio(char* path_directorio);
@@ -95,6 +95,8 @@ int contadorHLinks(char *ruta_abs_a_consultar);
 // y
 // la 
 //mexicana 
+
+Tag *crearTagNoFlush(char *nombre_tag, char *nombre_file_asociado);
 
 void ferConLaMexicana(Tag *tag, int query_id,int tamanio_actual, int nuevo_tamanio,char* nombre_file,char* nombre_tag);
 //esto fue pusheado en un liveshare

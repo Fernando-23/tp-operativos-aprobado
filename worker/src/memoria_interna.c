@@ -519,7 +519,7 @@ RespuestaAlgoritmoReemplazo *elegirVictimaLRU()
     for (int i = 0; i < list_size(tabla_general); i++)
     {
         TablaPaginas *tabla_selec = (TablaPaginas *)list_get(tabla_general, i);
-        log_debug(logger_worker, "entre a  for de afuera de (elegirVictimaLRU)");
+        
         hacerRetardo();
 
         for (int j = 0; j < list_size(tabla_selec->entradas); j++)
@@ -528,7 +528,7 @@ RespuestaAlgoritmoReemplazo *elegirVictimaLRU()
             log_debug(logger_worker, "entrada numero %d tiempo ms: %li", j, entrada->last_used_ms);
             if (entrada->bit_presencia == 1 && entrada->last_used_ms < vistima_elegida)
             {
-                log_debug(logger_worker, "AGUS TE QUEREMOS MUCHO, FORRO. GRACIAS MUCHACHOS! - Victima elegida %d", j);
+                //log_debug(logger_worker, "AGUS TE QUEREMOS MUCHO, FORRO. GRACIAS MUCHACHOS! - Victima elegida %d", j);
                 vistima_elegida = entrada->last_used_ms;
                 entrada_vistima = entrada;
                 id_tabla = i;
@@ -536,7 +536,7 @@ RespuestaAlgoritmoReemplazo *elegirVictimaLRU()
             }
         }
     }
-    log_debug(logger_worker, "(elegirVictimaLRU) - FIN_LRU");
+    log_debug(logger_worker, "(elegirVictimaLRU) - FIN_LRU - Victima elegida %d", id_entrada);
     return cargarRespuestaAlgoritmoRemplazo(id_tabla, id_entrada, entrada_vistima);
 }
 
@@ -683,7 +683,7 @@ int gestionarBitModificado(RespuestaAlgoritmoReemplazo *resp, char *file, char *
     entrada->nro_frame = -1;
     entrada->last_used_ms = 0;
 
-    // bitMap[frame_a_retornar] = 0;
+    //bitMap[frame_a_retornar] = 0;
 
     log_info(logger_worker,
              "Query %d: Se libera el Marco: %d perteneciente al - File: %s - Tag: %s",

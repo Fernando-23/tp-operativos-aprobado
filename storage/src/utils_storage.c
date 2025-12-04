@@ -40,6 +40,14 @@ void iniciarStorage()
         crearDirectorio(RUTA_FILES);
         crearBloquesFisicos();
         log_debug(logger_storage, "(iniciarStorage)- Bloques fisicos creados");
+    } else{
+        crearDirectorio(PATH_PHYSICAL_BLOCKS);
+        crearDirectorio(RUTA_FILES);
+        RECONSTRUCCION();
+        reconstruirBitmapDesdeHardlinks();
+        hash_index_config_gb = config_create(RUTA_HASH_INDEX); 
+        return; 
+        
     }
 
     crearDirectorio(PATH_PHYSICAL_BLOCKS);
@@ -136,7 +144,9 @@ void crearBloquesFisicos(){
         }
         fclose(arch);// "Soy agus y no me olvido de cerrar archivos (era abi)"
 
-        crearYAgregarBloqueFisicoIndividual(i, string_duplicate(nombre_fijo), ruta_absoluta);
+        char* nombre_con_memo = string_duplicate(nombre_fijo);
+
+        crearYAgregarBloqueFisicoIndividual(i, nombre_con_memo, ruta_absoluta);
     }
     log_debug(logger_storage, "Debug - (crearBloquesFisicos) - Bloques fisicos creados");
 }
@@ -204,7 +214,7 @@ void crearInitialFile()
     free(buffer);
 
     File *file_initial_file = buscarFilePorNombre("initial_file");
-    
+
     log_debug(logger_storage, "(crearInitialFile) - Cantidad de Tags: %d", file_initial_file->tags->elements_count);
 
     Tag *tag = list_get(file_initial_file->tags, 0);

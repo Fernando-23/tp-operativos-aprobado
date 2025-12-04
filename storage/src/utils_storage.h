@@ -10,6 +10,7 @@
 #include "estructuras.h"
 #include "operaciones.h"
 #include "bitmap.h"
+#include "reconstruccion.h"
 
 
 int obtenerTareaCodOperacion(char *string_codop);

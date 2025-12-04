@@ -229,8 +229,7 @@ Para ello recibirá el nombre del File y un Tag inicial para crearlo.
 Deberá crear el archivo de metadata en estado WORK_IN_PROGRESS y no asignarle ningún bloque.
 */
 
-ErrorStorageEnum realizarCREATE(char *nombre_file, char *nombre_tag)
-{
+ErrorStorageEnum realizarCREATE(char *nombre_file, char *nombre_tag){
 
     log_debug(logger_storage, "(realizarCREATE) - Comienzo create");
 
@@ -248,6 +247,7 @@ ErrorStorageEnum realizarCREATE(char *nombre_file, char *nombre_tag)
     log_debug(logger_storage,"(realizarCREATE) - Termine correctamente create");
     return OK;
 }
+
 
 ErrorStorageEnum realizarTRUNCATE(int query_id,char* nombre_file, char* nombre_tag, int tamanio_a_truncar)
 {
@@ -330,7 +330,7 @@ File *crearFile(char *nombre_file)
 
     nuevo_file->tags = list_create();
 
-     log_debug(logger_storage, "(crearFile) - File %s creado", nombre_file);
+    log_debug(logger_storage, "(crearFile) - File %s creado", nombre_file);
 
     return nuevo_file;
 }
@@ -354,7 +354,36 @@ Tag *crearTag(char *nombre_tag, char *nombre_file_asociado)
     free(ruta_aux_lblocks);
     
     log_debug(logger_storage, "(crearTag) - Directorio logical_blocks creado en: %s", tag->directorio);
-    tag->metadata_config_tag = crearMetadata(tag->directorio);
+    tag->metadata_config_tag = cargarMetadata(tag->directorio);
+    
+    
+    tag->bloques_logicos = list_create();
+
+    log_debug(logger_storage, "Debug - (crearTag) - Se creo el tag %s", nombre_tag);
+
+    return tag;
+}
+
+Tag *crearTagNoFlush(char *nombre_tag, char *nombre_file_asociado)
+{
+    log_debug(logger_storage, "(crearTag) - Intentando crear tag %s", nombre_tag);
+    Tag *tag = malloc(sizeof(Tag));
+
+    tag->nombre_tag = string_duplicate(nombre_tag);
+
+    // home/utnso/rerewr/reewrwe/ewr/wer/nombrefile/nombretag
+    tag->directorio = string_from_format("%s/%s/%s", RUTA_FILES, nombre_file_asociado, tag->nombre_tag);
+    log_debug(logger_storage, "(crearTag) - Directorio a crear: %s", tag->directorio);
+    crearDirectorio(tag->directorio);
+
+    // Creo carpeta logical blocks
+    log_debug(logger_storage, "(crearTag) - Creando directorio logical_blocks en: %s", tag->directorio);
+    char *ruta_aux_lblocks = string_from_format("%s/logical_blocks", tag->directorio);
+    crearDirectorio(ruta_aux_lblocks);
+    free(ruta_aux_lblocks);
+    
+    log_debug(logger_storage, "(crearTag) - Directorio logical_blocks creado en: %s", tag->directorio);
+    tag->metadata_config_tag = cargarMetadata(tag->directorio);
     log_debug(logger_storage, "(crearTag) - Metadata creada en: %s/metadata.config", tag->directorio);
     
     tag->bloques_logicos = list_create();
@@ -364,11 +393,25 @@ Tag *crearTag(char *nombre_tag, char *nombre_file_asociado)
     return tag;
 }
 
-t_config *crearMetadata(char *path_tag)
+
+
+t_config *cargarMetadata(char *path_tag)
 {
     char *path_metadata = string_from_format("%s/metadata.config", path_tag);
-    log_debug(logger_storage, "(crearMetadata) - path metadata: %s", path_metadata);
-    FILE *arch_config = fopen(path_metadata, "a+");
+    log_debug(logger_storage, "(cargarMetadata) - path metadata: %s", path_metadata);
+    FILE *arch_config;
+    arch_config = fopen(path_metadata, "r");
+    if(arch_config){
+        fclose(arch_config);
+        log_debug(logger_storage, "(cargarMetadata) - path metadata: %s", path_metadata);
+        t_config* metadata = config_create(path_metadata);
+        log_debug(logger_storage, "(cargarMetadata) - Metadata ya existia en: %s", path_metadata);
+        return metadata;
+    }
+    
+    log_debug(logger_storage,"(cargarMetadata) - No existia la metadata, voy a crearla");
+    arch_config = fopen(path_metadata, "a+");
+
     fclose(arch_config);
     t_config *metadata = config_create(path_metadata);
     config_set_value(metadata, "TAMANIO", "0");
@@ -376,7 +419,8 @@ t_config *crearMetadata(char *path_tag)
     config_set_value(metadata, "ESTADO", "WORK_IN_PROGRESS");
 
     config_save_in_file(metadata, path_metadata);
-   
+
+    log_debug(logger_storage, "(cargarMetadata) - Metadata creada en: %s", path_metadata);
     free(path_metadata);
     return metadata;
 }
@@ -518,11 +562,11 @@ BloqueLogico *crearBloqueLogico(int nro_bloque_logico, BloqueFisico *bloque_fisi
     
     
 
-    // Crear el directorio logical_blocks si no existe
+    /* Crear el directorio logical_blocks si no existe
     char *dir_logical_blocks = string_from_format("%s/logical_blocks", path_tag);
     crearDirectorio(dir_logical_blocks);
-    log_debug(logger_storage, "(crearArchBloqueLogico) - CREE directorio )");
-    free(dir_logical_blocks);
+    log_debug(logger_storage, "(crearArchBloqueLogico) - CREE directorio ");
+    free(dir_logical_blocks);*/
 
 
     if (!crearHLink(bloque_logico->ruta_hl, bloque_fisico_a_asignar->ruta_absoluta))
