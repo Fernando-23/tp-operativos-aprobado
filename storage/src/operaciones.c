@@ -243,10 +243,10 @@ ErrorStorageEnum realizarCREATE(char *nombre_file, char *nombre_tag){
 
     log_debug(logger_storage, "(realizarCREATE) - Comienzo create");
     pthread_mutex_lock(&mutex_files);
-    if (filePreexistente(nombre_file))
+    if (filePreexistente(nombre_file)){
         pthread_mutex_unlock(&mutex_files);
         return FILE_PREEXISTENTE; // chequeo de error del enunciado
-    //
+    }
     log_debug(logger_storage, "(realizarCREATE) - Pase validaciones de creacion");
     File *nuevo_file = crearFile(nombre_file);
     

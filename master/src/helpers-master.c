@@ -231,14 +231,15 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
     Query* nueva_query = crearQuery(nombre_query,prioridad,fd);
     if(!nueva_query) return;
     char* path_query = string_from_format("%s/%s",path_base_query,nombre_query);
+    pthread_mutex_lock(&mutex_workers);
+    pthread_mutex_lock(&mutex_lista_ready);
+    
     //////////////////////////////////////////// LOG OBLIGATORIO ////////////////////////////////////////////////////////////////
     log_info(logger_master, "Se conecta un Query Control para ejecutar la Query %s con prioridad %d - Id asignado: %d. Nivel multiprocesamiento %d",
         path_query,prioridad,nueva_query->quid, list_size(lista_workers));
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     free(path_query);
 
-    pthread_mutex_lock(&mutex_workers);
-    pthread_mutex_lock(&mutex_lista_ready);
     
 
     
@@ -577,10 +578,10 @@ void atenderWorker(int fd_worker) {
 
         
         case FINALIZAR_WORKER: 
-            int pc = atoi(mensaje_array[1]);
+            //int pc_act = atoi(mensaje_array[1]);
             int id_worker = worker->id;
             
-            worker->query_actual->pc = pc;
+            // worker->query_actual->pc = pc_act;
 
             pthread_mutex_lock(&mutex_workers);
             pthread_mutex_lock(&mutex_lista_ready);
@@ -589,11 +590,28 @@ void atenderWorker(int fd_worker) {
             ///////////////////////////////////////////// LOG OBLIGATORIO ////////////////////////////////////////////////////////////////
             log_info(logger_master, "Se desconecta el Worker %d - Se finaliza la Query %d - Cantidad total de Workers: %d",
             worker->id,worker->query_actual->quid, list_size(lista_workers));
-            ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-            list_add(lista_ready,worker->query_actual);
+            
             if(worker->query_pendiente != NULL)
                 list_add(lista_ready,worker->query_pendiente);
+            
+            if (worker->query_actual != NULL){
+                Query* query_a_matar = worker->query_actual;
+                log_debug(logger_master,"Worker tiene una query %d, se va a intentar liberar",query_a_matar->quid);
+                char* mensaje_desc = string_from_format("%d DESCONEXION_WORKER_FORZADA", FINALIZAR);
+                Mensaje* mensajito_desc_worker = crearMensajito(mensaje_desc);
+                enviarMensajito(mensajito_desc_worker,query_a_matar->fd,logger_master);
+                close(query_a_matar->fd);
+                //sale recursadinia?        
+                free(mensaje_desc);
+                liberarQuery(query_a_matar);
+                log_debug(logger_master,"Se libero la Query asociada al worker correctamente");
+            }
+            
+            //list_add(lista_ready,worker->query_actual);
+            //if(worker->query_pendiente != NULL)
+            //    list_add(lista_ready,worker->query_pendiente);
             free(worker);
 
             pthread_mutex_unlock(&mutex_lista_ready);
