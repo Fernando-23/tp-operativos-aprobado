@@ -826,9 +826,9 @@ char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino, int
         return TAG_INEXISTENTE;
     }
 
-    //pthread_mutex_lock(&mutex_bloques_fisicos);
+    pthread_mutex_lock(&mutex_bloques_fisicos);
     asignarBloquesFisicosATagCopiado(tag_destino_estructura,nombre_file_destino, query_id);
-    //pthread_mutex_lock(&mutex_bloques_fisicos);
+    pthread_mutex_unlock(&mutex_bloques_fisicos);
     pthread_mutex_unlock(&mutex_files);
     return OK;
 }
@@ -875,9 +875,9 @@ void asignarBloquesFisicosATagCopiado(Tag *tag_destino, char* nombre_file, int q
 }
 
 BloqueFisico *obtenerBloqueFisico(int nro_bloque_a_buscar){
-    pthread_mutex_lock(&mutex_bloques_fisicos);
+    //pthread_mutex_lock(&mutex_bloques_fisicos);
     return (BloqueFisico *)list_get(bloques_fisicos_gb, nro_bloque_a_buscar);
-    pthread_mutex_unlock(&mutex_bloques_fisicos);
+    //pthread_mutex_unlock(&mutex_bloques_fisicos);
 }
 
 
