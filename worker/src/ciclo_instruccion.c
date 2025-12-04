@@ -373,7 +373,9 @@ bool ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
     int pagina = dir_base / tam_pag; // capaz no toma el tam_pag global dentro de helper-worker.h
     int desplazamiento = dir_base % tam_pag;
 
+
     char *datoLeido = leerEnMemoria(file, tag, pagina, desplazamiento, tamanio);
+    log_debug(logger_worker, "le ENVIO A MASTER ESTE DATITO %s DE ESTA PAGINA %i",datoLeido,pagina );
     if(datoLeido == NULL){
         log_debug(logger_worker, "(ejecutarRead) Query %d finalizada", query->id_query);    
         char* formato_error_master = string_from_format("ERROR %s", error_en_operacion);
@@ -388,7 +390,7 @@ bool ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
     
     char* mensaje_a_master_formateado = string_from_format("LEER %s %s %s",
      file, tag, datoLeido); // LEER(el codigo) FILE TAG CONTENIDO
-
+    
     Mensaje* mensajito = crearMensajito(mensaje_a_master_formateado); 
    
     enviarMensajito(mensajito,socket_master,logger_worker); // ENVIO READ A MASTER

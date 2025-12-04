@@ -106,14 +106,14 @@ char* stringArrayConfigAString(char** array_a_pasar_a_string);
 BloqueFisico *obtenerBloqueFisico(int nro_bloque_a_buscar);
 
 void escribirEnHashIndex(int query_id,char* nombre_file,Tag *tag);
-DatosParaHash *obtenerDatosParaHash(BloqueLogico *bloque_logico);
-DatosParaHash *crearDatosHash(void *contenido, size_t tamanio);
+DatosParaHash* obtenerDatosParaHash(BloqueLogico* bloque_logico,char* nombre_file);
 void escribirEnBloque(char* ruta_abs_bloque_logico,char* contenido);
 char* leerBloqueLogico(BloqueLogico* bloque_logico);
 bool estaCommiteado(t_config* metadata);
 ErrorStorageEnum realizarWRITE(int query_id,char* nombre_file,char* nombre_tag,int id_bloque_logico,char* contenido);
 ErrorStorageEnum realizarREAD(char* nombre_file,char* nombre_tag,int id_bloque_logico,char** contenido);
 void liberarDatosParaHash(DatosParaHash *dato_a_liberar);
+DatosParaHash *crearDatosHash(char* contenido, size_t tamanio)
 
 //--------RETARDOS----------
 void hacerRetardoOperacion();

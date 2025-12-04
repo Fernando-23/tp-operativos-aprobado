@@ -118,7 +118,7 @@ void pedidoDeLaburante(int mail_laburante){
         nombre_tag = mensajito_cortado[3];
         
 
-        ErrorStorageEnum resultado_COMMIT = realizarCOMMIT(query_id, nombre_file,nombre_tag);
+        ErrorStorageEnum resultado_COMMIT = realizarCOMMIT(query_id, nombre_file, nombre_tag);
 
         enviarMensajito(mensajitoResultadoStorage(resultado_COMMIT), mail_laburante, logger_storage);
 
@@ -158,11 +158,12 @@ void pedidoDeLaburante(int mail_laburante){
         nombre_file = mensajito_cortado[2];
         nombre_tag = mensajito_cortado[3];
         int id_bloque_logico = atoi(mensajito_cortado[4]);
-        char* contenido_a_leer = NULL;
+        char* contenido = NULL;
 
-        ErrorStorageEnum respuesta_LECTURA_BLOQUE = realizarREAD(nombre_file,nombre_tag,id_bloque_logico,&contenido_a_leer); 
-        
-        char* enviar_formateado = string_from_format("%s %s",NOMBRE_ERRORES[respuesta_LECTURA_BLOQUE], contenido_a_leer);
+        ErrorStorageEnum respuesta_LECTURA_BLOQUE = realizarREAD(nombre_file,nombre_tag,id_bloque_logico,&contenido); 
+
+        log_debug(logger_storage, "(pedidoDeLaburante) - LEER_BLOQUE");
+        char* enviar_formateado = string_from_format("%s %s",NOMBRE_ERRORES[respuesta_LECTURA_BLOQUE], contenido);
         Mensaje* mensajito_leido = crearMensajito(enviar_formateado);
         
         enviarMensajito(mensajito_leido, mail_laburante, logger_storage);
@@ -594,6 +595,7 @@ void limpiarBitsPorStringArray(char **bloques_a_limpiar)
     log_debug(logger_storage, "Debug - (limpiarBitsPorStringArray) - Se liberaron bloques del bitmap");
 }
 
+//HACER SYNC AFUERA
 void liberarBloqueDeBitmap(int nro_bloque, int query_id){
     bitarray_clean_bit(bitmap_gb, nro_bloque);
     log_info(logger_storage, "## %d - Bloque Físico Liberado - Número de Bloque: %d",query_id, nro_bloque);
@@ -673,7 +675,7 @@ char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino, int
     // NO EXISTE FILE ORIGEN
     if (fileInexistente(nombre_file_origen)){
 
-        log_debug(logger_storage,"(realizarTAG) - El file origen %s no existe:",nombre_file_origen);
+        log_debug(logger_storage,"(realizarTAG) - El file origen %s no existe",nombre_file_origen);
         pthread_mutex_unlock(&mutex_files);
         return FILE_INEXISTENTE;
     }
@@ -687,7 +689,7 @@ char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino, int
         return TAG_INEXISTENTE;
     }
     
-
+    
     // CASOS
     // file creado
     // file tag creado
@@ -824,6 +826,8 @@ ErrorStorageEnum realizarCOMMIT(int query_id, char *nombre_file,char *nombre_tag
 
     Tag *tag_a_commitear = buscarTagPorNombre(file_a_commitear->tags, nombre_tag);
 
+    // log
+
     if (tieneEstadoCOMMITED(tag_a_commitear))
     {
         log_debug(logger_storage, "(realizarCOMMIT) - El estado del tag %s ya estaba en COMMITED", tag_a_commitear->nombre_tag);
@@ -832,7 +836,8 @@ ErrorStorageEnum realizarCOMMIT(int query_id, char *nombre_file,char *nombre_tag
     }
 
     escribirEnHashIndex(query_id,nombre_file,tag_a_commitear);
-    
+
+    config_set_value(tag_a_commitear)
     
     return OK;
 }
@@ -841,7 +846,6 @@ Bloques Logicos. Cada uno apunta a un bloque fisico.
 Commitear: 5: cambie 2
 */
 
-
 void escribirEnHashIndex(int query_id,char* nombre_file,Tag *tag)
 {
     int cant_blogicos = list_size(tag->bloques_logicos);
@@ -849,15 +853,17 @@ void escribirEnHashIndex(int query_id,char* nombre_file,Tag *tag)
     for (int i = 0; i < cant_blogicos; i++)
     {
         BloqueLogico *bloque_logico_a_consultar = list_get(tag->bloques_logicos, i);
-        DatosParaHash *datos_para_hash = obtenerDatosParaHash(bloque_logico_a_consultar);
+        DatosParaHash *datos_para_hash = obtenerDatosParaHash(bloque_logico_a_consultar, nombre_file);
+        log_debug(logger_storage, "(escribirEnHashIndex) - id: %d, contenido: %s", i, datos_para_hash->contenido);
 
         char *hash_bloque_logico = crypto_md5(datos_para_hash->contenido, datos_para_hash->tamanio); // block0000 // 9
         bool existe_hash = config_has_property(hash_index_config_gb,hash_bloque_logico);
         
-        
         if (existe_hash){
             int id_fisico_actual = bloque_logico_a_consultar->ptr_bloque_fisico->id_fisico;
-            log_debug(logger_storage,"(escribirEnHashIndex) - Hash encontrado en el index config, tratando de reapuntar");
+            
+            log_debug(logger_storage,"(escribirEnHashIndex) - Hash encontrado id_logico:%d id_fisico:%d en el index config",
+            i,id_fisico_actual);
             
             char* bloque_fisico_de_config = string_duplicate(config_get_string_value(hash_index_config_gb,hash_bloque_logico));
             
@@ -866,15 +872,12 @@ void escribirEnHashIndex(int query_id,char* nombre_file,Tag *tag)
             log_info(logger_storage, "%d - %s:%s Bloque Lógico %d se reasigna de %d a %d"
             ,query_id, nombre_file, tag->nombre_tag, bloque_logico_a_consultar->id_logico , id_fisico_actual, bloque_fisico_a_apuntar->id_fisico);
 
-            
-            reapuntarBloque(bloque_fisico_a_apuntar,bloque_logico_a_consultar, tag->metadata_config_tag, query_id, nombre_file, tag->nombre_tag);
-            
-            
+            reapuntarBloque(bloque_fisico_a_apuntar, bloque_logico_a_consultar, tag->metadata_config_tag,
+                 query_id, nombre_file, tag->nombre_tag);
             
             log_info(logger_storage,
             "## %d - %s:%s Se agregó el hard link del bloque lógico %d al bloque físico %d",
             query_id,nombre_file,tag->nombre_tag,bloque_logico_a_consultar->id_logico,bloque_fisico_a_apuntar->id_fisico);
-
             
             
             log_debug(logger_storage,
@@ -931,24 +934,27 @@ BloqueLogico* buscarBloqueLogicoPorId(Tag* tag, int id_logico) {
     return list_find(tag->bloques_logicos, tieneMismoId);
 }
 
-DatosParaHash *obtenerDatosParaHash(BloqueLogico *bloque_logico){
-    FILE *arch_a_leer = fopen(bloque_logico->ptr_bloque_fisico->ruta_absoluta, "rw");
-    if (!arch_a_leer)
-        abort();
+DatosParaHash* obtenerDatosParaHash(BloqueLogico* bloque_logico,char* nombre_file){
+    FILE *arch_a_leer = fopen(bloque_logico->ptr_bloque_fisico->ruta_absoluta, "r");
+    if (!arch_a_leer){
+        log_error(logger_storage,"(obtenerDatosParaHash) - No pude abrir el archivo %s para lectura",nombre_file);
+        return NULL;
+    }
 
     fseek(arch_a_leer, 0, SEEK_END);
 
     long tamanio = ftell(arch_a_leer);
     rewind(arch_a_leer);
 
-    void *contenido = malloc((size_t)tamanio);
+    char *contenido = malloc((size_t)tamanio);
     fread(contenido, 1, (size_t)tamanio, arch_a_leer);
     fclose(arch_a_leer);
+    log_debug(logger_storage, "(obtenerDatosParaHash) - %s",contenido);
 
     return crearDatosHash(contenido, (size_t)tamanio);
 }
 
-DatosParaHash *crearDatosHash(void *contenido, size_t tamanio)
+DatosParaHash *crearDatosHash(char* contenido, size_t tamanio)
 {
     DatosParaHash *datos = malloc(sizeof(DatosParaHash));
     datos->tamanio = tamanio;
@@ -1057,7 +1063,7 @@ ErrorStorageEnum realizarREAD(char* nombre_file,char* nombre_tag,int id_bloque_l
     log_debug(logger_storage," (realizarREAD) - Pase validaciones");
     BloqueLogico* bloque_a_leer = buscarBloqueLogicoPorId(tag_a_leer, id_bloque_logico);
     log_debug(logger_storage," (realizarREAD) - Tengo el bloques logico a leer");
-    contenido_a_cargar = leerBloqueLogico(bloque_a_leer);
+    *contenido = leerBloqueLogico(bloque_a_leer);
     return OK;
 }
 
@@ -1137,36 +1143,32 @@ char* leerBloqueLogico(BloqueLogico* bloque_logico){
 
 //este, 1) Unlinkea bloque viejo, 2) Actualiza metadata del nuevo bloque, 3) Hardlinkear al nuevo fisico
 void reapuntarBloque(BloqueFisico* bloque_fisico_a_reapuntar,BloqueLogico* bloque_logico,t_config* metadata, int query_id,char* nombre_file,char* nombre_tag){ 
+    BloqueFisico* bloque_fisico_viejo  = bloque_logico->ptr_bloque_fisico;    
 
-
-    
-
-    if (unlink(bloque_logico->ruta_hl) != 0){
-        log_error(logger_storage,"(reapuntarBloque) - Pincho en unlinkear, ya fue todo loco abort");
+    if (unlink(bloque_logico->ruta_hl) != 0){ // unlink retorna 0 exito y -1 error
+        log_error(logger_storage,"(reapuntarBloque) - Pincho en unlinkear");
         log_error(logger_storage,"(reapuntarBloque) - Ruta del hlink fallido: %s",bloque_logico->ruta_hl);
     } else{
          log_info(logger_storage,"## %d - %s:%s Se eliminó el hard link del bloque lógico %d al bloque físico %d",
     query_id,nombre_file,nombre_tag,bloque_logico->id_logico,bloque_logico->ptr_bloque_fisico->id_fisico);
     }
    
-
    
     if(crearHLink(bloque_logico->ruta_hl,bloque_fisico_a_reapuntar->ruta_absoluta)){
         log_info(logger_storage,
         "## %d - %s:%s Se agregó el hard link del bloque lógico %d al bloque físico %d",
         query_id,nombre_file,nombre_tag,bloque_logico->id_logico,bloque_fisico_a_reapuntar->id_fisico);
 
-        log_debug(logger_storage,"(reapuntarBLoque) - Hardlink reecho");
-    
+        log_debug(logger_storage,"(reapuntarBLoque) - Hardlink reecho"); 
     }
 
-     char** array_blocks = config_get_array_value(metadata,"BLOCKS"); 
-     array_blocks[bloque_logico->id_logico] = string_itoa(bloque_fisico_a_reapuntar->id_fisico);
-   // char* bloque_a_modificar = array_blocks[bloque_logico->id_logico]; 
-
+    char** array_blocks = config_get_array_value(metadata,"BLOCKS"); 
+    free(array_blocks[bloque_logico->id_logico]);
+    array_blocks[bloque_logico->id_logico] = string_itoa(bloque_fisico_a_reapuntar->id_fisico);
+    
     log_debug(logger_storage, "(reapuntarBloque) - Pequenio chequeo antes del reapuntamiento");
     log_debug(logger_storage, "(reapuntarBloque) - Id bloque fisico en logico(estructura): %d , Bloque obtenido de la metadata(.config) %s. DEBEN SER IGUALES",
-     bloque_logico->ptr_bloque_fisico->id_fisico,array_blocks[bloque_logico->id_logico]);
+    bloque_logico->ptr_bloque_fisico->id_fisico,array_blocks[bloque_logico->id_logico]);
     //sprintf(bloque_a_modificar,"%d",bloque_fisico_a_reapuntar->id_fisico);
 
     char* nuevo_array_blocks = stringArrayConfigAString(array_blocks);
@@ -1176,7 +1178,16 @@ void reapuntarBloque(BloqueFisico* bloque_fisico_a_reapuntar,BloqueLogico* bloqu
 
     config_save(metadata);
 
+    free(nuevo_array_blocks);
+
     string_array_destroy(array_blocks);
+        
+    //gestion bloque viejo Karol Aquino
+    if(!tieneHLink(bloque_fisico_viejo->ruta_absoluta)){
+        liberarBloqueDeBitmap(bloque_fisico_viejo->id_fisico,query_id);
+    }
+
+    log_debug(logger_storage,"(reapuntarBloque) - Termine la funcion reapuntarBloque");
 }
 
 ErrorStorageEnum realizarELIMINAR_UN_TAG(int query_id,char *nombre_file,char *nombre_tag){ 
@@ -1244,7 +1255,7 @@ void unlinkearBloquesLogicosParaELIMINAR_UN_TAG(int query_id,int cant_a_unlinkea
             liberarBloqueDeBitmap(bloque_fisico_asociado->id_fisico, query_id);
             
             if(esta_commiteado){
-                DatosParaHash* datos_para_hash = obtenerDatosParaHash(bloque_popeado);
+                DatosParaHash* datos_para_hash = obtenerDatosParaHash(bloque_popeado, nombre_file);
                 char* hash_a_remover = crypto_md5(datos_para_hash->contenido,datos_para_hash->tamanio);      
                 config_remove_key(hash_index_config_gb,hash_a_remover);
 

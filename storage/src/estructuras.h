@@ -49,7 +49,7 @@ typedef struct{
 
 typedef struct{
     size_t tamanio;
-    void* contenido;
+    char* contenido;
 }DatosParaHash;
 
 typedef struct{
