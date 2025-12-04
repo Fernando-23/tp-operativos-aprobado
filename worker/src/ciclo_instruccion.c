@@ -511,9 +511,13 @@ bool ejecutarDelete(char *file, char *tag){ // las páginas se van a ir limpiand
         return true;
     }
     
-    TablaPaginas* tabla_a_limpiar = buscarTablaPags(file,tag);
+    //TablaPaginas* tabla_a_limpiar = buscarTablaPags(file,tag);
+    int pos_tabla_en_tgeneral = obtenerIndexDeTablaEnTablaGeneral(file,tag);
+    TablaPaginas* tabla_a_limpiar = list_remove(tabla_general,pos_tabla_en_tgeneral);
+
     list_destroy_and_destroy_elements(tabla_a_limpiar->entradas,free);
-    liberarTablaPaginas(tabla_a_limpiar);     
+    liberarTablaPaginas(tabla_a_limpiar);
+
     log_debug(logger_worker, "(ejecutarDelete) - Tabla de paginas eliminada de memoria");    
     return false;
 }
@@ -530,4 +534,15 @@ bool ejecutarEnd(){
 
     return true;
 
+}
+
+
+int obtenerIndexDeTablaEnTablaGeneral(char* nombre_file,char* nombre_tag){
+    for (int i = 0; i < list_size(tabla_general); i++){
+        TablaPaginas* tabla = (TablaPaginas *)list_get(tabla_general,i); 
+        if (string_equals_ignore_case(tabla->file, nombre_file) && string_equals_ignore_case(tabla->tag, nombre_tag)){
+            return i;
+        }
+    }
+    return -1;
 }

@@ -46,7 +46,7 @@ bool ejecutarDelete(char* file, char* tag);
 bool ejecutarEnd(); 
 
 int obtenerOperacionCodOp(char *string_operacion);
-
+int obtenerIndexDeTablaEnTablaGeneral(char* nombre_file,char* nombre_tag);
 extern t_instruccion* instruccion;
 
 

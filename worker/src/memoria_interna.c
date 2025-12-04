@@ -31,14 +31,13 @@ void iniciarMemoria()
               cant_frames, tam_pag);
 }
 
-TablaPaginas *buscarTablaPags(char *file, char *tag)
-{
+TablaPaginas *buscarTablaPags(char *nombre_file, char *nombre_tag){
     for (int i = 0; i < list_size(tabla_general); i++)
     {
         TablaPaginas *t = list_get(tabla_general, i);
-        if (string_equals_ignore_case(t->file, file) &&
-            string_equals_ignore_case(t->tag, tag))
-        {
+        if (string_equals_ignore_case(t->file, nombre_file) &&
+            string_equals_ignore_case(t->tag, nombre_tag))
+        {   
             return t;
         }
     }
@@ -49,9 +48,10 @@ TablaPaginas *buscarOCrearTabla(char *file, char *tag)
 {
     log_debug(logger_worker, "(buscarOCrearTabla) - Buscando tabla de paginas para File: %s - Tag: %s", file, tag);
     TablaPaginas *tabla = buscarTablaPags(file, tag);
-
+    
     if (tabla == NULL)
     {
+        log_debug(logger_worker, "(buscarOCrearTabla) - No se encontro tabla, creando nueva tabla de paginas para File: %s - Tag: %s", file, tag);
         tabla = malloc(sizeof(TablaPaginas));
         tabla->file = string_duplicate(file);
         tabla->tag = string_duplicate(tag);
@@ -59,7 +59,10 @@ TablaPaginas *buscarOCrearTabla(char *file, char *tag)
         tabla->cant_paginas = 0;
 
         list_add(tabla_general, tabla);
+        return tabla;
     }
+
+    log_debug(logger_worker, "(buscarOCrearTabla) - Tabla de paginas encontrada para File: %s - Tag: %s", file, tag);   
     return tabla;
 }
 
@@ -126,11 +129,18 @@ bool escribirEnMemoria(char *file, char *tag, int pagina, int desplazamiento, ch
     int pag_actual = pagina;
     int desp_actual = desplazamiento;
     int frame_seleccionado;
+
     TablaPaginas *tabla_paginas = buscarOCrearTabla(file, tag);
+    if(!tabla_paginas){
+        log_error(logger_worker, "(escribirEnMemoria) - tabla de paginas dio NULL");
+        log_error(logger_worker,"file: %s tag:%s",file,tag);
+    }
+    
 
     while (escritos < total_a_escribir)
     {
-
+        log_debug(logger_worker, "(escribirEnMemoria) - while entre");
+        log_debug(logger_worker, "(escribirEnMemoria) - Escribiendo pagina %d, desplazamiento %d", pag_actual, desp_actual);    
         EntradaDeTabla *entrada_pag = buscarEntradaPagina(tabla_paginas, pag_actual);
         if (entrada_pag == NULL || entrada_pag->bit_presencia == 0)
         {

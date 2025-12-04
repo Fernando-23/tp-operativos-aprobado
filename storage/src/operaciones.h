@@ -119,4 +119,7 @@ DatosParaHash *crearDatosHash(char* contenido, size_t tamanio);
 //--------RETARDOS----------
 void hacerRetardoOperacion();
 
+int obtenerIndexDeTagEnListaFile(t_list* tags_de_file, char* nombre_tag);
+int obtenerIndexDeFileEnFileGB(char* nombre_file);
+void liberarTag(Tag* tag_a_eliminar);
 #endif //OPERACIONES_H_

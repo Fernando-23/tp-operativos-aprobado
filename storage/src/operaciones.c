@@ -909,6 +909,9 @@ void escribirEnHashIndex(int query_id,char* nombre_file,Tag *tag)
     for (int i = 0; i < cant_blogicos; i++)
     {
         BloqueLogico *bloque_logico_a_consultar = list_get(tag->bloques_logicos, i);
+        if (bloque_logico_a_consultar->ptr_bloque_fisico->id_fisico == 0)
+            continue;
+
         DatosParaHash *datos_para_hash = obtenerDatosParaHash(bloque_logico_a_consultar, nombre_file);
         log_debug(logger_storage, "(escribirEnHashIndex) - id: %d, contenido: %s", i, datos_para_hash->contenido);
 
@@ -1295,8 +1298,24 @@ ErrorStorageEnum realizarELIMINAR_UN_TAG(int query_id,char *nombre_file,char *no
     
     char* ruta_metadata_config = string_from_format("%s/metadata.config",tag_a_elminar->directorio);
     char* ruta_logical_blocks = string_from_format("%s/logical_blocks", tag_a_elminar->directorio);
-    remove(ruta_metadata_config);
     
+    if(remove(ruta_metadata_config)!=0){
+        log_error(logger_storage,"Fallo al eliminar metadata");
+        log_error(logger_storage,"ruta metadata %s",ruta_metadata_config);
+        abort();
+    }
+    
+    int pos_tag_en_files = obtenerIndexDeTagEnListaFile(file_a_commitear->tags,tag_a_elminar->nombre_tag);
+    
+    if (pos_tag_en_files == -1){
+        log_error(logger_storage, "(realizarELIMINAR_UN_TAG) - el tag %s no se encontraba en la lista", tag_a_elminar->nombre_tag);
+        return -1;
+    } 
+
+    // tiene pinta
+    
+    log_debug(logger_storage,"Destrui la metadata del tag %s",tag_a_elminar->nombre_tag);
+
     if(rmdir(ruta_logical_blocks)){
         log_debug(logger_storage, "(realizarELIMINAR_UN_TAG) - se elimina: %s", ruta_logical_blocks);
     }
@@ -1304,10 +1323,24 @@ ErrorStorageEnum realizarELIMINAR_UN_TAG(int query_id,char *nombre_file,char *no
     if(rmdir(tag_a_elminar->directorio)){
         log_debug(logger_storage,"(realizarELIMINAR_UN_TAG) - se elimina: %s", tag_a_elminar->directorio);
     }
-        
 
+
+    list_remove(file_a_commitear->tags,pos_tag_en_files);
+
+    
+    
+    if(file_a_commitear->tags->elements_count == 0){
+        int index = obtenerIndexDeFileEnFileGB(nombre_file);
+        if(index == -1){
+            log_error(logger_storage, "(realizarELIMINAR_UN_TAG) - el file %s no se encontraba en la lista",
+            nombre_file);
+        }
+        list_remove(lista_files_gb, index);
+    }
+        
     free(ruta_logical_blocks);
     free(ruta_metadata_config);
+    liberarTag(tag_a_elminar);
     
     return OK;
 }
@@ -1316,8 +1349,9 @@ ErrorStorageEnum realizarELIMINAR_UN_TAG(int query_id,char *nombre_file,char *no
 void unlinkearBloquesLogicosParaELIMINAR_UN_TAG(int query_id,int cant_a_unlinkear,Tag* tag,char* nombre_file,char* nombre_tag){
     t_list* bloques_logicos = tag->bloques_logicos;
     bool esta_commiteado = estaCommiteado(tag->metadata_config_tag);
-    
-    for (int i = 0; i < cant_a_unlinkear; i++){
+    log_debug(logger_storage,"(unlinkearBloquesLogicosParaELIMINAR_UN_TAG) - cant_unlinkear:%d, list_size logical:%d",
+    cant_a_unlinkear,list_size(bloques_logicos));
+    for (int i = 0; i < list_size(bloques_logicos); i++){
     
         BloqueLogico *bloque_popeado = (BloqueLogico *)list_remove(bloques_logicos, i); //agregamos el -1
         BloqueFisico *bloque_fisico_asociado = bloque_popeado->ptr_bloque_fisico;
@@ -1362,6 +1396,40 @@ bool estaCommiteado(t_config* metadata){
     char* estado = config_get_string_value(metadata, "ESTADO");
     return string_equals_ignore_case(estado, "COMMITED");
 }
+
+int obtenerIndexDeTagEnListaFile(t_list* tags_de_file, char* nombre_tag){
+    for (int i = 0; i < list_size(tags_de_file); i++){
+        
+        Tag* tag = (Tag *)list_get(tags_de_file,i); 
+        if (tag->nombre_tag == nombre_tag){
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+int obtenerIndexDeFileEnFileGB(char* nombre_file){
+    for (int i = 0; i < list_size(lista_files_gb); i++){
+        
+        File* file = (File *)list_get(lista_files_gb,i); 
+        if (file->nombre_file == nombre_file){
+            return i;
+        }
+    }
+    return -1;
+}
+
+
+void liberarTag(Tag* tag_a_eliminar){
+    free(tag_a_eliminar->directorio);
+    free(tag_a_eliminar->nombre_tag);
+    list_destroy(tag_a_eliminar->bloques_logicos);
+    config_destroy(tag_a_eliminar->metadata_config_tag);
+    log_debug(logger_storage,"(liberarTag) - Libere el tag pedidooo");
+}
+
+
 
 /*
 void esperar_operacion() {

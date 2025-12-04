@@ -1,8 +1,5 @@
 #include "querys.h"
 
-int quid_global = 0;
-pthread_mutex_t mutex_quid_global;
-
 Query* crearQuery(char* query, int prioridad,int fd){
     //LIBERAR MEMORIA DE QCB
     

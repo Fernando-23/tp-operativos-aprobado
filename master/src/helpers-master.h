@@ -1,6 +1,10 @@
 #ifndef HELPERS_MASTER_H_
 #define HELPERS_MASTER_H_
-#include "../../utils/src/utils/conexiones.h"
+
+#include "estructuras-master.h"
+#include "querys.h"
+#include "prioridades.h"
+/*#include "../../utils/src/utils/conexiones.h"
 #include "../../utils/src/utils/helpers.h"
 #include <commons/log.h>
 #include <commons/config.h>
@@ -8,7 +12,7 @@
 #include <commons/collections/list.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include "prioridades.h"
+
 
 typedef struct{
     char* puerto_escucha;
@@ -49,8 +53,7 @@ extern ConfigMaster* config_master;
 extern t_log* logger_master;
 
 extern const int cant_estados;
-extern const int nivel_multiprocesamiento;
-
+extern const int nivel_multiprocesamiento;*/
 
 
 
@@ -82,7 +85,7 @@ void atenderWorker(int fd_worker);
 void atenderQueryControl(int fd_qc);
 
 bool ordenarPorPrioridad(void *query_vigente_void,void* query_desafiante_void);
-
+void* realizarAgingIndividual(void *args);
 void agarrarLaPala(Worker* laburador,Query* laburo);
 bool hayLaburo(t_list* lista);
 

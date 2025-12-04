@@ -1,8 +1,7 @@
 #include "helpers-master.h"
-#include "querys.h"
-#include "prioridades.h"
-
-const int nivel_multiprocesamiento = 0;
+//#include "querys.h"
+//#include "prioridades.h"
+/*const int nivel_multiprocesamiento = 0;
 
 ConfigMaster* config_master = NULL;
 t_log* logger_master = NULL;
@@ -10,7 +9,7 @@ t_log* logger_master = NULL;
 t_list* lista_workers = NULL;
 t_list* lista_ready = NULL;
 pthread_mutex_t mutex_lista_ready;
-pthread_mutex_t mutex_workers;
+pthread_mutex_t mutex_workers;*/
 
 void cargarConfigMaster(char* nombre_config_sin_formato){
     char* path_completo = string_from_format("../configs/%s.config", nombre_config_sin_formato);
@@ -607,10 +606,11 @@ void atenderQueryControl(int fd_qc) {
     Query* query = buscarQueryPorFd(fd_qc);
     if (!query) return;
 
+    int id_aux = query->quid;
     while (1) {
         Mensaje* msg = recibirMensajito(fd_qc, logger_master); //nunca va a pasar
         if (!msg) {
-            log_error(logger_master, "Query Control de Query %d se desconectó", query->quid);
+            log_error(logger_master, "Query Control de Query %d se desconectó", id_aux);
             return;
         }
         liberarMensajito(msg);
@@ -693,4 +693,40 @@ void liberarQuery(Query* query){
     free(query->query);
     free(query);
     return;
+}
+
+
+void* realizarAgingIndividual(void *args){
+    Query* query_gestionando = (Query *)args;
+    while (1)
+    {
+        log_info(logger_master, "(realizarAgingIndividual) - Thread aging iniciado cada %d ms", config_master->tiempo_aging);
+        usleep(config_master->tiempo_aging * 1000);
+        pthread_mutex_lock(&mutex_workers);
+        pthread_mutex_lock(&mutex_lista_ready);
+        if (sigueEnReady(query_gestionando->quid)/*&& !query_gestionando->ya_estuvo_en_ready*/){
+            query_gestionando->prioridad--;
+            log_info(logger_master, "(realizarAgingIndividual) - %d Cambio de prioridad: %d - %d", query_gestionando->quid, query_gestionando->prioridad + 1, query_gestionando->prioridad);
+
+            list_sort(lista_ready, ordenarPorPrioridad);
+            Query* primer_elemento = list_get(lista_ready,0);
+            
+            if(primer_elemento->quid == query_gestionando->quid){
+                log_debug(logger_master,"(realizarAgingIndividual) - Soy el primero en READY despues de ordenar");
+                intentarEnviarQueryAExecutePorPrioridades(query_gestionando);
+            }
+            
+        }else{
+            log_debug(logger_master,"(realizarAgingIndividual) - Query %d ya no sigue en ready, terminando thread..."
+            ,query_gestionando->quid);
+            pthread_mutex_unlock(&mutex_lista_ready);
+            pthread_mutex_unlock(&mutex_workers);
+            break;
+        }
+
+        pthread_mutex_unlock(&mutex_lista_ready);
+        pthread_mutex_unlock(&mutex_workers);
+    }
+    return NULL;
+    
 }

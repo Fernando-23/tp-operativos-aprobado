@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
         log_debug(logger_worker,"Esperando datos de master"); 
         esperandoQuery(socket_master);
     
-        while (!interrumpir_query) {
+        while( !interrumpir_query) {
             
             char* instruccion = Fetch();  // "WRITE 345 42"
     
@@ -108,7 +108,7 @@ int main(int argc, char* argv[]) {
         list_destroy_and_destroy_elements(query->instrucciones,destruir);
         log_debug(logger_worker, "Se va a cambiar el contexto");
 
-        interrumpir_query = true;
+        interrumpir_query = false;
 
     }
 
