@@ -1368,12 +1368,18 @@ ErrorStorageEnum realizarELIMINAR_UN_TAG(int query_id,char *nombre_file,char *no
     
     log_debug(logger_storage,"Destrui la metadata del tag %s",tag_a_elminar->nombre_tag);
 
-    if(rmdir(ruta_logical_blocks)){
+    if(rmdir(ruta_logical_blocks) == 0){
         log_debug(logger_storage, "(realizarELIMINAR_UN_TAG) - se elimina: %s", ruta_logical_blocks);
+    }else{
+        char* fer = string_from_format("rm -rf %s",ruta_logical_blocks);
+        LA_CARACOLA_MAGICA(fer);
     }
     
-    if(rmdir(tag_a_elminar->directorio)){
+    if(rmdir(tag_a_elminar->directorio) == 0){
         log_debug(logger_storage,"(realizarELIMINAR_UN_TAG) - se elimina: %s", tag_a_elminar->directorio);
+    }else{
+        char* fer2 = string_from_format("rm -rf %s",tag_a_elminar->directorio);
+        LA_CARACOLA_MAGICA(fer2);
     }
 
     list_remove(file_a_commitear->tags,pos_tag_en_files);
