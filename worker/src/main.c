@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
 
    // eliminarConexion(config_worker->ip_storage, config_worker->puerto_storage);
    // eliminarConexion(config_worker->ip_master, config_worker->puerto_master);
-
+    error_en_operacion = string_duplicate("OK");
     logger_worker = iniciarLogger("worker", config_worker->log_level);
 
     inicializarMutexWorker();
@@ -86,11 +86,22 @@ int main(int argc, char* argv[]) {
             
             //pthread_mutex_lock(&mx_conexion_master);
             pthread_mutex_lock(&mutex_interrumpir_query);
+            bool fallo_flush = false;
             if(interrumpir_query){ // Check Interrupt
                 pthread_mutex_unlock(&mutex_interrumpir_query);
                 for(int i = 0; i < list_size(tabla_general); i++){
                     TablaPaginas* tabla = list_get(tabla_general, i);
-                    ejecutarFlush(tabla->file, tabla->tag);
+
+                    fallo_flush = ejecutarFlush(tabla->file, tabla->tag);
+                    if(!fallo_flush){
+                        log_debug(logger_worker, "Fallo el flush durante el desalojamiento");
+                        break;
+                    }
+                }
+
+                if(!fallo_flush){ // caberna
+                    log_debug(logger_worker, "Fallo el flush durante el desalojamiento");
+                    break;
                 }
                 
                 log_info(logger_worker, "Query %d: Desalojada por pedido del Master", query->id_query);

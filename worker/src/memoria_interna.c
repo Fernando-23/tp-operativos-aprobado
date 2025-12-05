@@ -4,7 +4,7 @@ void *memoria = NULL; //
 int *bitMap = NULL;
 int cant_frames = 0;
 
-char *error_en_operacion = "OK";
+char *error_en_operacion;
 
 t_list *tabla_general = NULL;
 
@@ -583,7 +583,7 @@ int gestionarPAGE_FAULT(char *file, char *tag, int nro_pagina)
     // ENUMSERRORSTORAGE CONTENIDO
     char **datos_recibidos = string_split(mensaje_recibido->mensaje, " ");       // LIBERAR
     liberarMensajito(mensaje_recibido);
-    ErrorStorageEnum cod_op_storage_recv = atoi(datos_recibidos[0]);
+    int cod_op_storage_recv = obtenerIndexDeErrorEnListaErrores(datos_recibidos[0]);
     log_debug(logger_worker, "(gestionarPAGE_FAULT) - Codigo de operacion recibido de Storage, enum:%d , string:%s ", cod_op_storage_recv, datos_recibidos[0]);
     switch (cod_op_storage_recv)
     {
@@ -597,10 +597,12 @@ int gestionarPAGE_FAULT(char *file, char *tag, int nro_pagina)
         escribirPagina(file, tag, nro_pagina, frame_a_asignar, contenido_pagina);
         log_info(logger_worker, "Query %d: Se asigna el Marco: %d a la Página: %d perteneciente al - File: %s - Tag: %s", query->id_query, frame_a_asignar, nro_pagina, file, tag);
         return frame_a_asignar;
-
+        break;
     default:
         // ERROR MOTIVO
-        error_en_operacion = NOMBRE_ERRORES[cod_op_storage_recv];
+        if(error_en_operacion != NULL) free(error_en_operacion);
+        
+        error_en_operacion = string_duplicate(NOMBRE_ERRORES[cod_op_storage_recv]);
         log_error(logger_worker, "Storage mando cualquier cosa, Cosa que mando: %d", cod_op_storage_recv);
     }
     return -1;
@@ -686,14 +688,17 @@ void liberarTablaPaginas(TablaPaginas *tabla_a_liberar)
 // }
 
 // Revisar como borrar las entradas y tablas
-int gestionarBitModificado(RespuestaAlgoritmoReemplazo *resp, char *file, char *tag, int nro_pag)
-{
-
+int gestionarBitModificado(RespuestaAlgoritmoReemplazo *resp, char *file, char *tag, int nro_pag){
+    
     EntradaDeTabla *entrada = resp->entrada;
 
     if (entrada->bit_modificado == 1)
     {
-        escribirEnStorage(entrada);
+        if(!escribirEnStorage(entrada) && error_en_operacion != NULL){
+            log_debug(logger_worker,"(gestionarBitModificado) - No se pudo escribir en Storage por %s",error_en_operacion);
+            return -1;
+        }
+
     }
 
     TablaPaginas *tabla_padre = entrada->tabla;
@@ -812,8 +817,6 @@ bool escribirEnStorage(EntradaDeTabla *entrada_a_persistir)
     log_debug(logger_worker, "(escribirEnStorage) - Escribiendo en storage - File: %s - Tag: %s - Pagina: %d", entrada_a_persistir->tabla->file, entrada_a_persistir->tabla->tag, entrada_a_persistir->nro_pag);
     TablaPaginas *tabla_padre = entrada_a_persistir->tabla;
 
-
-
     char* datos = leerBloque(entrada_a_persistir);
     char* bloque_completo = malloc(tam_pag);
     memset(bloque_completo, 0, tam_pag);
@@ -828,13 +831,14 @@ bool escribirEnStorage(EntradaDeTabla *entrada_a_persistir)
     enviarMensajito(mensajito_a_enviar, socket_storage, logger_worker);
     free(contenido_a_persistir);
     Mensaje *respuesta_storage = recibirMensajito(socket_storage, logger_worker); // OK siempre... ponele
-    if (respuesta_storage == NULL || !string_equals_ignore_case(respuesta_storage->mensaje, "OK"))
-    {
-        debo_morir = 1;
-        liberarMensajito(respuesta_storage);
-        log_error(logger_worker, "(escribirEnStorage) Conexion cerrada con storage o no pudo escribir");
+    if (respuesta_storage == NULL || !string_equals_ignore_case(respuesta_storage->mensaje, "OK")){
+        
         free(bloque_completo);
-        error_en_operacion = respuesta_storage->mensaje;
+        if(error_en_operacion != NULL) free(error_en_operacion);
+        error_en_operacion = string_duplicate(respuesta_storage->mensaje);
+
+        liberarMensajito(respuesta_storage);
+
         return false;
     }
 
@@ -929,4 +933,13 @@ void normalizar_puntero_clockm()
     if (cant_entradas == 0 || ptr_gb.nro_entrada >= cant_entradas) {
         ptr_gb.nro_entrada = 0;
     }
+}
+
+int obtenerIndexDeErrorEnListaErrores(char* error){
+    for (int i = 0; i < 8; i++){
+        if (string_equals_ignore_case(NOMBRE_ERRORES[i], error)){
+            return i;
+        }
+    }
+    return -1;
 }

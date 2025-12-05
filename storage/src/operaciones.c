@@ -452,7 +452,7 @@ File *buscarFilePorNombre(char *nombre)
     bool tieneMismoNombre(void *ptr)
     {
         File *file = (File *)ptr;
-        return (string_equals_ignore_case(nombre, file->nombre_file));
+        return (strcmp(nombre, file->nombre_file)==0);
     }
     return list_find(lista_files_gb, tieneMismoNombre);
 }
@@ -463,7 +463,7 @@ Tag *buscarTagPorNombre(t_list *tags, char *nombre_tag)
     bool tieneMismoNombreTag(void *ptr)
     {
         Tag *tag = (Tag *)ptr;
-        return (string_equals_ignore_case(nombre_tag, tag->nombre_tag));
+        return (strcmp(nombre_tag, tag->nombre_tag) ==0);
     }
 
     return list_find(tags, tieneMismoNombreTag);

@@ -356,7 +356,8 @@ bool ejecutarWrite(char *file, char *tag, int dir_base, char *contenido_a_escrib
         enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
         
         free(formato_error_master);
-        error_en_operacion = "OK";
+        if(error_en_operacion != NULL) free(error_en_operacion);
+        error_en_operacion = string_duplicate("OK");
         return true;
     }
     return false;
@@ -385,7 +386,8 @@ bool ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
         
         enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
         free(formato_error_master);
-        error_en_operacion = "OK";
+        if(error_en_operacion != NULL) free(error_en_operacion);
+        error_en_operacion = string_duplicate("OK");
         return true;
     }
     
@@ -478,8 +480,9 @@ bool ejecutarFlush(char *file, char *tag){
             
             enviarMensajito(mensaje_error_master, socket_master ,logger_worker);
             free(formato_error_master);
-
-            error_en_operacion = "OK";
+            
+            if(error_en_operacion != NULL) free(error_en_operacion);
+            error_en_operacion = string_duplicate("OK");
             return true;
         }
         entrada_a_persistir->bit_modificado = 0;

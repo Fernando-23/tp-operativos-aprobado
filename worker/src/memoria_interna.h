@@ -92,6 +92,7 @@ t_list* obtenerEntradasAFlushear(TablaPaginas* tabla_a_flush);
 uint64_t dirFisica(int nro_frame, int desp_actual);
 
 void normalizar_puntero_clockm();
+int obtenerIndexDeErrorEnListaErrores(char* nombre_file);
 
 #endif /* MEMORIA_INTERNA_H_ */
 
