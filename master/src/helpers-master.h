@@ -55,9 +55,6 @@ extern t_log* logger_master;
 extern const int cant_estados;
 extern const int nivel_multiprocesamiento;*/
 
-
-
-
 void cargarConfigMaster(char* nombre_config_sin_formato);
 
 void* atenderClientes(void*);
@@ -106,6 +103,10 @@ Query* buscarQueryPorIdListaWorkers(int id_buscado);
 
 void liberarQuery(Query* query);
 
+void* registrarClienteDesalojo(void *args);
+void* recibirIdWorkerDesalojo(void* args);
+Worker* buscarWorkerPorId(int id);
+int obtenerIndexListaWorkers(int worker_id);
 
 
 /*

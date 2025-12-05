@@ -18,7 +18,9 @@ int main(int argc, char* argv[]) {
     inicializarListas();
 
     pthread_t thread_adm;
+    pthread_t thread_desalojo;
 
+    int socket_desalojos = iniciarServidor(config_master->puerto_desalojo,"desalojo",logger_master);
     int socket_sv = iniciarServidor(config_master->puerto_escucha,"master",logger_master);
 
     if(socket_sv == -1) return 1;
@@ -32,9 +34,10 @@ int main(int argc, char* argv[]) {
     }*/
 
     pthread_create(&thread_adm,NULL,atenderClientes,(void *)&socket_sv); 
-      
+    
+    pthread_create(&thread_desalojo,NULL,registrarClienteDesalojo,(void *)&socket_desalojos);
+    
     pthread_join(thread_adm,NULL);
-
-    log_destroy(logger_master);
+    log_destroy(logger_master); 
     return 0;
 }

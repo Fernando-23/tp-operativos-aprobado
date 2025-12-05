@@ -12,6 +12,7 @@
 
 typedef struct{
     char* puerto_escucha;
+    char* puerto_desalojo;
     char* algoritmo_plani;
     int tiempo_aging;
     char* log_level;
@@ -34,6 +35,7 @@ typedef struct{
     int id;
     bool esta_libre;
     int fd;
+    int fd_desalojo;
     Query* query_actual;
     Query* query_pendiente;
 }Worker;

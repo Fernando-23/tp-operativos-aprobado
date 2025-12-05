@@ -8,6 +8,7 @@ ConfigWorker* config_worker = NULL;
 volatile sig_atomic_t debo_morir = 0;
 bool es_end = false;
 
+pthread_mutex_t mutex_interrumpir_query;
 pthread_mutex_t mx_conexion_storage;
 pthread_mutex_t mx_conexion_master;
 pthread_mutex_t mx_recibir_query;
@@ -47,6 +48,7 @@ void cargarConfigWorker(char* arch_config){
 
     config_worker->ip_master = string_duplicate(config_get_string_value(config, "IP_MASTER"));
     config_worker->puerto_master= string_duplicate(config_get_string_value(config, "PUERTO_MASTER"));
+    config_worker->puerto_desalojo = string_duplicate(config_get_string_value(config,"PUERTO_DESALOJO"));
     config_worker->ip_storage = string_duplicate(config_get_string_value(config, "IP_STORAGE"));
     config_worker->puerto_storage = string_duplicate(config_get_string_value(config,"PUERTO_STORAGE"));
     config_worker->tam_memoria = config_get_int_value(config, "TAM_MEMORIA");
@@ -66,7 +68,9 @@ int conexionStorage(){
         log_error(logger_worker,"(conexionStorage) - No se pudo conectar con Storage");
         return -1;
     }
-    Mensaje* mensajito = crearMensajito("Riding in my storage, right after a commit."); // polemico
+
+    char* mensaje = string_from_format("Hola storage soy worker %d", id_worker);
+    Mensaje* mensajito = crearMensajito(mensaje);
     enviarMensajito(mensajito,socket_storage, logger_worker);
     Mensaje* mensajeRecibido = recibirMensajito(socket_storage,logger_worker);
     tam_pag = atoi(mensajeRecibido->mensaje);
@@ -78,24 +82,41 @@ int conexionStorage(){
 }
 
 
-int conexionMaster(){
+void conexionMaster(){
 
     socket_master = crearConexion(config_worker->ip_master,config_worker->puerto_master, logger_worker);
     if(socket_master == -1){
         log_error(logger_worker,"(conexionMaster) - No se pudo conectar con Master");
-        return -1;
+        return;
     }
-
+    
     char* formato = string_from_format("WORKER %d", id_worker);
     
-
     Mensaje* mensajito = crearMensajito(formato);
     enviarMensajito(mensajito,socket_master,logger_worker);
     
     log_info(logger_worker,"Conectado a Master");
     free(formato);
-    return socket_master;
+    return;
 }
+
+void conexionMasterDesalojo(){
+    socket_desalojos = crearConexion(config_worker->ip_master,config_worker->puerto_desalojo, logger_worker);
+    if(socket_desalojos == -1){
+        log_error(logger_worker,"(conexionMasterDesalojo) - No se pudo conectar con Master Desalojo");
+        return;
+    }
+
+    char* formato = string_from_format("WORKER_DESALOJO %d", id_worker);
+
+    Mensaje* mensajito = crearMensajito(formato);
+    enviarMensajito(mensajito,socket_desalojos,logger_worker);
+    
+    log_info(logger_worker,"Conectado a Master Desalojo");
+    free(formato);
+}
+
+
 
 void esperandoQuery(int socket){
     
@@ -149,26 +170,28 @@ void esperandoQuery(int socket){
 
 
 void* hiloDesalojo(void* args){
+    log_debug(logger_worker, "Hilo de desalojo iniciado");
 
-    while(1){
-        log_debug(logger_worker, "(hilo desalojo) - entre a funcion");
-        Mensaje* msg = recibirMensajito(socket_master, logger_worker);
+    while(!debo_morir){
+        log_debug(logger_worker, "(hiloDesalojo) - entre a funcion");
+        Mensaje* msg = recibirMensajito(socket_desalojos, logger_worker);
 
         if(!msg){
-           log_error(logger_worker, "Master se desconecto. Terminando worker...");
+           log_error(logger_worker, "(hiloDesalojo) - Master se desconecto. Terminando worker...");
             exit(EXIT_FAILURE);
         }
 
         if(string_equals_ignore_case(msg->mensaje, "DESALOJAR")){
             log_debug(logger_worker, "Recibido Desalojo del Master. Interrumpiendo ejecucion actual...");
+            pthread_mutex_lock(&mutex_interrumpir_query);
             interrumpir_query = true;
-            liberarMensajito(msg);
-            break;
+            pthread_mutex_unlock(&mutex_interrumpir_query);
+            //liberarMensajito(msg);
+            //break;
         }
-
         liberarMensajito(msg);
-
     }
 
+    log_error(logger_worker,"(hiloDesalojo) - Por alguna razon, sali del while y eso no es lindo");
     return NULL;
 }

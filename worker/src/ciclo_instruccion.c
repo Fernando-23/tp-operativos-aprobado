@@ -4,6 +4,7 @@
 
 t_instruccion *instruccion;
 int socket_master;
+int socket_desalojos;
 int socket_storage;
 char* NOMBRE_OPERACIONES[9] = 
     {"CREATE","TRUNCATE","WRITE","READ","TAG","COMMIT","FLUSH","DELETE","END"};

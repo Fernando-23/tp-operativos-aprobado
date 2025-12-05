@@ -12,6 +12,7 @@
 typedef struct config_worker{
     char *ip_master;
     char* puerto_master;
+    char* puerto_desalojo;
     char *ip_storage;
     char* puerto_storage;
     int tam_memoria;
@@ -47,12 +48,14 @@ extern pthread_mutex_t mx_conexion_storage;
 extern pthread_mutex_t mx_conexion_master;
 extern pthread_mutex_t mx_recibir_query;
 extern pthread_mutex_t mx_bitmap;
+extern pthread_mutex_t mutex_interrumpir_query;
 extern pthread_mutex_t sem_instruccion;
 extern volatile sig_atomic_t debo_morir; 
 
 void cargarConfigWorker(char* arch_config);
 int conexionStorage();
-int conexionMaster();
+void conexionMaster();
+void conexionMasterDesalojo();
 void esperandoQuery(int socket);
 
 void* hiloDesalojo(void* args);

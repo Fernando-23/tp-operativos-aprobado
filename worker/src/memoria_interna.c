@@ -73,6 +73,7 @@ EntradaDeTabla *buscarOCrearEntradaPag(TablaPaginas *tabla_a_consultar, int pag_
     if (entrada == NULL)
     {
         entrada = crearEntradaPagina(pag_actual, tabla_a_consultar);
+        list_add(tabla_a_consultar->entradas, entrada);
     }
 
     return entrada;
@@ -339,7 +340,9 @@ RespuestaAlgoritmoReemplazo *cargarRespuestaAlgoritmoRemplazo(int id_tabla, int 
 
 RespuestaAlgoritmoReemplazo *cicloClockM(int resetear_bit_uso, int bit_uso, int bit_modificado)
 {
+    normalizar_puntero_clockm();
     int cant_tablas = list_size(tabla_general);
+    
 
     // 1) De puntero a fin
     for (int id_tabla = ptr_gb.nro_tabla; id_tabla < cant_tablas; id_tabla++)
@@ -522,9 +525,12 @@ RespuestaAlgoritmoReemplazo *elegirVictimaLRU()
 {
     log_debug(logger_worker, "entre a (elegirVictimaLRU)");
     uint64_t vistima_elegida = UINT64_MAX; // q se vacha
-    int id_tabla;
-    int id_entrada;
-    EntradaDeTabla *entrada_vistima;
+    // int id_tabla;
+    // int id_entrada;
+    // EntradaDeTabla *entrada_vistima;
+    int id_tabla = -1;
+    int id_entrada = -1;
+    EntradaDeTabla *entrada_vistima = NULL;
 
     for (int i = 0; i < list_size(tabla_general); i++)
     {
@@ -546,6 +552,12 @@ RespuestaAlgoritmoReemplazo *elegirVictimaLRU()
             }
         }
     }
+    
+    if (entrada_vistima == NULL) {
+        log_error(logger_worker, "(elegirVictimaLRU) - No se encontro victima valida en LRU");
+        return NULL;
+    }
+    
     log_debug(logger_worker, "(elegirVictimaLRU) - FIN_LRU - Victima elegida %d", id_entrada);
     return cargarRespuestaAlgoritmoRemplazo(id_tabla, id_entrada, entrada_vistima);
 }
@@ -579,9 +591,9 @@ int gestionarPAGE_FAULT(char *file, char *tag, int nro_pagina)
         char *contenido_pagina = datos_recibidos[1]; // no escribimos en memoria
 
         int frame_a_asignar = devolverFrameLibre(file, tag, nro_pagina);
-        if (frame_a_asignar == -1)
+        if (frame_a_asignar == -1){
             return frame_a_asignar;
-
+        }
         escribirPagina(file, tag, nro_pagina, frame_a_asignar, contenido_pagina);
         log_info(logger_worker, "Query %d: Se asigna el Marco: %d a la Página: %d perteneciente al - File: %s - Tag: %s", query->id_query, frame_a_asignar, nro_pagina, file, tag);
         return frame_a_asignar;
@@ -698,18 +710,102 @@ int gestionarBitModificado(RespuestaAlgoritmoReemplazo *resp, char *file, char *
     //bitMap[frame_a_retornar] = 0;
 
     log_info(logger_worker,
-             "Query %d: Se libera el Marco: %d perteneciente al - File: %s - Tag: %s",
-             query->id_query, frame_a_retornar, tabla_padre->file, tabla_padre->tag);
+            "Query %d: Se libera el Marco: %d perteneciente al - File: %s - Tag: %s",
+            query->id_query, frame_a_retornar, tabla_padre->file, tabla_padre->tag);
 
     log_info(logger_worker,
-             "Query %d: Se reemplaza la página %s:%s/%d por la %s:%s/%d",
-             query->id_query,
-             tabla_padre->file, tabla_padre->tag, entrada->nro_pag,
-             file, tag, nro_pag);
+            "Query %d: Se reemplaza la página %s:%s/%d por la %s:%s/%d",
+            query->id_query,
+            tabla_padre->file, tabla_padre->tag, entrada->nro_pag,
+            file, tag, nro_pag);
 
     free(resp); // sólo liberás la respuesta, no la entrada/tablas
     return frame_a_retornar;
 }
+
+/*
+int gestionarBitModificado(RespuestaAlgoritmoReemplazo *resp, char *file, char *tag, int nro_pag)
+{
+    if (resp == NULL) {
+        log_error(logger_worker, "(gestionarBitModificado) - resp es NULL, no se puede procesar");
+        return -1;
+    }
+
+    EntradaDeTabla *entrada      = resp->entrada;
+    TablaPaginas   *tabla_padre  = entrada->tabla;
+
+    if (entrada == NULL || tabla_padre == NULL) {
+        log_error(logger_worker, "(gestionarBitModificado) - entrada o tabla_padre es NULL");
+        free(resp);
+        return -1;
+    }
+
+    // Guardo datos antes de empezar a borrar cosas
+    int frame_a_retornar   = entrada->nro_frame;
+    int pag_victima        = entrada->nro_pag;
+    char *file_victima     = tabla_padre->file;
+    char *tag_victima      = tabla_padre->tag;
+
+    // Si está modificada, la persisto en Storage
+    if (entrada->bit_modificado == 1) {
+        escribirEnStorage(entrada);
+    }
+
+    // Libero el frame en el bitmap -> morite hermoso
+    //if (frame_a_retornar >= 0 && frame_a_retornar < cant_frames) {
+    //    bitMap[frame_a_retornar] = 0;
+    //}
+
+    // Remuevo la entrada de la lista de la tabla
+    EntradaDeTabla *entrada_removida =
+        list_remove(tabla_padre->entradas, resp->entrada_index);
+
+    // Por las dudas, si no coincide el puntero, uso el que vino en resp
+    if (entrada_removida == NULL) {
+        entrada_removida = entrada;
+    }
+
+    free(entrada_removida);
+
+    log_info(logger_worker,
+             "Query %d: Se libera el Marco: %d perteneciente al - File: %s - Tag: %s",
+             query->id_query, frame_a_retornar, file_victima, tag_victima);
+
+    log_info(logger_worker,
+             "Query %d: Se reemplaza la página %s:%s/%d por la %s:%s/%d",
+             query->id_query,
+             file_victima, tag_victima, pag_victima,
+             file, tag, nro_pag);
+
+    // Si la tabla se quedó sin entradas, la borramos de tabla_general
+    if (list_is_empty(tabla_padre->entradas)) {
+        log_debug(logger_worker,
+                  "(gestionarBitModificado) - Tabla padre sin más entradas, se procede a volarla");
+
+        // La sacamos de tabla_general usando el índice que vino en resp
+        TablaPaginas *tabla_borrada =
+            list_remove(tabla_general, resp->tabla_index);
+
+        // La lista de entradas ya está vacía, solo la destruimos
+        list_destroy(tabla_borrada->entradas);
+        liberarTablaPaginas(tabla_borrada);
+
+        // Reacomodamos el puntero global de CLOCK-M
+        int cant_tablas = list_size(tabla_general);
+        if (cant_tablas == 0) {
+            ptr_gb.nro_tabla   = 0;
+            ptr_gb.nro_entrada = 0;
+        } else if (ptr_gb.nro_tabla >= cant_tablas) {
+            // Si el puntero quedó “fuera de rango”, lo reseteamos al inicio
+            ptr_gb.nro_tabla   = 0;
+            ptr_gb.nro_entrada = 0;
+        }
+    }
+
+    free(resp);
+    return frame_a_retornar;
+}*/
+
 
 bool escribirEnStorage(EntradaDeTabla *entrada_a_persistir)
 {
@@ -809,4 +905,28 @@ t_list *obtenerEntradasAFlushear(TablaPaginas *tabla_a_flush)
     }
 
     return entradas_a_retornar;
+}
+
+void normalizar_puntero_clockm()
+{
+    int cant_tablas = list_size(tabla_general);
+
+    if (cant_tablas == 0) {
+        ptr_gb.nro_tabla   = 0;
+        ptr_gb.nro_entrada = 0;
+        return;
+    }
+
+    if (ptr_gb.nro_tabla >= cant_tablas) {
+        ptr_gb.nro_tabla   = 0;
+        ptr_gb.nro_entrada = 0;
+        return;
+    }
+
+    TablaPaginas *t = list_get(tabla_general, ptr_gb.nro_tabla);
+    int cant_entradas = list_size(t->entradas);
+
+    if (cant_entradas == 0 || ptr_gb.nro_entrada >= cant_entradas) {
+        ptr_gb.nro_entrada = 0;
+    }
 }

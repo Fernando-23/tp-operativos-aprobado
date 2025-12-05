@@ -4,7 +4,6 @@
 
 Worker* buscarWorkerLibre(){
 
-
     Worker* libre = NULL;
     for (int i = 0; i < list_size(lista_workers); i++) {
         Worker* w = list_get(lista_workers, i);
@@ -17,7 +16,7 @@ Worker* buscarWorkerLibre(){
 }
 
 Worker* buscarVictimaDesalojable(int prioridad_nueva) {
-    pthread_mutex_lock(&mutex_workers);
+    
     Worker* victima = NULL;
     int peor_prio = -1; 
 
@@ -32,7 +31,7 @@ Worker* buscarVictimaDesalojable(int prioridad_nueva) {
             peor_prio = w->query_actual->prioridad;
         }
     }
-    pthread_mutex_unlock(&mutex_workers);
+   
     return victima;
 }
 

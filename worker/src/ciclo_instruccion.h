@@ -51,6 +51,7 @@ extern t_instruccion* instruccion;
 
 
 extern int socket_master;
+extern int socket_desalojos;
 extern int socket_storage;
 
 extern int CANT_OPERACIONES_WORKER;

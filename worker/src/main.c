@@ -32,41 +32,43 @@ int main(int argc, char* argv[]) {
 
     query = malloc(sizeof(Query));
     instruccion = malloc(sizeof(t_instruccion));
-       
+    pthread_mutex_init(&mutex_interrumpir_query,NULL);
     log_info(logger_worker, "Worker %d iniciado correctamente", id_worker);
 
     //conexion a storage que devuelve el tamanio de pagina
 
-    pthread_mutex_lock(&mx_conexion_storage);
+    //pthread_mutex_lock(&mx_conexion_storage);
     socket_storage = conexionStorage();
 
-    if(socket_storage == -1) return 1;
-    pthread_mutex_unlock(&mx_conexion_storage);
+    if(socket_storage == -1) 
+        return 1;
+    //pthread_mutex_unlock(&mx_conexion_storage);
     
     // hilo interrumpir_query = true
 
     //conexion a master (pero el recv se hace a parte)
-    pthread_mutex_lock(&mx_conexion_master);
-    socket_master = conexionMaster();  
-    if(socket_master == -1) return 1;
-    pthread_mutex_unlock(&mx_conexion_master);
-     
+    //pthread_mutex_lock(&mx_conexion_master);
+    conexionMaster();  
+    
+    //pthread_mutex_unlock(&mx_conexion_master);
+    sleep(1); //nadie vio nada asereje
+
+    conexionMasterDesalojo();
+
     
     iniciarMemoria();  //chequear despues si esta bien asignado
 
-
     pthread_t thread_desalojo;
-
-
-    log_debug(logger_worker, "Hilo de desalojo iniciado");
+    pthread_create(&thread_desalojo, NULL, hiloDesalojo, NULL);
+    pthread_detach(thread_desalojo);
 
     
     while (!debo_morir) { //Exit -> libre -> checkeo_interrupt
 
         log_debug(logger_worker,"Esperando datos de master"); 
         esperandoQuery(socket_master);
-        pthread_create(&thread_desalojo, NULL, hiloDesalojo, NULL);
-        while( !interrumpir_query) {
+        
+        while(!interrumpir_query) {
             
             char* instruccion = Fetch();  // "WRITE 345 42"
     
@@ -82,27 +84,26 @@ int main(int argc, char* argv[]) {
 
             query->pc_query++; // avanzar PC como ejemplo
             
-            pthread_mutex_lock(&mx_conexion_master);
+            //pthread_mutex_lock(&mx_conexion_master);
+            pthread_mutex_lock(&mutex_interrumpir_query);
             if(interrumpir_query){ // Check Interrupt
+                pthread_mutex_unlock(&mutex_interrumpir_query);
                 for(int i = 0; i < list_size(tabla_general); i++){
                     TablaPaginas* tabla = list_get(tabla_general, i);
                     ejecutarFlush(tabla->file, tabla->tag);
                 }
                 
                 log_info(logger_worker, "Query %d: Desalojada por pedido del Master", query->id_query);
-                char* formato_msg_des = string_from_format("DESALOJO %d", query->pc_query);
+                char* formato_msg_des = string_from_format("DESALOJAR %d", query->pc_query);
                 Mensaje* mensaje_des_master = crearMensajito(formato_msg_des);
                 enviarMensajito(mensaje_des_master, socket_master, logger_worker);
-                log_debug(logger_worker, "Envie mensaje de desalojo a master");
+                log_debug(logger_worker, "Envie mensaje de desalojar a master");
                 free(formato_msg_des);
-
+                
                 break;
             }
-            pthread_mutex_unlock(&mx_conexion_master);
+            pthread_mutex_unlock(&mutex_interrumpir_query);
         }
-        
-        pthread_join(thread_desalojo, NULL);
-
 
         list_destroy_and_destroy_elements(query->instrucciones,destruir);
         log_debug(logger_worker, "Se va a cambiar el contexto");
