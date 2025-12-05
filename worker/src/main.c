@@ -55,24 +55,21 @@ int main(int argc, char* argv[]) {
     iniciarMemoria();  //chequear despues si esta bien asignado
 
 
-   // pthread_t th_desalojo;
+    pthread_t thread_desalojo;
 
-    //pthread_create(&th_desalojo, NULL, hiloDesalojo, NULL);
-    //pthread_detach(th_desalojo);
 
-    //log_debug(logger_worker, "Hilo de desalojo iniciado");
+    log_debug(logger_worker, "Hilo de desalojo iniciado");
 
     
     while (!debo_morir) { //Exit -> libre -> checkeo_interrupt
 
         log_debug(logger_worker,"Esperando datos de master"); 
         esperandoQuery(socket_master);
-    
+        pthread_create(&thread_desalojo, NULL, hiloDesalojo, NULL);
         while( !interrumpir_query) {
             
             char* instruccion = Fetch();  // "WRITE 345 42"
     
-
             char** instruccion_separada = Decode(instruccion);
             log_debug(logger_worker,"Instrucción a ejecutar: %s", instruccion);
 
@@ -103,6 +100,8 @@ int main(int argc, char* argv[]) {
             }
             pthread_mutex_unlock(&mx_conexion_master);
         }
+        
+        pthread_join(thread_desalojo, NULL);
 
 
         list_destroy_and_destroy_elements(query->instrucciones,destruir);

@@ -241,8 +241,6 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
     free(path_query);
 
     
-
-    
     bool estaba_vacia = list_is_empty(lista_ready);
     int id_query_nueva = nueva_query->quid;
     list_add(lista_ready, nueva_query);
@@ -251,8 +249,6 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
         pthread_create(&thread_aging,NULL,realizarAgingIndividual,(void *)nueva_query);
         pthread_detach(thread_aging);
     }
-
-
 
     log_info(logger_master, "Query %d llegada - Prioridad: %d", nueva_query->quid, prioridad);
 
