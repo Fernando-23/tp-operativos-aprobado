@@ -814,10 +814,14 @@ char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino, int
         pthread_mutex_unlock(&mutex_files);
         
         return OK;
+    } else{
+        log_debug(logger_storage,"(realizarTAG) - No existe el tag destino %s en el file destino %s",nombre_tag_origen,nombre_file_origen);
+        pthread_mutex_unlock(&mutex_files);
+        return TAG_INEXISTENTE;
     }
 
     // TODO CREADO, SOLO COPIA
-    log_debug(logger_storage,"(realizarTAG) - File y Tag destino ya existen, solo se copia la info del tag origen %s al tag destino %s",nombre_tag_origen,nombre_tag_destino);
+    /*log_debug(logger_storage,"(realizarTAG) - File y Tag destino ya existen, solo se copia la info del tag origen %s al tag destino %s",nombre_tag_origen,nombre_tag_destino);
     tag_destino_estructura = buscarTagPorNombre(file_destino_estructura->tags, nombre_tag_destino);
     
     if (!tag_destino_estructura) {
@@ -830,7 +834,7 @@ char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino, int
     asignarBloquesFisicosATagCopiado(tag_destino_estructura,nombre_file_destino, query_id);
     pthread_mutex_unlock(&mutex_bloques_fisicos);
     pthread_mutex_unlock(&mutex_files);
-    return OK;
+    return OK;*/
 }
 
 /*int copiarTag(Tag *tag_origen, Tag *tag_destino, char* nombre_file, int query_id)

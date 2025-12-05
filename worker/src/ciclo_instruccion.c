@@ -463,9 +463,14 @@ bool ejecutarFlush(char *file, char *tag){
     /*escribir todas las pags con bit_m = 1*/
     log_debug(logger_worker, "(ejecutarFlush) - Iniciando flush de %s:%s", file, tag);
     TablaPaginas* tabla_a_flush = buscarTablaPags(file,tag);
+    
+    if(tabla_a_flush == NULL){
+        log_debug(logger_worker,"(ejecutarFlush) - No se encontro la tabla de paginas para %s:%s", file, tag);
+        return false; 
+    }
 
     t_list* entradas_obtenidas = obtenerEntradasAFlushear(tabla_a_flush);
-    
+
     if(entradas_obtenidas == NULL){
         log_debug(logger_worker,"(ejecutarFlush) - No se encontraron entradas para flushear");
         return false; // no consulte con storage respondo ok y sigo proxima instruccion
