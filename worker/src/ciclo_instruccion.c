@@ -369,7 +369,7 @@ bool ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
     log_debug(logger_worker, "tamanio de pagina: %d", tam_pag);
     if (tamanio % tam_pag != 0)
     {
-        log_warning(logger_worker, "El tamanio a leer debe ser multiplo del tamanio de pagina");
+       // log_warning(logger_worker, "El tamanio a leer debe ser multiplo del tamanio de pagina");
     }
     
     int pagina = dir_base / tam_pag; // capaz no toma el tam_pag global dentro de helper-worker.h

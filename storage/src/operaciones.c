@@ -588,7 +588,7 @@ BloqueLogico *crearBloqueLogico(int nro_bloque_logico, BloqueFisico *bloque_fisi
 
     if (!crearHLink(bloque_logico->ruta_hl, bloque_fisico_a_asignar->ruta_absoluta))
     {
-        log_warning(logger_storage, "(crearArchBloqueLogico) - Error al hacer link :|");
+        //log_warning(logger_storage, "(crearArchBloqueLogico) - Error al hacer link :|");
         //abort();
     }
 
@@ -601,7 +601,7 @@ BloqueLogico *crearBloqueLogico(int nro_bloque_logico, BloqueFisico *bloque_fisi
 bool crearHLink(char *ruta_hl_del_bloque_logico, char *bloque_fisico_a_hardlinkear)
 {
     if (link(bloque_fisico_a_hardlinkear, ruta_hl_del_bloque_logico) == -1){
-        log_error(logger_storage, "(crearHLink) - fallo link");
+        //log_error(logger_storage, "(crearHLink) - fallo link");
         return false;
     }
         

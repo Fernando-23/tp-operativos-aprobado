@@ -281,7 +281,7 @@ void gestionarQueryIndividual(char *nombre_query,int prioridad,int fd){
     char* path_query = string_from_format("%s/%s",path_base_query,nombre_query);
     log_debug(logger_master,"(gestionarQueryIndividual) - query %s entro a gestionaste",nombre_query);
     
-    if(string_equals_ignore_case(config_master->algoritmo_plani, "PRIORIDADES") && config_master->tiempo_aging > 0){
+    if(string_equals_ignore_case(config_master->algoritmo_plani, "PRIORIDADES") && config_master->tiempo_aging > 0 && nueva_query->prioridad > 0){
         pthread_t thread_aging;
         pthread_create(&thread_aging,NULL,realizarAgingIndividual,(void *)nueva_query);
         pthread_detach(thread_aging);
@@ -454,10 +454,9 @@ void intentarEnviarQueryAExecutePorWorker(Worker* worker){ // linkedin
 
     if(worker->query_pendiente != NULL){
         Query* la_que_estaba_esperando_a_que_el_trabajador_se_desocupe = worker->query_pendiente;
-        worker->query_pendiente = NULL;
         asignarQueryAWorker(worker, la_que_estaba_esperando_a_que_el_trabajador_se_desocupe);
         log_debug(logger_master, "Worker %d recibe Query %d (pendiente por DESALOJO)", worker->id, la_que_estaba_esperando_a_que_el_trabajador_se_desocupe->quid);
-        
+        worker->query_pendiente = NULL;
         return;
     }
 
@@ -598,8 +597,19 @@ void atenderWorker(int fd_worker) {
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             pthread_mutex_lock(&mutex_workers);
             pthread_mutex_lock(&mutex_lista_ready);
-            list_add(lista_ready,worker->query_actual);
 
+            Query* query_desalojada = worker->query_actual;
+            list_add(lista_ready,query_desalojada);
+        
+
+
+            if(string_equals_ignore_case(config_master->algoritmo_plani, "PRIORIDADES") && config_master->tiempo_aging > 0 && query_desalojada->prioridad > 0){
+                log_debug(logger_master, "(atenderWorker) - Iniciando thread de aging para query %d",query_desalojada->quid);
+                pthread_t thread_aging;
+                pthread_create(&thread_aging,NULL,realizarAgingIndividual,(void *)query_desalojada);
+                pthread_detach(thread_aging);
+            }
+            
             intentarEnviarQueryAExecutePorWorker(worker);
             pthread_mutex_unlock(&mutex_lista_ready);
             pthread_mutex_unlock(&mutex_workers);
@@ -827,6 +837,11 @@ void* realizarAgingIndividual(void *args){
         log_debug(logger_master, "(realizarAgingIndividual) - la query gestionando se libero probablemente");
         return NULL;
     }
+    
+
+    /*while(!buscarQueryPorIdListaReady(query_gestionando->quid)){
+        sleep(10);
+    }*/
 
     while (1)
     {
