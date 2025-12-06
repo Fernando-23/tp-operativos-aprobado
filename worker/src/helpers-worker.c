@@ -172,7 +172,7 @@ void esperandoQuery(int socket){
 void* hiloDesalojo(void* args){
     log_debug(logger_worker, "Hilo de desalojo iniciado");
 
-    while(!debo_morir){
+    while(1){
         log_debug(logger_worker, "(hiloDesalojo) - entre a funcion");
         Mensaje* msg = recibirMensajito(socket_desalojos, logger_worker);
 

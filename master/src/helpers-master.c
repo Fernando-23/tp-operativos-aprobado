@@ -868,7 +868,7 @@ void* realizarAgingIndividual(void *args){
             pthread_mutex_unlock(&mutex_workers);
             break;
         }
-
+        log_debug(logger_master,"(realizarAgingIndividual) - sali del while");
         pthread_mutex_unlock(&mutex_lista_ready);
         pthread_mutex_unlock(&mutex_workers);
     }
