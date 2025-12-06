@@ -13,7 +13,7 @@ pthread_mutex_t mx_conexion_storage;
 pthread_mutex_t mx_conexion_master;
 pthread_mutex_t mx_recibir_query;
 pthread_mutex_t mx_bitmap;
-pthread_mutex_t sem_instruccion;
+//pthread_mutex_t sem_instruccion;
 
 Query* query;
 Puntero ptr_gb;
@@ -29,7 +29,7 @@ void inicializarMutexWorker(){
     pthread_mutex_init(&mx_conexion_master, NULL);
     pthread_mutex_init(&mx_recibir_query, NULL);
     pthread_mutex_init(&mx_bitmap, NULL);
-    pthread_mutex_init(&sem_instruccion, NULL);
+   // pthread_mutex_init(&sem_instruccion, NULL);
 }
 
 

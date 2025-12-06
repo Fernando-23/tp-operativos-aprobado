@@ -109,6 +109,8 @@ Worker* buscarWorkerPorId(int id);
 int obtenerIndexListaWorkers(int worker_id);
 
 
+//void* cache(void* args);
+
 /*
 CONVENCIONES GESTION KAROL AQUINO
 

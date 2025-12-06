@@ -817,7 +817,7 @@ char* nombre_tag_origen, char* nombre_file_destino,char* nombre_tag_destino, int
     } else{
         log_debug(logger_storage,"(realizarTAG) - No existe el tag destino %s en el file destino %s",nombre_tag_origen,nombre_file_origen);
         pthread_mutex_unlock(&mutex_files);
-        return TAG_INEXISTENTE;
+        return TAG_PREEXISTENTE;
     }
 
     // TODO CREADO, SOLO COPIA

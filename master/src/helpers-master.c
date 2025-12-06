@@ -474,14 +474,41 @@ void intentarEnviarQueryAExecutePorWorker(Worker* worker){ // linkedin
         asignarQueryAWorker(worker, siguiente);
         log_info(logger_master, "Worker %d recibe Query %d desde READY", worker->id, siguiente->quid);
     } else {
+
         worker->esta_libre = true;     
         worker->query_actual = NULL;
         log_debug(logger_master, "Worker %d queda LIBRE (sin queries)", worker->id);
         
     }
+    //pthread_mutex_unlock(&mutex_lista_ready);
+    //pthread_mutex_unlock(&mutex_workers);
+}
+
+/*void* cache(void* args){
+    (void)args;
+
+    log_debug(logger_master, "entre a (cache)");
+
+    sleep(25);
+
+    pthread_mutex_lock(&mutex_workers);
+    pthread_mutex_lock(&mutex_lista_ready);
+
+    for(int i=0; i < list_size(lista_workers);i++){
+        Worker* wk = list_get(lista_workers, i);
+        if(wk->query_pendiente != NULL){
+            log_debug(logger_master, "(cache) - query pendiente distinta de NULL");
+            Query* q = wk->query_pendiente;
+            list_add(lista_ready, q);
+            intentarEnviarQueryAExecute(q);
+        }
+    }
     pthread_mutex_unlock(&mutex_lista_ready);
     pthread_mutex_unlock(&mutex_workers);
-}
+
+    return NULL;
+
+}*/
 
 
 Worker* crearWorker(int id_worker_a_crear_ahora, int contacto_empleado){
@@ -796,6 +823,11 @@ void liberarQuery(Query* query){
 
 void* realizarAgingIndividual(void *args){
     Query* query_gestionando = (Query *)args;
+    if (!query_gestionando){
+        log_debug(logger_master, "(realizarAgingIndividual) - la query gestionando se libero probablemente");
+        return NULL;
+    }
+
     while (1)
     {
         log_info(logger_master, "(realizarAgingIndividual) - Thread aging iniciado cada %d ms", config_master->tiempo_aging);

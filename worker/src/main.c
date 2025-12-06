@@ -93,13 +93,13 @@ int main(int argc, char* argv[]) {
                     TablaPaginas* tabla = list_get(tabla_general, i);
 
                     fallo_flush = ejecutarFlush(tabla->file, tabla->tag);
-                    if(!fallo_flush){
+                    if(fallo_flush){
                         log_debug(logger_worker, "Fallo el flush durante el desalojamiento");
                         break;
                     }
                 }
 
-                if(!fallo_flush){ // caberna
+                if(fallo_flush){ // caberna
                     log_debug(logger_worker, "Fallo el flush durante el desalojamiento");
                     break;
                 }

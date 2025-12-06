@@ -287,7 +287,7 @@ bool ejecutarCreate(char *file, char *tag){
     // faltaria crear alguna funcion para confirmar que se haya creado el tag para ese file (maybe)
     char *mensaje_creacion = string_from_format("CREATE %d %s %s",query->id_query,file,tag);
     
-    pthread_mutex_lock(&sem_instruccion);
+   // pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito(mensaje_creacion);
     
     enviarMensajito(mensajito,socket_storage,logger_worker);
@@ -305,7 +305,7 @@ bool ejecutarCreate(char *file, char *tag){
         free(formato_error_master);
         return true;
     }
-    pthread_mutex_unlock(&sem_instruccion);
+   // pthread_mutex_unlock(&sem_instruccion);
     log_debug(logger_worker, "(ejecutarCreate) - File:Tag enviados");
     return false;
 }
@@ -406,16 +406,21 @@ bool ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
 
 bool ejecutarTag(char *file_origen, char *tag_origen, char *file_destino, char *tag_destino){
     log_debug(logger_worker, "(ejecutarTag) - File origen: %s Tag origen: %s", file_origen, tag_origen);
+    if(!file_origen || !file_destino || !tag_origen || !tag_destino){
+        log_debug(logger_worker, "(ejecutarTag) - NULL");
+        return false;
+    }
     char *file_a_taggear = string_from_format("TAG %d %s %s %s %s",query->id_query, file_origen, tag_origen, file_destino, tag_destino);
 
-    pthread_mutex_lock(&sem_instruccion);
+    //pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito(file_a_taggear);
 
     enviarMensajito(mensajito,socket_storage,logger_worker);
     free(file_a_taggear);
-    pthread_mutex_unlock(&sem_instruccion);
+    //pthread_mutex_unlock(&sem_instruccion);
 
-     Mensaje* resp_tag = recibirMensajito(socket_storage,logger_worker);
+    Mensaje* resp_tag = recibirMensajito(socket_storage,logger_worker);
+    log_debug(logger_worker, "(ejecutarTag) - ya envie el mensajito");
     if (!string_equals_ignore_case(resp_tag->mensaje,"OK")){
         log_debug(logger_worker, "(ejecutarTag) Query %d finalizada", query->id_query);
         char* formato_error_master = string_from_format("ERROR %s", resp_tag->mensaje);
@@ -437,12 +442,12 @@ bool ejecutarCommit(char *file, char *tag){
     log_debug(logger_worker, "(ejecutarCommit) - Flush realizado antes de commit");
     char *fileACommit = string_from_format("COMMIT %d %s %s",query->id_query, file, tag);
 
-    pthread_mutex_lock(&sem_instruccion);
+    //pthread_mutex_lock(&sem_instruccion);
     Mensaje* mensajito = crearMensajito(fileACommit);
    
     enviarMensajito(mensajito,socket_storage,logger_worker);
      free(fileACommit);
-    pthread_mutex_unlock(&sem_instruccion);
+    //pthread_mutex_unlock(&sem_instruccion);
 
      Mensaje* resp_commit = recibirMensajito(socket_storage,logger_worker);
     if (!string_equals_ignore_case(resp_commit->mensaje,"OK")){
@@ -532,7 +537,6 @@ bool ejecutarDelete(char *file, char *tag){ // las páginas se van a ir limpiand
 }
 
 bool ejecutarEnd(){
-    interrumpir_query = true;
 
     log_debug(logger_worker, "Query %d finalizada", query->id_query);
 
