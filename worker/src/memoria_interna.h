@@ -4,6 +4,7 @@
 
 #include "helpers-worker.h"
 #include <time.h>
+#include <unistd.h>
 
 typedef struct TablaPaginas{
     char* file;

@@ -1,6 +1,6 @@
 #include "memoria_interna.h"
 
-void *memoria = NULL; //
+void *memoria = NULL; 
 int *bitMap = NULL;
 int cant_frames = 0;
 
@@ -143,8 +143,10 @@ bool escribirEnMemoria(char *file, char *tag, int pagina, int desplazamiento, ch
         log_debug(logger_worker, "(escribirEnMemoria) - while entre");
         log_debug(logger_worker, "(escribirEnMemoria) - Escribiendo pagina %d, desplazamiento %d", pag_actual, desp_actual);    
         EntradaDeTabla *entrada_pag = buscarEntradaPagina(tabla_paginas, pag_actual);
+        hacerRetardo();
         if (entrada_pag == NULL || entrada_pag->bit_presencia == 0)
         {
+            
             if (entrada_pag == NULL)
             {
                 entrada_pag = crearEntradaPagina(pag_actual, tabla_paginas);
@@ -179,7 +181,7 @@ bool escribirEnMemoria(char *file, char *tag, int pagina, int desplazamiento, ch
                  query->id_query,
                  (unsigned long long)dfis,
                  contenido);
-
+        hacerRetardo();
         escritos += por_copiar;
 
         // ¿Siguiente página?
@@ -244,6 +246,7 @@ char *leerEnMemoria(char *file, char *tag, int pagina, int desplazamiento, int t
             return NULL;
         }
 
+        hacerRetardo();
         if (ent->bit_presencia == 0)
         {
             log_debug(logger_worker, "(leerEnMemoria) - Page Fault en pagina %d", pag_actual);
@@ -272,7 +275,7 @@ char *leerEnMemoria(char *file, char *tag, int pagina, int desplazamiento, int t
                  (unsigned long long)dfis,
                  (int)bytesLeidos, // Muestra solo lo leído hasta ahora
                  mensaje);
-
+        hacerRetardo();
         bytesLeidos += por_copiar;
 
         if (bytesLeidos < bytesObjetivo)
@@ -871,7 +874,7 @@ void hacerRetardo()
 {
     log_debug(logger_worker, "(hacerRetardo) - retardo asesino");
     int retardo_memoria = config_worker->retardo_memoria;
-    sleep(retardo_memoria / 1000); // Lo cambiamos despues
+    usleep(retardo_memoria * 1000); // Lo cambiamos despues - update post entrega 2, me quiero matar atte fer
     log_debug(logger_worker, "(hacerRetardo) - retardo no  asesino");
 }
 

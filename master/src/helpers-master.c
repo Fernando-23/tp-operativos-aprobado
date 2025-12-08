@@ -391,7 +391,7 @@ void asignarQueryAWorker(Worker* worker, Query* query) { // los mutex deberian e
     enviarMensajito(mensajito, worker->fd, logger_master);
 
     free(mensaje_query);
-    log_info(logger_master, "Se envía la Query %d (%d) al Worker %d", 
+    log_info(logger_master, "Se envía la Query %d (Prio:%d) al Worker %d", 
              query->quid, query->prioridad, worker->id);
 }
 
@@ -849,7 +849,7 @@ void* realizarAgingIndividual(void *args){
         usleep(config_master->tiempo_aging * 1000);
         pthread_mutex_lock(&mutex_workers);
         pthread_mutex_lock(&mutex_lista_ready);
-        if (sigueEnReady(query_gestionando->quid)/*&& !query_gestionando->ya_estuvo_en_ready*/){
+        if (sigueEnReady(query_gestionando->quid) && query_gestionando->prioridad > 1){
             query_gestionando->prioridad--;
             log_info(logger_master, "(realizarAgingIndividual) - %d Cambio de prioridad: %d - %d", query_gestionando->quid, query_gestionando->prioridad + 1, query_gestionando->prioridad);
 
