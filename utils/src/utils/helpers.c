@@ -8,7 +8,7 @@ char* NOMBRE_ERRORES[CANT_ERRORES] =
 
 char* NOMBRE_RESPUESTA_WORKER[5] = {"LEER","DESALOJAR","FINALIZAR","ERROR", "FINALIZAR_WORKER"}; //LEER,
 
-char* path_base_query = "/home/utnso/so-deploy/Desktop/tp-2025-2c-Nombre-que-llamar-un-ayudante-/queries";
+char* path_base_query = "/home/utnso/so-deploy/tp-2025-2c-Nombre-que-llamar-un-ayudante-/queries";
 
 
 t_log* iniciarLogger(char* nombre_modulo,char* nivel_log)
