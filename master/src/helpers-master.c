@@ -179,7 +179,7 @@ void* hiloAging(void* args){
             Query* q = list_get(lista_ready, i);
             if (q->prioridad > 0) {
                 q->prioridad--;
-                log_info(logger_master, "%d Cambio de prioridad: %d - %d", q->quid, q->prioridad + 1, q->prioridad);
+                log_info(logger_master, "##%d Cambio de prioridad: %d - %d", q->quid, q->prioridad + 1, q->prioridad);
             }
         }
             list_sort(lista_ready, ordenarPorPrioridad);
@@ -392,7 +392,7 @@ void asignarQueryAWorker(Worker* worker, Query* query) { // los mutex deberian e
     enviarMensajito(mensajito, worker->fd, logger_master);
 
     free(mensaje_query);
-    log_info(logger_master, "Se envía la Query %d (Prio:%d) al Worker %d", 
+    log_info(logger_master, "## Se envía la Query %d (%d) al Worker %d", 
              query->quid, query->prioridad, worker->id);
 }
 
@@ -598,18 +598,29 @@ void atenderWorker(int fd_worker) {
                 
                 worker->query_actual->pc = pc; // actualizacion de pc
                 Query* query_desalojada = worker->query_actual;
-                list_add(lista_ready,query_desalojada);  
+                
+                // Verificar si el Query Control sigue conectado (fd válido)
+                // Si el fd es -1 o está cerrado, la query fue cancelada por desconexión
+                if (query_desalojada->fd != -1) {
+                    // Query Control sigue conectado - agregar a lista_ready
+                    list_add(lista_ready,query_desalojada);  
 
-                ///////////////////////////////////////////// LOG OBLIGATORIO ////////////////////////////////////////////////////////////////
-                log_info(logger_master, "Se desaloja la Query %d (%d) del Worker %d - Motivo: PRIORIDAD",
-                worker->query_actual->quid, worker->query_actual->prioridad, worker->id);
-                ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            
-                if(string_equals_ignore_case(config_master->algoritmo_plani, "PRIORIDADES") && config_master->tiempo_aging > 0 && query_desalojada->prioridad > 0){
-                    log_debug(logger_master, "(atenderWorker) - Iniciando thread de aging para query %d",query_desalojada->quid);
-                    pthread_t thread_aging;
-                    pthread_create(&thread_aging,NULL,realizarAgingIndividual,(void *)query_desalojada);
-                    pthread_detach(thread_aging);
+                    ///////////////////////////////////////////// LOG OBLIGATORIO ////////////////////////////////////////////////////////////////
+                    log_info(logger_master, "## Se desaloja la Query %d (%d) del Worker %d - Motivo: PRIORIDAD",
+                    worker->query_actual->quid, worker->query_actual->prioridad, worker->id);
+                    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                
+                    if(string_equals_ignore_case(config_master->algoritmo_plani, "PRIORIDADES") && config_master->tiempo_aging > 0 && query_desalojada->prioridad > 0){
+                        log_debug(logger_master, "(atenderWorker) - Iniciando thread de aging para query %d",query_desalojada->quid);
+                        pthread_t thread_aging;
+                        pthread_create(&thread_aging,NULL,realizarAgingIndividual,(void *)query_desalojada);
+                        pthread_detach(thread_aging);
+                    }
+                } else {
+                    // Query Control se desconectó - liberar la query
+                    log_info(logger_master, "## Se desaloja la Query %d (%d) del Worker %d - Motivo: DESCONEXION",
+                             query_desalojada->quid, query_desalojada->prioridad, worker->id);
+                    liberarQuery(query_desalojada);
                 }
             }
 
@@ -770,6 +781,8 @@ void atenderQueryControl(int fd_qc) { // abstraerse
         Mensaje* msg = recibirMensajito(fd_qc, logger_master); //nunca va a pasar
         if (!msg) {
             log_error(logger_master, "Query Control de Query %d se desconectó", id_aux);
+            // Cancelar la query según la consigna
+            cancelarQueryPorDesconexion(query);
             return;
         }
         liberarMensajito(msg);
@@ -854,6 +867,61 @@ void liberarQuery(Query* query){
     return;
 }
 
+void cancelarQueryPorDesconexion(Query* query) {
+    if (!query) return;
+    
+    pthread_mutex_lock(&mutex_workers);
+    pthread_mutex_lock(&mutex_lista_ready);
+    
+    // Buscar si la query está en EXEC (en algún worker)
+    Worker* worker_con_query = NULL;
+    for (int i = 0; i < list_size(lista_workers); i++) {
+        Worker* w = list_get(lista_workers, i);
+        if (w->query_actual && w->query_actual->quid == query->quid) {
+            worker_con_query = w;
+            break;
+        }
+    }
+    
+    if (worker_con_query) {
+        // La query está en EXEC - desalojar del worker
+        log_info(logger_master, "## Se desaloja la Query %d (%d) del Worker %d - Motivo: DESCONEXION",
+                 query->quid, query->prioridad, worker_con_query->id);
+        
+        // Enviar mensaje de desalojo al worker
+        Mensaje* msg = crearMensajito("DESALOJAR");
+        enviarMensajito(msg, worker_con_query->fd_desalojo, logger_master);
+        liberarMensajito(msg);
+        
+        // Marcar el fd como -1 para indicar que el Query Control se desconectó
+        // Cuando el worker responda con DESALOJAR, verificará esto y liberará la query
+        query->fd = -1;
+        // No liberar la query todavía - esperar a que el worker responda con el contexto
+        
+        // Intentar asignar nueva query al worker si hay alguna pendiente
+        intentarEnviarQueryAExecutePorWorker(worker_con_query);
+    } else {
+        // La query está en READY - remover directamente
+        int pos = -1;
+        for (int i = 0; i < list_size(lista_ready); i++) {
+            Query* q = list_get(lista_ready, i);
+            if (q->quid == query->quid) {
+                pos = i;
+                break;
+            }
+        }
+        
+        if (pos != -1) {
+            Query* query_removida = list_remove(lista_ready, pos);
+            close(query_removida->fd);
+            liberarQuery(query_removida);
+        }
+    }
+    
+    pthread_mutex_unlock(&mutex_lista_ready);
+    pthread_mutex_unlock(&mutex_workers);
+}
+
 
 void* realizarAgingIndividual(void *args){
     Query* query_gestionando = (Query *)args;
@@ -862,38 +930,54 @@ void* realizarAgingIndividual(void *args){
         return NULL;
     }
     
+    int query_id = query_gestionando->quid;
+    
     while (1){
-        log_debug(logger_master, "(realizarAgingIndividual) - Thread aging iniciado cada %d ms", config_master->tiempo_aging);
+        // Dormir el tiempo de aging
         usleep(config_master->tiempo_aging * 1000);
         
         pthread_mutex_lock(&mutex_workers);
         pthread_mutex_lock(&mutex_lista_ready);
-        if (sigueEnReady(query_gestionando->quid) && query_gestionando->prioridad > 0){
-            query_gestionando->prioridad--;
-            log_info(logger_master, "(realizarAgingIndividual) - Query %d Cambio de prioridad: %d - %d", query_gestionando->quid, query_gestionando->prioridad + 1, query_gestionando->prioridad);
-
-            list_sort(lista_ready, ordenarPorPrioridad);
-            Query* primer_elemento = (Query *)list_get(lista_ready,0);
-            
-            if(primer_elemento->quid == query_gestionando->quid){
-                log_debug(logger_master,"(realizarAgingIndividual) - Soy el primero en READY despues de ordenar");
-                intentarEnviarQueryAExecutePorPrioridades(query_gestionando);
-            }
-            
-        }else{
-
-            log_debug(logger_master,"(realizarAgingIndividual) - Query %d ya no sigue en ready, terminando thread..."
-            ,query_gestionando->quid);
+        
+        // Verificar que la query sigue existiendo y está en READY
+        Query* query_actual = buscarQueryPorIdListaReady(query_id);
+        if (query_actual == NULL || query_actual != query_gestionando) {
+            // La query ya no está en READY o fue liberada
+            log_debug(logger_master,"(realizarAgingIndividual) - Query %d ya no sigue en ready, terminando thread...", query_id);
             pthread_mutex_unlock(&mutex_lista_ready);
             pthread_mutex_unlock(&mutex_workers);
             break;
         }
-        log_debug(logger_master,"(realizarAgingIndividual) - sali del while");
+        
+        // Verificar que la prioridad sea mayor a 0
+        if (query_gestionando->prioridad > 0){
+            int prioridad_anterior = query_gestionando->prioridad;
+            query_gestionando->prioridad--;
+            log_info(logger_master, "##%d Cambio de prioridad: %d - %d", query_gestionando->quid, prioridad_anterior, query_gestionando->prioridad);
+
+            // Ordenar la lista por prioridad
+            list_sort(lista_ready, ordenarPorPrioridad);
+            
+            // Verificar si ahora somos la primera query y podemos desalojar
+            if (!list_is_empty(lista_ready)) {
+                Query* primer_elemento = (Query *)list_get(lista_ready, 0);
+                if(primer_elemento->quid == query_gestionando->quid){
+                    log_debug(logger_master,"(realizarAgingIndividual) - Query %d es la primera en READY después de ordenar, intentando planificar", query_gestionando->quid);
+                    intentarEnviarQueryAExecutePorPrioridades(query_gestionando);
+                }
+            }
+        } else {
+            // Prioridad ya es 0, no se puede reducir más
+            log_debug(logger_master,"(realizarAgingIndividual) - Query %d tiene prioridad 0, terminando thread...", query_id);
+            pthread_mutex_unlock(&mutex_lista_ready);
+            pthread_mutex_unlock(&mutex_workers);
+            break;
+        }
+        
         pthread_mutex_unlock(&mutex_lista_ready);
         pthread_mutex_unlock(&mutex_workers);
     }
     return NULL;
-    
 }
 
 Worker* buscarWorkerPorId(int id){

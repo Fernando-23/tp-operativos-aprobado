@@ -41,18 +41,24 @@ Worker* buscarWorkerConMenorPrioridad(){
 
     for (int i = 0; i < list_size(lista_workers); i++) {
         Worker* w = list_get(lista_workers, i);
-        log_debug(logger_master,"(buscarWorkerConMenorPrioridad) - Prioridad actual del Worker %d es %d de Query %d",w->id,w->query_actual->prioridad,w->query_actual->quid);
-        int prio_actual = w->query_actual->prioridad;
-        if (prioridad_menor == -1 || (prio_actual > prioridad_menor && w->query_pendiente == NULL)) {
-            prioridad_menor = prio_actual;
-            viSSStima = w;
+        // Verificar que el worker tenga una query en ejecución y no tenga query pendiente
+        if (w->query_actual != NULL && w->query_pendiente == NULL && !w->esta_libre) {
+            int prio_actual = w->query_actual->prioridad;
+            log_debug(logger_master,"(buscarWorkerConMenorPrioridad) - Prioridad actual del Worker %d es %d de Query %d",w->id, prio_actual, w->query_actual->quid);
+            if (prioridad_menor == -1 || prio_actual > prioridad_menor) {
+                prioridad_menor = prio_actual;
+                viSSStima = w;
+            }
         }  
     }
     return viSSStima;
 }
 
 bool sigueEnReady(int quid_a_consultar){
-    if (buscarQueryPorIdListaReady(quid_a_consultar)!= NULL){
+    // Esta función debe ser llamada con mutex_lista_ready tomado
+    // No tomamos el mutex aquí para evitar deadlocks
+    Query* query = buscarQueryPorIdListaReady(quid_a_consultar);
+    if (query != NULL){
         log_debug(logger_master,"(sigueEnReady) - Query %d sigue en READY",quid_a_consultar);
         return true;
     }
