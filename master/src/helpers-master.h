@@ -108,7 +108,6 @@ void* recibirIdWorkerDesalojo(void* args);
 Worker* buscarWorkerPorId(int id);
 int obtenerIndexListaWorkers(int worker_id);
 void reasignarLaburoAWorker(Worker* worker);
-void cancelarQueryPorDesconexion(Query* query);
 
 //void* cache(void* args);
 

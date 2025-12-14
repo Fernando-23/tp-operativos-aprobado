@@ -61,7 +61,7 @@ int gestionarOrdenMaestro(Mensaje* orden_de_mi_maestro){ //pasar logger
 		char* nombre_archivo = orden_cortada[1];
 		char* tag = orden_cortada[2];
 		char* contenido = orden_cortada[3];
-		log_info(logger_query,"## Lectura realizada: File %s:%s, contenido: %s",
+		log_info(logger_query,"Lectura realizada: Archivo %s:%s, contenido: %s",
 		nombre_archivo,tag,contenido);
 		string_array_destroy(orden_cortada);
 		return 1; //siga nomas

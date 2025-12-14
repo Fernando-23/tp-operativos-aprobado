@@ -143,7 +143,6 @@ bool escribirEnMemoria(char *file, char *tag, int pagina, int desplazamiento, ch
         log_debug(logger_worker, "(escribirEnMemoria) - while entre");
         log_debug(logger_worker, "(escribirEnMemoria) - Escribiendo pagina %d, desplazamiento %d", pag_actual, desp_actual);    
         EntradaDeTabla *entrada_pag = buscarEntradaPagina(tabla_paginas, pag_actual);
-        hacerRetardo();
         if (entrada_pag == NULL || entrada_pag->bit_presencia == 0)
         {
             
@@ -166,8 +165,10 @@ bool escribirEnMemoria(char *file, char *tag, int pagina, int desplazamiento, ch
         if (por_copiar > espacioLibre)
             por_copiar = espacioLibre;
 
-        // Copia del tramo que cae en ESTA página
+        // Retardo ANTES del acceso a memoria (según consigna: "ante cada lectura y/o escritura")
+        hacerRetardo();
 
+        // Copia del tramo que cae en ESTA página
         memcpy(base_frame + desp_actual, contenido + escritos, por_copiar);
 
         entrada_pag->bit_uso = 1;
@@ -181,7 +182,6 @@ bool escribirEnMemoria(char *file, char *tag, int pagina, int desplazamiento, ch
                  query->id_query,
                  (unsigned long long)dfis,
                  contenido);
-        hacerRetardo();
         escritos += por_copiar;
 
         // ¿Siguiente página?
@@ -246,7 +246,6 @@ char *leerEnMemoria(char *file, char *tag, int pagina, int desplazamiento, int t
             return NULL;
         }
 
-        hacerRetardo();
         if (ent->bit_presencia == 0)
         {
             log_debug(logger_worker, "(leerEnMemoria) - Page Fault en pagina %d", pag_actual);
@@ -262,6 +261,10 @@ char *leerEnMemoria(char *file, char *tag, int pagina, int desplazamiento, int t
         size_t por_copiar = bytesObjetivo - bytesLeidos;
         if (por_copiar > espacioDisponible)
             por_copiar = espacioDisponible;
+        
+        // Retardo ANTES del acceso a memoria (según consigna: "ante cada lectura y/o escritura")
+        hacerRetardo();
+        
         // Copiamos este tramo desde la página actual
         memcpy(mensaje + bytesLeidos, base_frame + desp_actual, por_copiar);
 
@@ -275,7 +278,6 @@ char *leerEnMemoria(char *file, char *tag, int pagina, int desplazamiento, int t
                  (unsigned long long)dfis,
                  (int)bytesLeidos, // Muestra solo lo leído hasta ahora
                  mensaje);
-        hacerRetardo();
         bytesLeidos += por_copiar;
 
         if (bytesLeidos < bytesObjetivo)
@@ -353,8 +355,6 @@ RespuestaAlgoritmoReemplazo *cicloClockM(int resetear_bit_uso, int bit_uso, int 
         TablaPaginas *tabla_selec = list_get(tabla_general, id_tabla);
         int cant_entradas = list_size(tabla_selec->entradas);
 
-        hacerRetardo();
-
         int inicio_entrada = (id_tabla == ptr_gb.nro_tabla) ? ptr_gb.nro_entrada : 0;
 
         for (int id_entrada = inicio_entrada; id_entrada < cant_entradas; id_entrada++)
@@ -395,8 +395,6 @@ RespuestaAlgoritmoReemplazo *cicloClockM(int resetear_bit_uso, int bit_uso, int 
     {
         TablaPaginas *tabla_selec = list_get(tabla_general, id_tabla);
         int cant_entradas = list_size(tabla_selec->entradas);
-
-        hacerRetardo();
 
         for (int id_entrada = 0; id_entrada < cant_entradas; id_entrada++)
         {
@@ -538,8 +536,6 @@ RespuestaAlgoritmoReemplazo *elegirVictimaLRU()
     for (int i = 0; i < list_size(tabla_general); i++)
     {
         TablaPaginas *tabla_selec = (TablaPaginas *)list_get(tabla_general, i);
-        
-        hacerRetardo();
 
         for (int j = 0; j < list_size(tabla_selec->entradas); j++)
         {
