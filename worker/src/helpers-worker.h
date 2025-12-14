@@ -40,8 +40,10 @@ extern t_log* logger_worker;
 extern ConfigWorker* config_worker;
 extern Query* query;
 extern int tam_pag;
-extern bool interrumpir_query;
-extern bool es_end;
+extern bool es_error_o_end;
+extern bool hubo_interrupcion;
+//extern bool tengo_que_actualizar_en_master;
+extern bool tengo_que_cambiar_contexto;
 extern int id_worker;
 
 extern pthread_mutex_t mx_conexion_storage;
@@ -57,7 +59,8 @@ int conexionStorage();
 void conexionMaster();
 void conexionMasterDesalojo();
 void esperandoQuery(int socket);
-
+void gestionarCheckInterrupt();
+void enviarMensajeFinDesalojo();
 void* hiloDesalojo(void* args);
 
 void inicializarMutexWorker();

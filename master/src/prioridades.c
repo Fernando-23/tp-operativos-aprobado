@@ -36,19 +36,19 @@ Worker* buscarVictimaDesalojable(int prioridad_nueva) {
 }
 
 Worker* buscarWorkerConMenorPrioridad(){
-    Worker* victima = NULL;
+    Worker* viSSStima = NULL;
     int prioridad_menor = -1;
 
     for (int i = 0; i < list_size(lista_workers); i++) {
         Worker* w = list_get(lista_workers, i);
-            int prio_actual = w->query_actual->prioridad;
-            if (prioridad_menor == -1 || prio_actual > prioridad_menor) {
-                prioridad_menor = prio_actual;
-                victima = w;
-            }
-        
+        log_debug(logger_master,"(buscarWorkerConMenorPrioridad) - Prioridad actual del Worker %d es %d de Query %d",w->id,w->query_actual->prioridad,w->query_actual->quid);
+        int prio_actual = w->query_actual->prioridad;
+        if (prioridad_menor == -1 || (prio_actual > prioridad_menor && w->query_pendiente == NULL)) {
+            prioridad_menor = prio_actual;
+            viSSStima = w;
+        }  
     }
-    return victima;
+    return viSSStima;
 }
 
 bool sigueEnReady(int quid_a_consultar){
@@ -59,4 +59,5 @@ bool sigueEnReady(int quid_a_consultar){
     log_debug(logger_master,"(sigueEnReady) - Query %d NO sigue en READY",quid_a_consultar);
     return false;
 }
+
 

@@ -5,8 +5,11 @@
 t_log* logger_worker = NULL;
 ConfigWorker* config_worker = NULL;
 
+bool es_error_o_end = false;
+//bool tengo_que_actualizar_en_master = false;
+bool tengo_que_cambiar_contexto = false;
+bool hubo_interrupcion = false;
 volatile sig_atomic_t debo_morir = 0;
-bool es_end = false;
 
 pthread_mutex_t mutex_interrumpir_query;
 pthread_mutex_t mx_conexion_storage;
@@ -17,7 +20,7 @@ pthread_mutex_t mx_bitmap;
 
 Query* query;
 Puntero ptr_gb;
-bool interrumpir_query=false;
+
 bool requiere_realmente_desalojo;
 
 int tam_pag;
@@ -146,7 +149,6 @@ void esperandoQuery(int socket){
         return;
     }
 
-
     log_debug(logger_worker, "(esperandoQuery) - por cargar datos de la query");
     query->id_query = atoi(lista_de_datos[0]);
     query->pc_query = atoi(lista_de_datos[1]);
@@ -184,7 +186,7 @@ void* hiloDesalojo(void* args){
         if(string_equals_ignore_case(msg->mensaje, "DESALOJAR")){
             log_debug(logger_worker, "Recibido Desalojo del Master. Interrumpiendo ejecucion actual...");
             pthread_mutex_lock(&mutex_interrumpir_query);
-            interrumpir_query = true;
+            hubo_interrupcion = true;
             pthread_mutex_unlock(&mutex_interrumpir_query);
             //liberarMensajito(msg);
             //break;
@@ -194,4 +196,53 @@ void* hiloDesalojo(void* args){
 
     log_error(logger_worker,"(hiloDesalojo) - Por alguna razon, sali del while y eso no es lindo");
     return NULL;
+}
+
+
+void gestionarCheckInterrupt(){
+    pthread_mutex_lock(&mutex_interrumpir_query);
+    if (es_error_o_end && !hubo_interrupcion){ //es error o end y no interrupt
+        Mensaje* mensaje_para_liberarme = crearMensajito("FIN_CICLO");
+        enviarMensajito(mensaje_para_liberarme,socket_master,logger_worker);
+        pthread_mutex_unlock(&mutex_interrumpir_query);
+        return; 
+    }
+
+    if (hubo_interrupcion){ // desalojo
+        
+        bool fallo_flush = false;      
+        for(int i = 0; i < list_size(tabla_general); i++){
+            TablaPaginas* tabla = list_get(tabla_general, i);
+
+            fallo_flush = ejecutarFlush(tabla->file, tabla->tag);
+            if(fallo_flush){
+                log_debug(logger_worker, "Fallo el flush durante el desalojamiento file-tag: %s%s id: %d",
+                    tabla->file, tabla->tag ,i);
+                break;
+            }
+        }
+                
+        log_info(logger_worker, "Query %d: Desalojada por pedido del Master", query->id_query);
+        
+        enviarMensajeFinDesalojo();
+    }
+    pthread_mutex_unlock(&mutex_interrumpir_query);
+}
+
+
+void enviarMensajeFinDesalojo(){
+    if (es_error_o_end){ // DESALOJAR FINALICE
+        Mensaje* mensaje_fin_desalojo = crearMensajito("DESALOJAR FINALICE");
+        enviarMensajito(mensaje_fin_desalojo,socket_master,logger_worker);
+        log_debug(logger_worker, "Envie mensaje de DESALOJAR FINALICE a master");
+
+        return;
+    } else { // DESALOJAR NO_FINALICE PC
+        char* mensaje_fin_desalojo_con_pc = string_from_format("DESALOJAR NO_FINALICE %d",query->pc_query);
+        Mensaje* mensajito_con_pc_desalojo = crearMensajito(mensaje_fin_desalojo_con_pc);
+        log_debug(logger_worker, "Envie mensaje de DESALOJAR NO_FINALICE a master con pc %d", query->pc_query);
+        enviarMensajito(mensajito_con_pc_desalojo,socket_master,logger_worker);
+        free(mensaje_fin_desalojo_con_pc);
+
+    }
 }

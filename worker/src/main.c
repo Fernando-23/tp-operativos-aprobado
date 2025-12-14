@@ -5,7 +5,6 @@
 #include <sys/socket.h>
 
 
-
 static void manejador_senial(int signo){
     debo_morir = 1;
 }
@@ -23,8 +22,8 @@ int main(int argc, char* argv[]) {
 
     cargarConfigWorker(path_config);
 
-   // eliminarConexion(config_worker->ip_storage, config_worker->puerto_storage);
-   // eliminarConexion(config_worker->ip_master, config_worker->puerto_master);
+    // eliminarConexion(config_worker->ip_storage, config_worker->puerto_storage);
+    // eliminarConexion(config_worker->ip_master, config_worker->puerto_master);
     error_en_operacion = string_duplicate("OK");
     logger_worker = iniciarLogger("worker", config_worker->log_level);
 
@@ -55,7 +54,6 @@ int main(int argc, char* argv[]) {
 
     conexionMasterDesalojo();
 
-    
     iniciarMemoria();  //chequear despues si esta bien asignado
 
     pthread_t thread_desalojo;
@@ -65,61 +63,32 @@ int main(int argc, char* argv[]) {
     
     while (!debo_morir) { //Exit -> libre -> checkeo_interrupt
 
-        log_debug(logger_worker,"Esperando datos de master"); 
+        log_info(logger_worker,"Esperando datos de master"); 
         esperandoQuery(socket_master);
         
-        while(!interrumpir_query) {
+        while(!tengo_que_cambiar_contexto) {
             
             char* instruccion = Fetch();  // "WRITE 345 42"
     
             char** instruccion_separada = Decode(instruccion);
             log_debug(logger_worker,"Instrucción a ejecutar: %s", instruccion);
 
-            es_end = Execute(instruccion_separada);
-    
-            if(es_end){
-                log_debug(logger_worker, "Query %d: Finalizo ES_END", query->id_query);
-                break;
-            }
+            es_error_o_end = Execute(instruccion_separada);
+            if(es_error_o_end){
+                log_debug(logger_worker, "Query %d: Finalizo TENGO_QUE_CAMBIAR_CONTEXTO", query->id_query);
+                tengo_que_cambiar_contexto = true;
+            } 
+            else query->pc_query++;
 
-            query->pc_query++; // avanzar PC como ejemplo
-            
-            //pthread_mutex_lock(&mx_conexion_master);
-            pthread_mutex_lock(&mutex_interrumpir_query);
-            bool fallo_flush = false;
-            if(interrumpir_query){ // Check Interrupt
-                pthread_mutex_unlock(&mutex_interrumpir_query);
-                for(int i = 0; i < list_size(tabla_general); i++){
-                    TablaPaginas* tabla = list_get(tabla_general, i);
-
-                    fallo_flush = ejecutarFlush(tabla->file, tabla->tag);
-                    if(fallo_flush){
-                        log_debug(logger_worker, "Fallo el flush durante el desalojamiento");
-                        break;
-                    }
-                }
-
-                if(fallo_flush){ // caberna
-                    log_debug(logger_worker, "Fallo el flush durante el desalojamiento");
-                    break;
-                }
-                
-                log_info(logger_worker, "Query %d: Desalojada por pedido del Master", query->id_query);
-                char* formato_msg_des = string_from_format("DESALOJAR %d", query->pc_query);
-                Mensaje* mensaje_des_master = crearMensajito(formato_msg_des);
-                enviarMensajito(mensaje_des_master, socket_master, logger_worker);
-                log_debug(logger_worker, "Envie mensaje de desalojar a master");
-                free(formato_msg_des);
-                
-                break;
-            }
-            pthread_mutex_unlock(&mutex_interrumpir_query);
+            checkInterrupt(); // setea tengo que cambiar contexto a true si hay interrupcion
         }
 
         list_destroy_and_destroy_elements(query->instrucciones,destruir);
-        log_debug(logger_worker, "Se va a cambiar el contexto");
+        gestionarCheckInterrupt();
 
-        interrumpir_query = false;
+        log_debug(logger_worker, "Se va a cambiar el contexto");
+        tengo_que_cambiar_contexto = false;
+        hubo_interrupcion = false;
 
     }
 
@@ -136,7 +105,6 @@ int main(int argc, char* argv[]) {
     enviarMensajito(mensaje_master, socket_master, logger_worker);
 
     free(mensaje_de_finalizacion);
-
 
     log_info(logger_worker, "Worker %d finalizado correctamente", id_worker);
     return 0;

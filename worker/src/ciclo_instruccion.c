@@ -275,12 +275,18 @@ bool Execute(char** instruccion_separada){
         return true;
     }
 
-
     log_info(logger_worker,"## Query %d: - Instrucción realizada: %s", query->id_query, nombre_instruccion);
     
     return finaliza;
 }
 
+void checkInterrupt(){
+    pthread_mutex_lock(&mutex_interrumpir_query);
+    if (hubo_interrupcion){
+        tengo_que_cambiar_contexto = true;
+    } 
+    pthread_mutex_unlock(&mutex_interrumpir_query);
+}
 
 
 bool ejecutarCreate(char *file, char *tag){
@@ -377,6 +383,7 @@ bool ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
 
 
     char *datoLeido = leerEnMemoria(file, tag, pagina, desplazamiento, tamanio);
+    
     log_debug(logger_worker, "le ENVIO A MASTER ESTE DATITO %s DE ESTA PAGINA %i",datoLeido,pagina );
     if(datoLeido == NULL){
         log_debug(logger_worker, "(ejecutarRead) Query %d finalizada", query->id_query);    
@@ -392,7 +399,7 @@ bool ejecutarRead(char *file, char *tag, int dir_base, int tamanio){
     }
     
     char* mensaje_a_master_formateado = string_from_format("LEER %s %s %s",
-     file, tag, datoLeido); // LEER(el codigo) FILE TAG CONTENIDO
+     file, tag, datoLeido); // LEER (el codigo) FILE TAG CONTENIDO
     
     Mensaje* mensajito = crearMensajito(mensaje_a_master_formateado); 
    

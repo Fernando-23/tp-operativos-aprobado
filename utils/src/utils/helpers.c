@@ -6,7 +6,7 @@ char* NOMBRE_ERRORES[CANT_ERRORES] =
 	{"OK","FILE_INEXISTENTE", "TAG_INEXISTENTE","FILE_PREEXISTENTE","TAG_PREEXISTENTE",
 	 "ESPACIO_INSUFICIENTE","ESCRITURA_NO_PERMITIDA","LECTURA_FUERA_DE_LIMITE","ESCRITURA_FUERA_DE_LIMITE"};
 
-char* NOMBRE_RESPUESTA_WORKER[5] = {"LEER","DESALOJAR","FINALIZAR","ERROR", "FINALIZAR_WORKER"}; //LEER,
+char* NOMBRE_RESPUESTA_WORKER[6] = {"LEER","DESALOJAR","FINALIZAR","ERROR", "FINALIZAR_WORKER","FIN_CICLO"}; //LEER,
 
 char* path_base_query = "/home/utnso/so-deploy/tp-2025-2c-Nombre-que-llamar-un-ayudante-/queries";
 
@@ -170,7 +170,7 @@ int obtenerModuloCodOp(char *string_modulo){
 
 int obtenerRespuestaWorkerEnum(char* string_cod_op,t_log* logger){
 	log_debug(logger, "(obtenerRespuestaWorkerEnum) - parametro: %s", string_cod_op);
-	for (int i = 0; i < 5; i++){
+	for (int i = 0; i < 6; i++){
     	if (string_equals_ignore_case(NOMBRE_RESPUESTA_WORKER[i],string_cod_op)){
 			log_debug(logger, "(obtenerRespuestaWorkerEnum) - ENTRO AL IF.. codigo de respuesta del worker: %s -> %d", string_cod_op, i);	
 			return i;

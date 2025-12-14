@@ -50,6 +50,7 @@ typedef enum{
 	FINALIZAR,
 	ERROR,
 	FINALIZAR_WORKER,
+	FIN_CICLO
 }RespuestaEnum;
 
 
@@ -79,7 +80,7 @@ typedef struct{
 
 extern char* NOMBRE_MODULOS[CANT_MODULOS];
 extern char* NOMBRE_ERRORES[CANT_ERRORES];
-extern char* NOMBRE_RESPUESTA_WORKER[5];
+extern char* NOMBRE_RESPUESTA_WORKER[6];
 
 t_log* iniciarLogger(char* nombre_modulo,char* nivel_log);
 t_config* iniciarConfig(char* nombre_config); 

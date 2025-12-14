@@ -6,9 +6,9 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/bin/${workspaceFolderBasename}",
-      "args": ["planiCLOCK","1"],
+      "args": ["planiLRU","2"],
       "stopAtEntry": false,
-      "cwd": "${workspaceFolder}",
+      "cwd": "${workspaceFolder}/bin",
       "environment": [],
       "externalConsole": false,
       "linux": {
