@@ -6,7 +6,7 @@ Worker* buscarWorkerLibre(){
 
     Worker* libre = NULL;
     for (int i = 0; i < list_size(lista_workers); i++) {
-        Worker* w = list_get(lista_workers, i);
+        Worker* w = (Worker *)list_get(lista_workers, i);
         if (w->esta_libre && w->query_pendiente == NULL) {
             libre = w;
             break;
@@ -35,20 +35,29 @@ Worker* buscarVictimaDesalojable(int prioridad_nueva) {
     return victima;
 }
 
-Worker* buscarWorkerConMenorPrioridad(){
-    Worker* viSSStima = NULL;
-    int prioridad_menor = -1;
+Worker* buscarWorkerConMenorPrioridad() {
+    Worker* victima = NULL;
+    int peor_prio = -1;
 
     for (int i = 0; i < list_size(lista_workers); i++) {
         Worker* w = list_get(lista_workers, i);
-        log_debug(logger_master,"(buscarWorkerConMenorPrioridad) - Prioridad actual del Worker %d es %d de Query %d",w->id,w->query_actual->prioridad,w->query_actual->quid);
-        int prio_actual = w->query_actual->prioridad;
-        if (prioridad_menor == -1 || (prio_actual > prioridad_menor && w->query_pendiente == NULL)) {
-            prioridad_menor = prio_actual;
-            viSSStima = w;
-        }  
+
+        if (!w) continue;
+
+    
+        if (w->esta_libre) continue;
+        if (w->query_actual == NULL) continue;
+        if (w->query_pendiente != NULL) continue;
+
+        int prio = w->query_actual->prioridad;
+
+        if (prio > peor_prio) {
+            peor_prio = prio;
+            victima = w;
+        }
     }
-    return viSSStima;
+
+    return victima;
 }
 
 bool sigueEnReady(int quid_a_consultar){

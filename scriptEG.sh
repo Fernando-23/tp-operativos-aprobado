@@ -30,6 +30,7 @@ for NAME in "${AGING_NAMES[@]}"; do
     
     for ((i=1; i<=INSTANCIAS; i++)); do
         ./query_control query "${NAME}" "$PRIORIDAD" &
+        
     done
 done
 

@@ -40,6 +40,7 @@ int main(int argc, char* argv[]) {
     
     //pthread_create(&thread_desalojo,NULL,cache, NULL);
     pthread_join(thread_adm,NULL);
+    pthread_join(thread_desalojo,NULL);
     log_destroy(logger_master); 
     return 0;
 }
