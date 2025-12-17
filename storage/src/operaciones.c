@@ -1222,11 +1222,20 @@ void escribirEnBloque(char* ruta_abs_bloque_logico,char* contenido){
         return;
     }
 
+    // reservo memoria pero inicializada en 0 
+    char* esta_cleaaan = calloc(1, datos_superblock_gb->tamanio_bloque);
+    size_t len_contenido = strlen(contenido);
+    size_t bytes_a_copiar = (len_contenido < datos_superblock_gb->tamanio_bloque)  ? len_contenido : datos_superblock_gb->tamanio_bloque; //sintaxis 100%
+    
+    memcpy(esta_cleaaan, contenido, bytes_a_copiar);
 
-
-    if(fwrite(contenido, 1, datos_superblock_gb->tamanio_bloque, bloque_a_escribir) < datos_superblock_gb->tamanio_bloque){
+    //se escribe con 0 ya fue si es menor a tamanio bloque
+    if(fwrite(esta_cleaaan, 1, datos_superblock_gb->tamanio_bloque, bloque_a_escribir) 
+       < datos_superblock_gb->tamanio_bloque){
         log_error(logger_storage, "(escribirEnBloque) - tamanio a escribir incompleto");
     }
+
+    free(esta_cleaaan);
 
     if (fflush(bloque_a_escribir) != 0) {
         log_error(logger_storage, "escribirEnBloque: fallo en fflush() para %s", ruta_abs_bloque_logico);

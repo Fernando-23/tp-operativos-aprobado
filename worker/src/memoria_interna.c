@@ -270,10 +270,9 @@ char *leerEnMemoria(char *file, char *tag, int pagina, int desplazamiento, int t
 
         uint64_t dfis = dirFisica(ent->nro_frame, desp_actual);
         log_info(logger_worker,
-                 "Query %d: Acción: LEER - Dirección Física: %llu - Valor Leido: %.*s",
+                 "Query %d: Acción: LEER - Dirección Física: %llu - Valor Leido: %s",
                  query->id_query,
                  (unsigned long long)dfis,
-                 (int)bytesLeidos, // Muestra solo lo leído hasta ahora
                  mensaje);
         hacerRetardo();
         bytesLeidos += por_copiar;
