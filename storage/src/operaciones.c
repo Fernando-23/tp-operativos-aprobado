@@ -511,6 +511,28 @@ void unlinkearBloquesLogicos(int query_id,int cant_a_unlinkear, t_list *bloques_
         if (!tieneHLinks(bloque_fisico_asociado->ruta_absoluta)){ // 1 hard links -> liberar en el bitmap
             pthread_mutex_lock(&mutex_bitmap);
             liberarBloqueDeBitmap(bloque_fisico_asociado->id_fisico, query_id);
+            FILE* bloque_fisico_arch = fopen(bloque_fisico_asociado->ruta_absoluta,"r+b");
+            if (!bloque_fisico_arch){
+                log_error(logger_storage,"(escribirEnBloque) - No se encontro el archivo en la ruta %s", bloque_fisico_asociado->ruta_absoluta);
+            return;     
+            }
+            if (fseek(bloque_fisico_arch,0,SEEK_SET)!=0){
+                log_error(logger_storage,"(escribirEnBloque) - No se pudo mover el puntero al inicio del archivo %s", bloque_fisico_asociado->ruta_absoluta);
+                fclose(bloque_fisico_arch);
+                return;
+            }
+            // reservo memoria pero inicializada en 0 
+            char* esta_cleaaan = calloc(1, datos_superblock_gb->tamanio_bloque);
+    
+            //se escribe con 0 ya fue si es menor a tamanio bloque
+            if(fwrite(esta_cleaaan, 1, datos_superblock_gb->tamanio_bloque, bloque_fisico_arch) 
+                < datos_superblock_gb->tamanio_bloque){
+            log_error(logger_storage, "(escribirEnBloque) - tamanio a escribir incompleto");
+            }
+
+            free(esta_cleaaan);
+            fclose(bloque_fisico_arch);
+
             msync(bitmap_mmap_gb, cant_bloques_en_bytes_gb, MS_SYNC); //agregado
             pthread_mutex_unlock(&mutex_bitmap);
             log_debug(logger_storage, "(unlinkearBloquesLogicos)- El bloque fisico %s fue liberado", bloque_fisico_asociado->nombre);
