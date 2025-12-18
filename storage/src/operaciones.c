@@ -511,7 +511,7 @@ void unlinkearBloquesLogicos(int query_id,int cant_a_unlinkear, t_list *bloques_
         if (!tieneHLinks(bloque_fisico_asociado->ruta_absoluta)){ // 1 hard links -> liberar en el bitmap
             pthread_mutex_lock(&mutex_bitmap);
             liberarBloqueDeBitmap(bloque_fisico_asociado->id_fisico, query_id);
-            msync(bitmap_mmap_gb, cant_bloques_en_bytes_gb, MS_SYNC);
+            msync(bitmap_mmap_gb, cant_bloques_en_bytes_gb, MS_SYNC); //agregado
             pthread_mutex_unlock(&mutex_bitmap);
             log_debug(logger_storage, "(unlinkearBloquesLogicos)- El bloque fisico %s fue liberado", bloque_fisico_asociado->nombre);
         }
@@ -1197,6 +1197,7 @@ BloqueFisico* obtenerBloqueFisicoLibre(){
         
         if (!bitarray_test_bit(bitmap_gb,i)){
             bitarray_set_bit(bitmap_gb,i); // lo pones en 1
+            msync(bitmap_mmap_gb, cant_bloques_en_bytes_gb, MS_SYNC); //agregado 
             log_debug(logger_storage, "(obtenerBloqueFisicoLibre) - Encontre bloque fisico libre en bitmap, id:%d", i);
             pthread_mutex_unlock(&mutex_bitmap);
             return buscarBloqueFisicoPorId(i);
@@ -1325,6 +1326,7 @@ void reapuntarBloque(BloqueFisico* bloque_fisico_a_reapuntar,BloqueLogico* bloqu
     if(!tieneHLinks(bloque_fisico_viejo->ruta_absoluta)){
         pthread_mutex_lock(&mutex_bitmap);
         liberarBloqueDeBitmap(bloque_fisico_viejo->id_fisico,query_id);
+        msync(bitmap_mmap_gb, cant_bloques_en_bytes_gb, MS_SYNC);
         pthread_mutex_unlock(&mutex_bitmap);
     }
 
