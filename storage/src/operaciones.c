@@ -1438,7 +1438,7 @@ void unlinkearBloquesLogicosParaELIMINAR_UN_TAG(int query_id,int cant_a_unlinkea
             
 
             liberarBloqueDeBitmap(bloque_fisico_asociado->id_fisico, query_id);
-            
+            msync(bitmap_mmap_gb, cant_bloques_en_bytes_gb, MS_SYNC);
             if(esta_commiteado){
                 DatosParaHash* datos_para_hash = obtenerDatosParaHash(bloque_popeado, nombre_file);
                 char* hash_a_remover = crypto_md5(datos_para_hash->contenido,datos_para_hash->tamanio);      
