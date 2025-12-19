@@ -514,15 +514,19 @@ void unlinkearBloquesLogicos(int query_id,int cant_a_unlinkear, t_list *bloques_
             FILE* bloque_fisico_arch = fopen(bloque_fisico_asociado->ruta_absoluta,"r+b");
             if (!bloque_fisico_arch){
                 log_error(logger_storage,"(escribirEnBloque) - No se encontro el archivo en la ruta %s", bloque_fisico_asociado->ruta_absoluta);
+                pthread_mutex_unlock(&mutex_bitmap);
+                pthread_mutex_unlock(&mutex_bloques_fisicos);
                 return;     
             }
             if (fseek(bloque_fisico_arch,0,SEEK_SET)!=0){
                 log_error(logger_storage,"(escribirEnBloque) - No se pudo mover el puntero al inicio del archivo %s", bloque_fisico_asociado->ruta_absoluta);
                 fclose(bloque_fisico_arch);
+                pthread_mutex_unlock(&mutex_bitmap);
+                pthread_mutex_unlock(&mutex_bloques_fisicos);
                 return;
             }
             // reservo memoria pero inicializada en 0 
-            char* esta_cleaaan = calloc(1, datos_superblock_gb->tamanio_bloque);
+            char* esta_cleaaan = calloc(datos_superblock_gb->tamanio_bloque, 1);
     
             //se escribe con 0 ya fue si es menor a tamanio bloque
             if(fwrite(esta_cleaaan, 1, datos_superblock_gb->tamanio_bloque, bloque_fisico_arch) 
@@ -954,8 +958,8 @@ void escribirEnHashIndex(int query_id,char* nombre_file,Tag *tag)
     for (int i = 0; i < cant_blogicos; i++)
     {
         BloqueLogico *bloque_logico_a_consultar = list_get(tag->bloques_logicos, i);
-        if (bloque_logico_a_consultar->ptr_bloque_fisico->id_fisico == 0)
-            continue;
+        //if (bloque_logico_a_consultar->ptr_bloque_fisico->id_fisico == 0)
+        //    continue;
 
         DatosParaHash *datos_para_hash = obtenerDatosParaHash(bloque_logico_a_consultar, nombre_file);
         log_debug(logger_storage, "(escribirEnHashIndex) - id: %d, contenido: %s", i, datos_para_hash->contenido);
@@ -964,7 +968,7 @@ void escribirEnHashIndex(int query_id,char* nombre_file,Tag *tag)
         char *hash_bloque_logico = crypto_md5(datos_para_hash->contenido, datos_para_hash->tamanio); // block0000 // 9
         bool existe_hash = config_has_property(hash_index_config_gb,hash_bloque_logico);
         
-        if (existe_hash){
+        if (existe_hash && bloque_logico_a_consultar->ptr_bloque_fisico->id_fisico != 0){
             int id_fisico_actual = bloque_logico_a_consultar->ptr_bloque_fisico->id_fisico;
             
             log_debug(logger_storage,"(escribirEnHashIndex) - Hash encontrado id_logico:%d id_fisico:%d en el index config",

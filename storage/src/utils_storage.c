@@ -63,9 +63,12 @@ void iniciarStorage(){
    
     reconstruirBitmapDesdeHardlinks();  
     crearBloquesFisicos();
-    crearInitialFile();
 
     hash_index_config_gb = config_create(RUTA_HASH_INDEX);
+
+    crearInitialFile();
+
+    
 }
 
 void limpiarHashIndexConfig()
@@ -230,6 +233,10 @@ void crearInitialFile()
     bitarray_set_bit(bitmap_gb, 0); // marco como ocupaso el bloque 0
     msync(bitmap_mmap_gb, cant_bloques_en_bytes_gb, MS_SYNC);
     pthread_mutex_unlock(&mutex_bitmap);
+    config_set_value(tag->metadata_config_tag, "BLOCKS", "[0]");
+    config_save(tag->metadata_config_tag);
+
+    realizarCOMMIT(3000000, "initial_file", "BASE");
 }
 
 void LA_SANGUINARIA()
