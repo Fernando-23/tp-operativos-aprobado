@@ -39,7 +39,7 @@ void inicializarBitmapYMapeo(){
         exit(EXIT_FAILURE);
     }
     // Crear el bitarray a partir del mapeo
-    bitmap_gb = bitarray_create_with_mode(bitmap_mmap_gb, cant_bloques_en_bytes_gb, LSB_FIRST);
+    bitmap_gb = bitarray_create_with_mode(bitmap_mmap_gb, cant_bloques_en_bytes_gb, MSB_FIRST);
     
     if (bitmap_gb == NULL) {
         log_error(logger_storage, "ERROR: bitarray_create_with_mode falló");
@@ -59,9 +59,8 @@ RespuestaConsultaBitmap* consultarBitmapPorBloquesLibres(int cant_bloques_que_qu
     pthread_mutex_lock(&mutex_bitmap);
     
     for(int i = 0; i < bitarray_get_max_bit(bitmap_gb) && cant_bloques_que_quiero > 0;i++){
-        bool esta_libre = bitarray_test_bit(bitmap_gb,i);
 
-        if (esta_libre){
+        if (!bitarray_test_bit(bitmap_gb,i)){//si esta libre
             char* aux = string_new();
             string_append(&aux,string_itoa(i));
             string_array_push(&bloques_a_devolver,aux);
@@ -101,6 +100,6 @@ void limpiarBitmap(){
     {
         bitarray_clean_bit(bitmap_gb,i);
     }
-    
+    msync(bitmap_mmap_gb, cant_bloques_en_bytes_gb, MS_SYNC);
     log_debug(logger_storage,"(limpiarBitmap) - Bitmap reseteado de fabrica");
 }

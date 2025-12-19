@@ -226,9 +226,10 @@ void crearInitialFile()
 
     Tag *tag = list_get(file_initial_file->tags, 0);
     list_add(tag->bloques_logicos, bloque_0);
-    waitPropio(mutex_bitmap);
+    pthread_mutex_lock(&mutex_bitmap);
     bitarray_set_bit(bitmap_gb, 0); // marco como ocupaso el bloque 0
-    signalPropio(mutex_bitmap);
+    msync(bitmap_mmap_gb, cant_bloques_en_bytes_gb, MS_SYNC);
+    pthread_mutex_unlock(&mutex_bitmap);
 }
 
 void LA_SANGUINARIA()
@@ -243,8 +244,9 @@ void LA_SANGUINARIA()
     preguntemos_a_la_caracola_magica = string_from_format("rm %s", RUTA_BITMAP);
     // ya borre todo, ahora creemos todo
     log_debug(logger_storage, "(LA_SANGUINARIA) - Elimine rutas");
+    pthread_mutex_lock(&mutex_bitmap);
     limpiarBitmap();
-
+    pthread_mutex_unlock(&mutex_bitmap);
     preguntemos_a_la_caracola_magica = string_from_format("touch %s", RUTA_HASH_INDEX);
     LA_CARACOLA_MAGICA(preguntemos_a_la_caracola_magica);
 }
@@ -258,7 +260,7 @@ void LA_CARACOLA_MAGICA(char *pregunta)
 
 void reconstruirBitmapDesdeHardlinks() {
     log_debug(logger_storage, "(reconstruirBitmapDesdeHardlinks) - Recalculando bitmap según st_nlink");
-
+    
     // Primero limpio todo el bitmap (todo libre)
     for (int i = 0; i < bitarray_get_max_bit(bitmap_gb); i++) {
         bitarray_clean_bit(bitmap_gb, i);
@@ -294,6 +296,8 @@ void reconstruirBitmapDesdeHardlinks() {
 
         free(ruta_absoluta);
     }
+    msync(bitmap_mmap_gb, cant_bloques_en_bytes_gb, MS_SYNC);
+    
 
     log_debug(logger_storage, "(reconstruirBitmapDesdeHardlinks) - Bitmap reconstruido");
 }

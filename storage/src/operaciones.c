@@ -514,7 +514,7 @@ void unlinkearBloquesLogicos(int query_id,int cant_a_unlinkear, t_list *bloques_
             FILE* bloque_fisico_arch = fopen(bloque_fisico_asociado->ruta_absoluta,"r+b");
             if (!bloque_fisico_arch){
                 log_error(logger_storage,"(escribirEnBloque) - No se encontro el archivo en la ruta %s", bloque_fisico_asociado->ruta_absoluta);
-            return;     
+                return;     
             }
             if (fseek(bloque_fisico_arch,0,SEEK_SET)!=0){
                 log_error(logger_storage,"(escribirEnBloque) - No se pudo mover el puntero al inicio del archivo %s", bloque_fisico_asociado->ruta_absoluta);
@@ -1443,9 +1443,10 @@ void unlinkearBloquesLogicosParaELIMINAR_UN_TAG(int query_id,int cant_a_unlinkea
     pthread_mutex_lock(&mutex_hash_index);
     pthread_mutex_lock(&mutex_bitmap);
     
-    for (int i = 0; i < list_size(bloques_logicos); i++){
+
+    for (int i = 0; i < cant_a_unlinkear; i++){
     
-        BloqueLogico *bloque_popeado = (BloqueLogico *)list_remove(bloques_logicos, i); //agregamos el -1
+        BloqueLogico *bloque_popeado = (BloqueLogico *)list_remove(bloques_logicos, list_size(bloques_logicos) - 1 ); //agregamos el -1
         BloqueFisico *bloque_fisico_asociado = bloque_popeado->ptr_bloque_fisico;
 
         //---------------------------------- /files/tag/logical-blocks/0002.dat
