@@ -1,7 +1,7 @@
 #include "bitmap.h"
 #include <errno.h>
 #include <unistd.h>
-
+//
 void inicializarBitmapYMapeo(){
     
     FILE* arch_bitmap = fopen(RUTA_BITMAP, "r+");

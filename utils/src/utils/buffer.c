@@ -8,7 +8,7 @@ uint32_t buffer_read_uint32(t_buffer *buffer){
 
     return dato_leido;
 }
-
+//
 uint8_t buffer_read_uint8(t_buffer *buffer){
     uint8_t dato_leido;
     memcpy(&dato_leido, buffer->stream, sizeof(uint8_t));

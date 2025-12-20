@@ -118,6 +118,7 @@ t_list *crearListaDeInstrucciones(){
     return lista_instucciones;
 }
 void destruir(void *element) { free(element); }
+//
 
 char* Fetch(){
 

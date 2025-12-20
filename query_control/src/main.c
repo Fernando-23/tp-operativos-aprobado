@@ -7,7 +7,7 @@ int main(int argc, char* argv[]) {
     char* nombre_arch_de_config = argv[1]; // Archivo de configuración (sin extension)
     char* path_arch_query = argv[2]; // Archivo de Query
     char* prioridad = argv[3]; // Prioridad
-
+    //
     cargarConfigQuery(nombre_arch_de_config);
 
     logger_query = iniciarLogger("query", config_query->log_level);

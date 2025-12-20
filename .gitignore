@@ -4,7 +4,7 @@
 # CLion files
 .idea/
 
-# Log files
+# Log files 
 *.log
 
 # Prerequisites

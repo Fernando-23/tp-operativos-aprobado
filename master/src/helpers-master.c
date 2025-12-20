@@ -562,6 +562,52 @@ void atenderWorker(int fd_worker) {
         
         if (!msg) {  // Worker murió
             log_error(logger_master, "Worker %d se desconectó inesperadamente", worker->id);
+            //
+            // POR SI LAS COSAS SALEN MAL
+            int id_worker = worker->id;
+            // worker->query_actual->pc = pc_act;
+
+            pthread_mutex_lock(&mutex_workers);
+            pthread_mutex_lock(&mutex_lista_ready);
+            
+            int pos_en_lista_workers = obtenerIndexListaWorkers(id_worker);
+
+            worker = list_remove(lista_workers, pos_en_lista_workers);
+
+            
+            if(worker->query_pendiente != NULL)
+                list_add(lista_ready,worker->query_pendiente);
+            
+            if (worker->query_actual != NULL){
+                ///////////////////////////////////////////// LOG OBLIGATORIO ////////////////////////////////////////////////////////////////
+                log_info(logger_master, "Se desconecta el Worker %d - Se finaliza la Query %d - Cantidad total de Workers: %d",
+                worker->id,worker->query_actual->quid, list_size(lista_workers));
+                //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+                Query* query_a_matar = worker->query_actual;
+                log_debug(logger_master,"Worker tiene una query %d, se va a intentar liberar",query_a_matar->quid);
+                char* mensaje_desc = string_from_format("%d DESCONEXION_WORKER_FORZADA", FINALIZAR);
+                Mensaje* mensajito_desc_worker = crearMensajito(mensaje_desc);
+                enviarMensajito(mensajito_desc_worker,query_a_matar->fd,logger_master);
+                close(query_a_matar->fd);
+                //sale recursadinia?        
+                free(mensaje_desc);
+                liberarQuery(query_a_matar);
+                log_debug(logger_master,"Se libero la Query asociada al worker correctamente");
+            }
+            
+            //list_add(lista_ready,worker->query_actual);
+            //if(worker->query_pendiente != NULL)
+            //    list_add(lista_ready,worker->query_pendiente);
+            close(worker->fd);
+            close(worker->fd_desalojo);
+            free(worker);
+
+            pthread_mutex_unlock(&mutex_lista_ready);
+            pthread_mutex_unlock(&mutex_workers);
+
+            //
             close(fd_worker);
             return;
         }
